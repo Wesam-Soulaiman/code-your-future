@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Code Your Future — Interactive Prototype</title>
+<style>
+:root{
+  --bg:#f5f7fb;
+  --surface:#ffffff;
+  --surface-2:#f9fafc;
+  --text:#15182b;
+  --muted:#697087;
+  --line:#e6e9f1;
+  --brand:#6848f5;
+  --brand-2:#2d78ff;
+  --brand-soft:#f0edff;
+  --blue-soft:#eaf2ff;
+  --green:#138a63;
+  --green-soft:#e5f7f0;
+  --amber:#b76b00;
+  --amber-soft:#fff3dc;
+  --red:#cc3e50;
+  --red-soft:#ffebee;
+  --shadow:0 16px 42px rgba(31,35,72,.08);
+  --shadow-sm:0 7px 20px rgba(31,35,72,.07);
+  --radius:18px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:
+    radial-gradient(circle at 0 0,rgba(104,72,245,.07),transparent 30%),
+    radial-gradient(circle at 100% 0,rgba(45,120,255,.06),transparent 28%),
+    var(--bg);
+  color:var(--text);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:14px;
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.topbar{
+  position:sticky;top:0;z-index:40;
+  display:flex;align-items:center;justify-content:space-between;
+  min-height:74px;padding:13px 24px;
+  background:rgba(255,255,255,.9);backdrop-filter:blur(16px);
+  border-bottom:1px solid rgba(225,228,238,.9);
+}
+.brand-wrap{display:flex;align-items:center;gap:12px;min-width:260px}
+.logo{
+  width:43px;height:43px;border-radius:14px;
+  display:grid;place-items:center;color:#fff;font-weight:900;font-size:15px;
+  background:linear-gradient(145deg,var(--brand),#856cff);
+  box-shadow:0 10px 26px rgba(104,72,245,.28);
+}
+.brand-copy strong{display:block;font-size:15px;letter-spacing:-.2px}
+.brand-copy span{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.view-switch{
+  display:flex;gap:4px;padding:5px;border-radius:15px;background:#eef1f8;
+}
+.view-switch button{
+  border:0;background:transparent;color:#5f667c;padding:10px 14px;
+  border-radius:11px;font-weight:700;font-size:12px;
+}
+.view-switch button.active{background:#fff;color:var(--text);box-shadow:var(--shadow-sm)}
+.top-actions{display:flex;align-items:center;gap:10px;min-width:260px;justify-content:flex-end}
+.batch-chip{
+  display:flex;align-items:center;gap:8px;border:1px solid var(--line);
+  background:#fff;border-radius:13px;padding:10px 13px;font-size:12px;
+}
+.dot{width:8px;height:8px;border-radius:999px;background:var(--green)}
+.shell{max-width:1580px;margin:0 auto;padding:22px 24px 34px}
+.flow-shell{
+  background:rgba(255,255,255,.86);border:1px solid var(--line);
+  border-radius:20px;padding:14px 14px 12px;box-shadow:var(--shadow-sm);margin-bottom:16px;
+}
+.flow-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 2px}
+.flow-head strong{font-size:12px}
+.flow-head span{font-size:11px;color:var(--muted)}
+.flow-track{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.flow-step{
+  flex:0 0 132px;border:1px solid var(--line);background:#fff;border-radius:13px;
+  padding:11px 12px;transition:.2s ease;
+}
+.flow-step b{display:block;font-size:11px;margin-bottom:3px}
+.flow-step span{display:block;font-size:9px;color:var(--muted)}
+.flow-step.done{border-color:#c5eadc;background:var(--green-soft)}
+.flow-step.current{border-color:#b9afff;background:var(--brand-soft);box-shadow:0 0 0 2px rgba(104,72,245,.06)}
+.next-banner{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  border-radius:18px;padding:15px 17px;margin-bottom:16px;color:#fff;
+  background:linear-gradient(135deg,#201d45,var(--brand) 58%,var(--brand-2));
+  box-shadow:0 16px 36px rgba(73,58,178,.22);
+}
+.next-copy{display:flex;align-items:center;gap:12px}
+.next-num{
+  width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+  background:rgba(255,255,255,.16);font-weight:900
+}
+.next-copy b{display:block;font-size:12px}
+.next-copy span{display:block;color:#e8e5ff;font-size:10px;margin-top:3px}
+.split{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start;
+}
+.pane{
+  background:var(--surface);border:1px solid var(--line);border-radius:23px;
+  box-shadow:var(--shadow);overflow:hidden;min-height:680px;
+}
+.pane.student{border-top:4px solid var(--brand-2)}
+.pane.admin{border-top:4px solid var(--brand)}
+.pane-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#fbfcff);
+}
+.workspace{display:flex;align-items:center;gap:11px}
+.workspace-icon{
+  width:42px;height:42px;border-radius:13px;display:grid;place-items:center;font-weight:900;
+}
+.student .workspace-icon{color:#2667d7;background:var(--blue-soft)}
+.admin .workspace-icon{color:#5b3be6;background:var(--brand-soft)}
+.workspace b{display:block;font-size:13px}
+.workspace span{display:block;font-size:10px;color:var(--muted);margin-top:3px}
+.sync-pill{display:flex;align-items:center;gap:7px;background:var(--green-soft);color:var(--green);padding:8px 10px;border-radius:999px;font-size:10px;font-weight:800}
+.pane-body{padding:16px}
+.single{max-width:1060px;margin:0 auto}
+.single .pane{min-height:760px}
+.company-shell{max-width:1220px;margin:0 auto}
+.btn{
+  border:1px solid var(--line);background:#fff;color:var(--text);
+  border-radius:11px;padding:9px 13px;font-weight:750;font-size:11px;
+  transition:.18s ease;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+.btn:disabled{cursor:not-allowed;opacity:.48;transform:none!important;box-shadow:none!important}
+.btn.primary{background:linear-gradient(135deg,var(--brand),#795cff);border-color:transparent;color:#fff}
+.btn.blue{background:linear-gradient(135deg,#246fe8,#3c8cff);border-color:transparent;color:#fff}
+.btn.dark{background:#1d2034;border-color:#1d2034;color:#fff}
+.btn.soft{background:var(--brand-soft);border-color:#ddd7ff;color:#5639df}
+.btn.success{background:var(--green);border-color:var(--green);color:#fff}
+.btn.danger{background:var(--red);border-color:var(--red);color:#fff}
+.btn.sm{padding:7px 10px;font-size:10px;border-radius:9px}
+.btn.ghost{background:transparent}
+.btn.wide{width:100%}
+.card{
+  background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-sm);
+}
+.card.pad{padding:15px}
+.grid{display:grid;gap:12px}
+.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.stat{
+  border:1px solid var(--line);border-radius:15px;padding:14px;background:linear-gradient(180deg,#fff,#fbfcff)
+}
+.stat span{display:block;color:var(--muted);font-size:10px}
+.stat strong{display:block;font-size:22px;margin:8px 0 4px;letter-spacing:-.5px}
+.page-title{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}
+.page-title h2,.page-title h3{margin:0;font-size:18px;letter-spacing:-.35px}
+.page-title p{margin:5px 0 0;color:var(--muted);font-size:10px;line-height:1.55}
+.section{margin-top:13px}
+.section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.section-title h4{margin:0;font-size:12px}
+.section-title span{color:var(--muted);font-size:10px}
+.notice{
+  border-radius:14px;padding:12px 13px;font-size:10px;line-height:1.55;
+  background:var(--blue-soft);color:#235aaf;border:1px solid #d9e8ff;
+}
+.notice.purple{background:var(--brand-soft);color:#5337d8;border-color:#ded8ff}
+.notice.green{background:var(--green-soft);color:var(--green);border-color:#cdeee2}
+.notice.amber{background:var(--amber-soft);color:var(--amber);border-color:#ffe1ad}
+.notice.red{background:var(--red-soft);color:var(--red);border-color:#ffcfd5}
+.action-card{
+  border:1px solid #d9d3ff;background:linear-gradient(135deg,#fbfaff,#f0edff);
+  border-radius:17px;padding:15px;margin-bottom:13px;
+}
+.action-card h4{margin:8px 0 5px;font-size:14px}
+.action-card p{margin:0;color:var(--muted);font-size:10px;line-height:1.55}
+.action-row{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+.list{display:grid;gap:9px}
+.list-item{
+  border:1px solid var(--line);border-radius:14px;padding:12px;
+  display:flex;align-items:center;gap:11px;background:#fff;
+}
+.avatar{
+  width:42px;height:42px;border-radius:13px;background:var(--brand-soft);color:#5c3ce2;
+  display:grid;place-items:center;font-weight:900;flex:0 0 auto;
+}
+.grow{flex:1;min-width:0}
+.grow b{display:block;font-size:11px}
+.grow span{display:block;color:var(--muted);font-size:9px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill{
+  display:inline-flex;align-items:center;gap:5px;padding:6px 8px;border-radius:999px;
+  background:#eef1f7;color:#5d6579;font-size:9px;font-weight:800;white-space:nowrap
+}
+.pill.green{background:var(--green-soft);color:var(--green)}
+.pill.purple{background:var(--brand-soft);color:#5c3ce2}
+.pill.blue{background:var(--blue-soft);color:#2766c9}
+.pill.amber{background:var(--amber-soft);color:var(--amber)}
+.pill.red{background:var(--red-soft);color:var(--red)}
+.form{display:grid;gap:12px}
+.form-section{
+  border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff;
+}
+.form-section h4{margin:0;font-size:12px}
+.form-section>p{margin:4px 0 12px;color:var(--muted);font-size:9px}
+.field{display:grid;gap:6px}
+.field label{font-size:9px;font-weight:800;color:#4e5569}
+.field label em{font-style:normal;font-weight:500;color:var(--muted)}
+.input,.select,.textarea{
+  width:100%;border:1px solid #dfe3ec;background:#fff;border-radius:11px;
+  padding:10px 11px;color:var(--text);outline:none;font-size:11px;
+}
+.input:focus,.select:focus,.textarea:focus{border-color:#9988ff;box-shadow:0 0 0 3px rgba(104,72,245,.08)}
+.input[readonly]{background:#f5f6fa;color:#787f91}
+.textarea{min-height:96px;resize:vertical}
+
+.task-builder{display:grid;gap:14px}
+.builder-step{
+  display:grid;grid-template-columns:34px 1fr;gap:11px;
+  border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff
+}
+.builder-step-num{
+  width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
+  background:var(--brand-soft);color:#5739df;font-weight:900;font-size:11px
+}
+.builder-step h4{margin:0;font-size:12px}
+.builder-step p{margin:4px 0 12px;color:var(--muted);font-size:9px;line-height:1.5}
+.option-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.select-card{
+  display:flex;align-items:flex-start;gap:9px;border:1px solid var(--line);
+  border-radius:13px;padding:11px;background:#fff;cursor:pointer;transition:.18s ease
+}
+.select-card:hover{border-color:#bdb2ff;background:#fbfaff}
+.select-card input{margin-top:2px;accent-color:var(--brand)}
+.select-card b{display:block;font-size:10px}
+.select-card span{display:block;color:var(--muted);font-size:8px;line-height:1.45;margin-top:3px}
+.select-card.locked{background:#faf8ff;border-color:#ddd7ff}
+.builder-summary{
+  border:1px solid #d9d3ff;border-radius:15px;padding:13px;
+  background:linear-gradient(135deg,#fbfaff,#f1efff)
+}
+.builder-summary h4{margin:0 0 8px;font-size:11px}
+.summary-line{display:grid;grid-template-columns:120px 1fr;gap:10px;font-size:9px;line-height:1.55;margin-top:6px}
+.summary-line span{color:var(--muted);font-weight:700}
+.summary-chips{display:flex;gap:6px;flex-wrap:wrap}
+.custom-skill-row{display:flex;gap:8px;margin-top:9px}
+.custom-skill-row .input{flex:1}
+.task-requirements{
+  display:flex;gap:6px;flex-wrap:wrap;margin-top:9px
+}
+@media(max-width:720px){.option-grid{grid-template-columns:1fr}.summary-line{grid-template-columns:1fr}}
+
+.form-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.photo-row{display:flex;align-items:center;gap:12px}
+.photo{
+  width:58px;height:58px;border-radius:18px;background:linear-gradient(145deg,#ddd6ff,#b9cfff);
+  display:grid;place-items:center;color:#4d34cf;font-weight:900;font-size:16px
+}
+.oauth-wrap{display:grid;gap:11px;max-width:430px;margin:34px auto 0}
+.oauth-card{
+  border:1px solid var(--line);border-radius:20px;padding:20px;background:#fff;box-shadow:var(--shadow-sm)
+}
+.oauth-card h2{font-size:20px;margin:0 0 7px}
+.oauth-card p{color:var(--muted);font-size:10px;line-height:1.55;margin:0 0 16px}
+.oauth-btn{
+  width:100%;display:flex;align-items:center;justify-content:center;gap:10px;
+  border:1px solid var(--line);border-radius:12px;background:#fff;padding:11px 13px;
+  font-size:11px;font-weight:800;margin-top:8px;
+}
+.oauth-btn.apple{background:#111;color:#fff;border-color:#111}
+.task-card{
+  border:1px solid var(--line);border-radius:16px;padding:14px;background:#fff;
+}
+.task-card.final{border-color:#cec5ff;background:linear-gradient(180deg,#fff,#faf8ff)}
+.task-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.task-top h4{margin:0;font-size:13px}
+.task-top p{margin:5px 0 0;color:var(--muted);font-size:9px;line-height:1.5}
+.meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+
+.submission-overview{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-bottom:13px
+}
+.submission-metric{
+  border:1px solid var(--line);border-radius:13px;padding:11px;background:#fbfcff
+}
+.submission-metric span{display:block;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.45px}
+.submission-metric b{display:block;font-size:10px;margin-top:5px;line-height:1.4}
+.submission-header{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:13px;border:1px solid var(--line);border-radius:15px;background:linear-gradient(180deg,#fff,#fafbff)
+}
+.submission-student{display:flex;align-items:center;gap:10px}
+.submission-student b{display:block;font-size:11px}.submission-student span{display:block;color:var(--muted);font-size:9px;margin-top:3px}
+.requirements{
+  display:flex;gap:7px;flex-wrap:wrap;padding:11px;border-radius:13px;background:#f7f8fc;border:1px solid var(--line)
+}
+.requirement{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border-radius:10px;
+  background:#fff;border:1px solid var(--line);font-size:9px;font-weight:800
+}
+.requirement i{
+  width:16px;height:16px;border-radius:999px;background:var(--green-soft);color:var(--green);
+  display:grid;place-items:center;font-style:normal;font-size:9px
+}
+.evidence-card{
+  border:1px solid var(--line);border-radius:15px;padding:13px;background:#fff;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:10px
+}
+.evidence-main{display:flex;gap:10px;min-width:0}
+.evidence-icon{
+  width:35px;height:35px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto;
+  background:var(--blue-soft);color:#2467cf;font-weight:900;font-size:10px
+}
+.evidence-card.video .evidence-icon{background:var(--brand-soft);color:#5b3de1}
+.evidence-card.note .evidence-icon{background:var(--amber-soft);color:var(--amber)}
+.evidence-card b{display:block;font-size:10px}
+.evidence-card span{display:block;color:var(--muted);font-size:8px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
+.inspection-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  border:1px solid #d8e4ff;background:linear-gradient(135deg,#f8fbff,#edf4ff);
+  border-radius:14px;padding:12px 13px;margin-bottom:12px
+}
+.inspection-bar b{display:block;font-size:11px}.inspection-bar span{display:block;color:#5272a5;font-size:9px;margin-top:3px}
+.review-steps{display:flex;align-items:center;gap:8px;margin-bottom:13px}
+.review-step{
+  flex:1;border:1px solid var(--line);border-radius:12px;padding:9px 10px;background:#f8f9fc;
+  font-size:9px;color:var(--muted);font-weight:800
+}
+.review-step.active{background:var(--brand-soft);border-color:#d8d1ff;color:#5538dc}
+.review-step.done{background:var(--green-soft);border-color:#caebdf;color:var(--green)}
+.inline-submission{
+  border:1px solid #dce5f6;border-radius:16px;padding:13px;background:linear-gradient(180deg,#fff,#f8fbff);
+  margin-bottom:12px
+}
+.inline-submission .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.inline-submission h4{margin:0;font-size:12px}.inline-submission p{margin:4px 0 0;color:var(--muted);font-size:9px}
+.inline-links{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+
+.admin-detail{display:grid;gap:13px}
+.detail-breadcrumb{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:9px;flex-wrap:wrap}
+.detail-breadcrumb b{color:var(--text)}
+.detail-hero{
+  border:1px solid var(--line);border-radius:18px;padding:15px;
+  background:linear-gradient(135deg,#ffffff,#f7f8ff);
+}
+.detail-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.detail-hero h2{margin:0;font-size:17px;letter-spacing:-.25px}
+.detail-hero p{margin:5px 0 0;color:var(--muted);font-size:9px;line-height:1.55}
+.detail-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+.detail-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(250px,.75fr);gap:13px;align-items:start}
+.detail-main,.detail-aside{display:grid;gap:13px}
+.detail-section{
+  border:1px solid var(--line);border-radius:17px;padding:14px;background:#fff;
+  box-shadow:var(--shadow-sm)
+}
+.detail-section-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:11px}
+.detail-section-head h4{margin:0;font-size:12px}
+.detail-section-head p{margin:4px 0 0;color:var(--muted);font-size:8px;line-height:1.45}
+.task-brief{display:grid;gap:9px}
+.brief-row{display:grid;grid-template-columns:115px 1fr;gap:10px;font-size:9px;line-height:1.55}
+.brief-row span{color:var(--muted);font-weight:700}.brief-row b{font-weight:650}
+.evidence-list{display:grid;gap:9px}
+.evidence-row{
+  display:flex;align-items:center;gap:10px;border:1px solid var(--line);
+  border-radius:14px;padding:11px;background:#fff;transition:.18s ease
+}
+.evidence-row.viewed{border-color:#bfe6d7;background:#f8fffc}
+.evidence-badge{
+  width:37px;height:37px;border-radius:11px;display:grid;place-items:center;
+  background:var(--blue-soft);color:#2467cf;font-size:10px;font-weight:900;flex:0 0 auto
+}
+.evidence-row.video .evidence-badge{background:var(--brand-soft);color:#5b3de1}
+.evidence-copy{flex:1;min-width:0}
+.evidence-copy b{display:block;font-size:10px}
+.evidence-copy span{display:block;color:var(--muted);font-size:8px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.evidence-state{
+  width:22px;height:22px;border-radius:999px;display:grid;place-items:center;
+  background:#eef1f6;color:#7c8497;font-size:10px;font-weight:900
+}
+.evidence-row.viewed .evidence-state{background:var(--green-soft);color:var(--green)}
+.video-preview{
+  min-height:165px;border-radius:15px;position:relative;overflow:hidden;
+  background:linear-gradient(145deg,#201d45,#6c4df5 60%,#328bff);
+  display:grid;place-items:center;color:#fff;margin-top:9px
+}
+.video-preview:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent,rgba(0,0,0,.42))}
+.video-play{
+  position:relative;z-index:1;width:56px;height:56px;border-radius:999px;
+  display:grid;place-items:center;background:rgba(255,255,255,.2);
+  border:1px solid rgba(255,255,255,.36);font-size:20px
+}
+.readiness{
+  position:sticky;top:92px;border:1px solid #d8d1ff;border-radius:17px;
+  padding:14px;background:linear-gradient(145deg,#fff,#f7f5ff);box-shadow:var(--shadow-sm)
+}
+.readiness h4{margin:0;font-size:12px}
+.readiness>p{margin:5px 0 12px;color:var(--muted);font-size:8px;line-height:1.5}
+.progress-track{height:8px;border-radius:99px;background:#e8e9f1;overflow:hidden}
+.progress-track i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--brand-2));border-radius:inherit;transition:.25s ease}
+.checklist{display:grid;gap:8px;margin-top:12px}
+.check-item{
+  display:flex;align-items:center;gap:8px;border:1px solid var(--line);
+  border-radius:11px;padding:9px;background:#fff;font-size:9px
+}
+.check-mark{
+  width:19px;height:19px;border-radius:999px;display:grid;place-items:center;
+  background:#eef1f6;color:#81899b;font-size:9px;font-weight:900
+}
+.check-item.done{border-color:#c7e9dd;background:#fbfffd}
+.check-item.done .check-mark{background:var(--green-soft);color:var(--green)}
+.ready-message{margin-top:11px;padding:10px;border-radius:11px;background:var(--amber-soft);color:var(--amber);font-size:8px;line-height:1.5}
+.ready-message.complete{background:var(--green-soft);color:var(--green)}
+.detail-actions{display:grid;gap:8px;margin-top:12px}
+.student-note{
+  border-left:3px solid var(--brand);background:#f8f7ff;border-radius:0 12px 12px 0;
+  padding:11px 12px;font-size:9px;line-height:1.65;color:#43495c
+}
+@media(max-width:1280px){.detail-layout{grid-template-columns:1fr}.readiness{position:static}}
+
+@media(max-width:720px){.submission-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.evidence-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.evidence{
+  border:1px solid var(--line);border-radius:13px;padding:12px;background:#fff;
+}
+.evidence b{display:block;font-size:10px}
+.evidence span{display:block;font-size:9px;color:var(--muted);margin-top:4px}
+.score-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+.score-bar{height:7px;border-radius:99px;background:#eceef4;overflow:hidden;flex:1}
+.score-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--brand),var(--brand-2))}
+.score-row strong{font-size:10px;min-width:28px;text-align:right}
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(20,22,39,.48);backdrop-filter:blur(6px);
+  display:grid;place-items:center;padding:20px;z-index:100;
+}
+.modal{
+  width:min(720px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:22px;
+  box-shadow:0 30px 90px rgba(17,19,40,.28);border:1px solid rgba(255,255,255,.6)
+}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;padding:18px;border-bottom:1px solid var(--line)}
+.modal-head h3{margin:0;font-size:16px}
+.modal-head p{margin:5px 0 0;color:var(--muted);font-size:9px}
+.modal-body{padding:18px}
+.modal-foot{display:flex;justify-content:flex-end;gap:9px;padding:14px 18px;border-top:1px solid var(--line);background:#fafbfe}
+.company-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:16px}
+.reel{
+  min-height:650px;border-radius:26px;overflow:hidden;position:relative;color:#fff;
+  background:
+    linear-gradient(180deg,rgba(5,6,15,.04),rgba(5,6,15,.82)),
+    radial-gradient(circle at 65% 25%,rgba(255,255,255,.22),transparent 24%),
+    linear-gradient(145deg,#2c245d,#6b4df5 60%,#2e8bff);
+  box-shadow:var(--shadow);
+}
+.reel-video{
+  position:absolute;inset:0;display:grid;place-items:center;
+}
+.fake-person{
+  width:190px;height:270px;border-radius:100px 100px 34px 34px;
+  background:linear-gradient(180deg,#f5c7aa 0 25%,#17203e 25% 100%);
+  opacity:.94;box-shadow:0 30px 80px rgba(0,0,0,.25);
+}
+.play{
+  position:absolute;width:66px;height:66px;border-radius:999px;background:rgba(255,255,255,.18);
+  backdrop-filter:blur(12px);display:grid;place-items:center;font-size:24px;border:1px solid rgba(255,255,255,.34)
+}
+.reel-copy{position:absolute;left:20px;right:20px;bottom:20px}
+.reel-copy h2{margin:0;font-size:24px}
+.reel-copy p{margin:7px 0 0;color:#e8e7ff;font-size:11px;line-height:1.6}
+.reel-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.company-panel{display:grid;gap:13px}
+.showcase-card{
+  border:1px solid var(--line);border-radius:18px;padding:15px;background:#fff;box-shadow:var(--shadow-sm)
+}
+.showcase-card h3{font-size:14px;margin:0 0 5px}
+.small{font-size:10px}.tiny{font-size:9px}.muted{color:var(--muted)}
+hr.sep{border:0;border-top:1px solid var(--line);margin:14px 0}
+.empty{
+  border:1px dashed #cfd4df;border-radius:16px;padding:26px;text-align:center;color:var(--muted);
+  background:#fbfcfe
+}
+.empty b{display:block;color:var(--text);font-size:12px;margin-bottom:5px}
+.toast{
+  position:fixed;right:22px;bottom:22px;z-index:150;background:#1e2033;color:#fff;
+  padding:11px 14px;border-radius:12px;box-shadow:var(--shadow);font-size:10px;animation:toastIn .25s ease
+}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(max-width:1100px){
+  .topbar{flex-wrap:wrap;gap:10px}.brand-wrap,.top-actions{min-width:auto}
+  .split,.company-grid{grid-template-columns:1fr}.pane{min-height:auto}
+}
+@media(max-width:720px){
+  .topbar{padding:10px 12px}.shell{padding:14px 12px 24px}
+  .view-switch{order:3;width:100%;overflow:auto}
+  .grid.two,.grid.three,.form-row,.evidence-grid{grid-template-columns:1fr}
+  .next-banner{align-items:flex-start;flex-direction:column}
+  .top-actions .batch-chip{display:none}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const initialState=()=>({
+  view:'split',
+  inspection:null,
+  inspected:{assignment:{},final:{}},
+  batchCreated:false,
+  inviteCreated:false,
+  oauthDone:false,
+  profileDone:false,
+  assignmentCreated:false,
+  assignmentSubmitted:false,
+  assignmentReviewed:false,
+  assignmentEdited:false,
+  assignmentReReviewed:false,
+  finalTasks:[],
+  finalTaskSubmitted:false,
+  finalTaskReviewed:false,
+  assignmentConfig:{
+    title:'Responsive API Dashboard',
+    type:'Assignment',
+    description:'Build a responsive dashboard that consumes an API and handles loading, empty and error states.',
+    instructions:'Use reusable components, connect to the provided API, and submit the evidence selected by the Admin.',
+    deadline:'2026-08-30',
+    skills:['Requirement Understanding','Technical Implementation','Code Quality'],
+    requirements:['github','demo','notes']
+  },
+  finalTaskConfig:{
+    title:'Product Showcase Walkthrough',
+    type:'Final Task',
+    description:'Build and explain a polished, showcase-ready product experience.',
+    instructions:'Submit the selected evidence. Explanation Video is mandatory for every Final Task.',
+    deadline:'2026-09-21',
+    skills:['Technical Implementation','Code Quality','Communication','Presentation'],
+    requirements:['github','demo','video']
+  },
+  student:{
+    name:'Lina Haddad',
+    email:'lina.haddad@gmail.com',
+    phone:'+963 9XX XXX XXX',
+    city:'Damascus',
+    dob:'',
+    university:'Damascus University',
+    major:'Computer Science',
+    status:'Current Student',
+    graduation:'June 2027',
+    target:'Frontend Developer',
+    why:'I enjoy turning ideas into clear and usable interfaces.',
+    github:'https://github.com/lina-haddad',
+    linkedin:'https://linkedin.com/in/lina-haddad',
+    portfolio:''
+  },
+  assignmentSubmission:{
+    github:'https://github.com/lina-haddad/cyf-dashboard',
+    demo:'https://cyf-dashboard.vercel.app',
+    drive:'https://drive.google.com/file/d/example',
+    file:'dashboard-solution.zip',
+    text:'The dashboard uses reusable components and clear state handling.',
+    notes:'Implemented responsive layout, loading states and error handling.',
+    submittedAt:'Aug 22, 2026 · 14:32',
+    updatedAt:'Aug 22, 2026 · 14:32',
+    deadline:'Aug 30, 2026 · 23:59'
+  },
+  finalSubmission:{
+    github:'https://github.com/lina-haddad/product-showcase',
+    demo:'https://lina-product-showcase.vercel.app',
+    drive:'https://drive.google.com/file/d/final-example',
+    file:'product-showcase.zip',
+    video:'https://video.example.com/lina-final-task',
+    text:'This solution focuses on product clarity, architecture and presentation.',
+    notes:'A complete walkthrough of the solution, architecture and key implementation decisions.',
+    submittedAt:'Sep 18, 2026 · 16:10',
+    updatedAt:'Sep 18, 2026 · 16:10',
+    deadline:'Sep 21, 2026 · 23:59'
+  },
+  assignmentReview:{
+    status:'Reviewed',
+    feedback:'Good component structure. Improve loading and empty states.',
+    internal:'Student responds well to feedback.',
+    scores:{'Requirement Understanding':8,'Technical Implementation':7,'Code Quality':7}
+  },
+  finalReview:{
+    decision:'Accepted',
+    feedback:'Strong final delivery with a clear project explanation.',
+    internal:'Ready for junior frontend opportunities with mentorship.',
+    scores:{'Technical Implementation':8,'Code Quality':8,'Communication':8,'Presentation':9},
+    overall:8.3,
+    recommendation:'Recommended for Junior Frontend roles.'
+  }
+});
+let state=initialState();
+
+const governors=['Aleppo','Damascus','Rif Dimashq','Homs','Hama','Latakia','Tartus','Idlib','Daraa','As-Suwayda','Quneitra','Deir ez-Zor','Raqqa','Al-Hasakah'];
+const universities=['Damascus University','University of Aleppo','Tishreen University','Al-Baath University','Hama University','Tartous University','Syrian Virtual University','Higher Institute for Applied Sciences and Technology','Technical Institute','Other'];
+const sharedSkills=['Problem Solving','Requirement Understanding','Technical Implementation','Code Quality','Delivery','Documentation','Communication','Presentation'];
+const submissionOptions=[
+  {key:'github',label:'GitHub Repository',description:'Repository URL with source code and commit history',kind:'link'},
+  {key:'demo',label:'Live Demo URL',description:'A deployed working version of the solution',kind:'link'},
+  {key:'drive',label:'Google Drive / Document Link',description:'Drive, Docs, Figma or another document URL',kind:'link'},
+  {key:'file',label:'File Upload',description:'ZIP, PDF, document or another required file',kind:'file'},
+  {key:'video',label:'Video URL',description:'Student explanation, walkthrough or presentation video',kind:'link'},
+  {key:'text',label:'Text Answer',description:'A written answer entered directly in the platform',kind:'text'},
+  {key:'notes',label:'Submission Notes',description:'Extra context, setup steps or explanation',kind:'text'}
+];
+
+const flow=[
+  ['1. Batch','Create'],
+  ['2. Invitation','Generate'],
+  ['3. Sign in','Google / Apple'],
+  ['4. Profile','Complete'],
+  ['5. Assignment','Publish'],
+  ['6. Submission','Send'],
+  ['7. Review','Feedback'],
+  ['8. Re-review','After edit'],
+  ['9. Final task','Publish'],
+  ['10. Final submit','Send'],
+  ['11. Final review','Accept / Reject'],
+  ['12. Showcase','Ready']
+];
+
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function currentStep(){
+  if(!state.batchCreated)return 0;
+  if(!state.inviteCreated)return 1;
+  if(!state.oauthDone)return 2;
+  if(!state.profileDone)return 3;
+  if(!state.assignmentCreated)return 4;
+  if(!state.assignmentSubmitted)return 5;
+  if(!state.assignmentReviewed)return 6;
+  if(state.assignmentEdited&&!state.assignmentReReviewed)return 7;
+  if(state.finalTasks.length===0)return 8;
+  if(!state.finalTaskSubmitted)return 9;
+  if(!state.finalTaskReviewed)return 10;
+  return 11;
+}
+function topbar(){
+ return `<header class="topbar">
+   <div class="brand-wrap"><div class="logo">CYF</div><div class="brand-copy"><strong>Code Your Future</strong><span>Batch management & student evaluation</span></div></div>
+   <nav class="view-switch">
+     ${[['split','Split Demo'],['student','Student'],['admin','Admin'],['company','Company']].map(x=>`<button class="${state.view===x[0]?'active':''}" onclick="setView('${x[0]}')">${x[1]}</button>`).join('')}
+   </nav>
+   <div class="top-actions"><div class="batch-chip"><span class="dot"></span> Summer 2026</div><button class="btn" onclick="resetDemo()">Reset demo</button></div>
+ </header>`
+}
+function flowbar(){
+ const s=currentStep();
+ return `<section class="flow-shell"><div class="flow-head"><strong>End-to-end synchronized demo</strong><span>Actions on one side update the other side immediately</span></div><div class="flow-track">${flow.map((x,i)=>`<div class="flow-step ${i<s?'done':i===s?'current':''}"><b>${x[0]}</b><span>${x[1]}</span></div>`).join('')}</div></section>`;
+}
+function nextGuide(){
+ const s=currentStep();
+ const guides=[
+  ['Admin action','Create the first Batch.','Create Batch','createBatch()'],
+  ['Admin action','Generate one general invitation link for Summer 2026.','Generate invitation','createInvite()'],
+  ['Student action','Open the invitation and continue with Google or Apple.','Continue with Google',"oauth('Google')"],
+  ['Student action','Complete the one-page student profile.','Complete profile','focusProfile()'],
+  ['Admin action','Publish the first Assignment to all students in the Batch.','Create Assignment','openTaskModal(false)'],
+  ['Student action','Open the Assignment and submit the required work.','Submit work','openSubmitModal(false)'],
+  ['Admin action','Open the submission, inspect every piece of evidence, then start the evaluation.','View submission','openSubmissionDetail(false,false)'],
+  ['Admin action','Open the updated submission, compare the latest evidence, then re-evaluate it.','View updated submission','openSubmissionDetail(false,true)'],
+  ['Admin action','Create an independent Final Task. You can create multiple Final Tasks.','Create Final Task','openTaskModal(true)'],
+  ['Student action','Submit the Final Task with its mandatory explanation video.','Submit Final Task','openSubmitModal(true)'],
+  ['Admin action','Inspect GitHub, Live Demo and the mandatory video before starting the final evaluation.','View Final Task','openSubmissionDetail(true,false)'],
+  ['Flow complete','The accepted Final Task is now visible in the evidence profile and Company Showcase.','Open Company view',"setView('company')"]
+ ][s];
+ return `<div class="next-banner"><div class="next-copy"><div class="next-num">${s+1}</div><div><b>Next: ${guides[0]}</b><span>${guides[1]}</span></div></div><button class="btn" onclick="${guides[3]}">${guides[2]}</button></div>`;
+}
+function paneHead(type){
+ const isStudent=type==='student';
+ return `<div class="pane-head"><div class="workspace"><div class="workspace-icon">${isStudent?'ST':'AD'}</div><div><b>${isStudent?'Student workspace':'Admin workspace'}</b><span>${isStudent?'Invitation, profile, tasks, submissions and feedback':'Batches, invitations, tasks, submissions and reviews'}</span></div></div><div class="sync-pill"><span class="dot"></span> Synced</div></div>`;
+}
+function panel(type){
+ return `<section class="pane ${type}">${paneHead(type)}<div class="pane-body">${type==='student'?studentPanel():adminPanel()}</div></section>`;
+}
+function render(){
+ let content='';
+ if(state.view==='split')content=`${flowbar()}${nextGuide()}<div class="split">${panel('student')}${panel('admin')}</div>`;
+ if(state.view==='student')content=`<div class="single">${panel('student')}</div>`;
+ if(state.view==='admin')content=`<div class="single">${panel('admin')}</div>`;
+ if(state.view==='company')content=`<div class="company-shell">${companyView()}</div>`;
+ document.getElementById('root').innerHTML=topbar()+`<main class="shell">${content}</main>`;
+}
+function setView(v){state.view=v;render()}
+function toast(msg){
+ const old=document.querySelector('.toast');if(old)old.remove();
+ const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);
+ setTimeout(()=>t.remove(),2200);
+}
+function resetDemo(){state=initialState();render();toast('Demo reset')}
+
+function studentPanel(){
+ if(!state.inviteCreated)return studentWaitingInvite();
+ if(!state.oauthDone)return studentInvite();
+ if(!state.profileDone)return studentProfileForm();
+ return studentDashboard();
+}
+function studentWaitingInvite(){
+ return `<div class="empty"><b>Waiting for a Batch invitation</b>The Admin creates Summer 2026 and generates one general invitation link.</div>`;
+}
+function studentInvite(){
+ return `<div class="oauth-wrap"><div class="oauth-card"><span class="pill purple">Summer 2026 invitation</span><h2>Join Code Your Future</h2><p>You have been invited to join the Summer 2026 Batch. Sign in with an existing Google or Apple account.</p><button class="oauth-btn" onclick="oauth('Google')"><b>G</b> Continue with Google</button><button class="oauth-btn apple" onclick="oauth('Apple')">● Continue with Apple</button><div class="notice purple" style="margin-top:13px">Your email is taken from the selected account and cannot be edited later.</div></div></div>`;
+}
+function studentProfileForm(){
+ return `<div class="page-title"><div><h2>Complete your profile</h2><p>One concise page. Required fields are marked clearly.</p></div><span class="pill blue">Email from Google</span></div>
+ <div class="form">
+  <div class="form-section">
+   <h4>Personal information</h4><p>Essential identity and contact details</p>
+   <div class="photo-row"><div class="photo">LH</div><div><b class="small">Profile photo <span class="muted">(Optional)</span></b><div style="margin-top:7px"><button class="btn sm">Change photo</button></div></div></div>
+   <div class="form-row" style="margin-top:12px">
+    <div class="field"><label>Full name *</label><input id="pfName" class="input" value="${esc(state.student.name)}"/></div>
+    <div class="field"><label>Email *</label><input class="input" readonly value="${esc(state.student.email)}"/></div>
+   </div>
+   <div class="form-row">
+    <div class="field"><label>Phone number *</label><input id="pfPhone" class="input" value="${esc(state.student.phone)}"/></div>
+    <div class="field"><label>City *</label><select id="pfCity" class="select">${governors.map(x=>`<option ${x===state.student.city?'selected':''}>${x}</option>`).join('')}</select></div>
+   </div>
+   <div class="field"><label>Date of birth <em>(Optional)</em></label><input id="pfDob" class="input" type="date" value="${esc(state.student.dob)}"/></div>
+  </div>
+  <div class="form-section">
+   <h4>Education</h4><p>One active education record</p>
+   <div class="form-row">
+    <div class="field"><label>University / Institute *</label><select id="pfUniversity" class="select">${universities.map(x=>`<option ${x===state.student.university?'selected':''}>${x}</option>`).join('')}</select></div>
+    <div class="field"><label>Major *</label><input id="pfMajor" class="input" value="${esc(state.student.major)}"/></div>
+   </div>
+   <div class="form-row">
+    <div class="field"><label>Study status *</label><select id="pfStatus" class="select" onchange="toggleGraduation()"><option ${state.student.status==='Current Student'?'selected':''}>Current Student</option><option ${state.student.status==='Graduate'?'selected':''}>Graduate</option></select></div>
+    <div class="field" id="graduationField"><label>Expected graduation month / year *</label><input id="pfGraduation" class="input" type="month" value="2027-06"/></div>
+   </div>
+  </div>
+  <div class="form-section">
+   <h4>Career goal</h4><p>Optional information that helps explain the student's direction</p>
+   <div class="field"><label>Target role <em>(Optional)</em></label><select id="pfTarget" class="select"><option value="">Not specified</option>${['Frontend Developer','Backend Developer','Full Stack Developer','Flutter / Mobile Developer','QA Engineer','UI/UX Designer','DevOps Engineer','Product Owner','Business Analyst','Other'].map(x=>`<option ${x===state.student.target?'selected':''}>${x}</option>`).join('')}</select></div>
+   <div class="field"><label>Why did you choose this role? <em>(Optional)</em></label><textarea id="pfWhy" class="textarea">${esc(state.student.why)}</textarea></div>
+  </div>
+  <div class="form-section">
+   <h4>Professional links</h4><p>All links are optional</p>
+   <div class="form-row"><div class="field"><label>GitHub</label><input id="pfGithub" class="input" value="${esc(state.student.github)}"/></div><div class="field"><label>LinkedIn</label><input id="pfLinkedin" class="input" value="${esc(state.student.linkedin)}"/></div></div>
+   <div class="field"><label>Portfolio <em>(Optional)</em></label><input id="pfPortfolio" class="input" value="${esc(state.student.portfolio)}"/></div>
+  </div>
+  <button class="btn blue wide" onclick="saveProfile()">Save profile and join Summer 2026</button>
+ </div>`;
+}
+function studentDashboard(){
+ const tasks=[];
+ if(state.assignmentCreated)tasks.push(taskCard(false));
+ state.finalTasks.forEach((_,i)=>tasks.push(taskCard(true,i)));
+ return `<div class="page-title"><div><h2>Welcome, ${esc(state.student.name.split(' ')[0])}</h2><p>Summer 2026 · Your work builds the verified evidence in your profile.</p></div><button class="btn" onclick="editProfile()">Edit profile</button></div>
+ <div class="grid three">
+  <div class="stat"><span>Batch</span><strong>Summer 2026</strong><small class="muted">Active participant</small></div>
+  <div class="stat"><span>Tasks</span><strong>${tasks.length}</strong><small class="muted">Published to the Batch</small></div>
+  <div class="stat"><span>Accepted Final Tasks</span><strong>${state.finalTaskReviewed?1:0}</strong><small class="muted">Visible evidence</small></div>
+ </div>
+ <div class="section">
+  <div class="section-title"><h4>My tasks</h4><span>${tasks.length?'Open a task to continue':'Waiting for Admin'}</span></div>
+  ${tasks.length?`<div class="list">${tasks.join('')}</div>`:`<div class="notice"><b>Waiting for the first Assignment.</b><br>The Admin creates and publishes it from the right side.</div>`}
+ </div>
+ ${state.assignmentReviewed?studentFeedbackCard():''}
+ ${state.finalTaskReviewed?studentEvidenceCard():''}`;
+}
+function taskCard(finalTask,index=0){
+ const config=finalTask?state.finalTaskConfig:state.assignmentConfig;
+ const submitted=finalTask?state.finalTaskSubmitted:state.assignmentSubmitted;
+ const reviewed=finalTask?state.finalTaskReviewed:(state.assignmentReviewed&&!state.assignmentEdited)||state.assignmentReReviewed;
+ let status='Open';
+ if(submitted)status='Submitted';
+ if(reviewed)status=finalTask?'Accepted':'Reviewed';
+ if(!finalTask&&state.assignmentEdited&&!state.assignmentReReviewed)status='Needs re-review';
+ return `<div class="task-card ${finalTask?'final':''}">
+   <div class="task-top">
+     <div><h4>${esc(config.title)}</h4><p>${esc(config.description)}</p></div>
+     <span class="pill ${status==='Accepted'?'green':status==='Needs re-review'?'amber':finalTask?'purple':'blue'}">${status}</span>
+   </div>
+   <div class="meta">
+     <span class="pill">${finalTask?'Final Task':'Assignment'}</span>
+     <span class="pill">Deadline: ${esc(config.deadline)}</span>
+   </div>
+   <div class="task-requirements">
+     ${config.skills.map(x=>`<span class="pill purple">Evaluate: ${x}</span>`).join('')}
+   </div>
+   <div class="task-requirements">
+     ${config.requirements.map(key=>`<span class="pill blue">Submit: ${submissionOptions.find(x=>x.key===key)?.label||key}</span>`).join('')}
+   </div>
+   <div class="action-row">
+     ${!submitted?`<button class="btn ${finalTask?'primary':'blue'}" onclick="openSubmitModal(${finalTask})">Open task & submit</button>`:`<button class="btn" onclick="openSubmitModal(${finalTask})">${finalTask?'View submission':'Edit submission'}</button>`}
+   </div>
+ </div>`;
+}
+
+function studentFeedbackCard(){
+ const status=state.assignmentEdited&&!state.assignmentReReviewed?'Needs re-review':'Reviewed';
+ return `<div class="section"><div class="section-title"><h4>Latest Assignment feedback</h4><span class="pill ${status==='Reviewed'?'green':'amber'}">${status}</span></div><div class="card pad"><p class="small" style="margin-top:0">${esc(state.assignmentReview.feedback)}</p>${Object.entries(state.assignmentReview.scores).map(([k,v])=>`<div class="score-row"><span class="tiny" style="min-width:125px">${k}</span><div class="score-bar"><i style="width:${v*10}%"></i></div><strong>${v}/10</strong></div>`).join('')}${status==='Reviewed'?`<div class="action-row"><button class="btn soft" onclick="editReviewedSubmission()">Edit before deadline</button></div>`:''}</div></div>`;
+}
+function studentEvidenceCard(){
+ return `<div class="section"><div class="section-title"><h4>Verified evidence</h4><span class="pill green">Showcase ready</span></div><div class="card pad"><div class="task-top"><div><h4>Product Showcase Walkthrough</h4><p>Accepted Final Task · Video explanation and technical evidence approved.</p></div><span class="pill green">Accepted</span></div><hr class="sep"><b class="small">Admin recommendation</b><p class="small muted">${esc(state.finalReview.recommendation)}</p></div></div>`;
+}
+
+function adminPanel(){
+ if(state.inspection)return adminSubmissionDetail(state.inspection.finalTask,state.inspection.reReview);
+ if(!state.batchCreated)return adminCreateBatch();
+ if(!state.inviteCreated)return adminInvite();
+ if(!state.profileDone)return adminWaitingStudent();
+ if(!state.assignmentCreated)return adminStudentJoined();
+ if(!state.assignmentSubmitted)return adminAssignmentPublished();
+ if(!state.assignmentReviewed)return adminSubmissionQueue(false);
+ if(state.assignmentEdited&&!state.assignmentReReviewed)return adminSubmissionQueue(true);
+ if(state.finalTasks.length===0)return adminAfterAssignment();
+ if(!state.finalTaskSubmitted)return adminFinalPublished();
+ if(!state.finalTaskReviewed)return adminFinalQueue();
+ return adminEvidenceReady();
+}
+function adminCreateBatch(){
+ return `<div class="action-card"><span class="pill purple">STEP 1</span><h4>Create Summer 2026</h4><p>Code Your Future has no separate Program entity. The Admin manages Batches directly.</p><div class="action-row"><button class="btn primary" onclick="createBatch()">Create Batch</button></div></div><div class="empty"><b>No Batch created yet</b>Create the first Batch to begin the end-to-end demo.</div>`;
+}
+function adminInvite(){
+ return `<div class="page-title"><div><h2>Summer 2026</h2><p>Batch created successfully.</p></div><span class="pill green">Active</span></div><div class="action-card"><span class="pill purple">NEXT ADMIN ACTION</span><h4>Generate the general invitation link</h4><p>One link can be shared with all accepted students in this Batch.</p><div class="action-row"><button class="btn primary" onclick="createInvite()">Generate invitation</button></div></div>`;
+}
+function adminWaitingStudent(){
+ return `<div class="page-title"><div><h2>Summer 2026</h2><p>Invitation link generated.</p></div><button class="btn" onclick="copyInvite()">Copy link</button></div><div class="notice green"><b>Invitation is ready:</b><br>codeyourfuture.app/join/summer-2026</div><div class="empty" style="margin-top:13px"><b>Waiting for a student</b>The left side now shows the Google and Apple sign-in experience.</div>`;
+}
+function adminStudentJoined(){
+ return `<div class="action-card"><span class="pill purple">NEXT ADMIN ACTION</span><h4>Create the first Assignment</h4><p>${esc(state.student.name)} completed the profile and joined Summer 2026.</p><div class="action-row"><button class="btn primary" onclick="openTaskModal(false)">Create Assignment</button></div></div>${adminStudentProfile()}`;
+}
+function adminStudentProfile(){
+ return `<div class="list-item"><div class="avatar">LH</div><div class="grow"><b>${esc(state.student.name)}</b><span>${esc(state.student.email)} · ${esc(state.student.city)} · ${esc(state.student.major)}</span></div><span class="pill green">Profile complete</span></div><div class="card pad section"><div class="section-title"><h4>Student profile</h4><span>Admin detail</span></div><div class="grid two"><div><span class="tiny muted">TARGET ROLE</span><b class="small" style="display:block;margin-top:4px">${esc(state.student.target||'Not specified')}</b></div><div><span class="tiny muted">STUDY STATUS</span><b class="small" style="display:block;margin-top:4px">${esc(state.student.status)}</b></div></div></div>`;
+}
+function adminAssignmentPublished(){
+ const c=state.assignmentConfig;
+ return `<div class="page-title"><div><h2>Assignment published</h2><p>It is now visible to every student in Summer 2026.</p></div><span class="pill blue">Open</span></div>
+ <div class="task-card">
+   <div class="task-top"><div><h4>${esc(c.title)}</h4><p>${esc(c.description)}</p></div><span class="pill blue">Assignment</span></div>
+   <div class="section" style="margin-top:11px"><b class="tiny">SKILLS TO EVALUATE</b><div class="task-requirements">${c.skills.map(x=>`<span class="pill purple">${x}</span>`).join('')}</div></div>
+   <div class="section" style="margin-top:11px"><b class="tiny">REQUIRED STUDENT SUBMISSION</b><div class="task-requirements">${c.requirements.map(key=>`<span class="pill blue">${submissionOptions.find(x=>x.key===key)?.label||key}</span>`).join('')}</div></div>
+ </div>
+ <div class="empty" style="margin-top:13px"><b>Waiting for submission</b>The Student sees exactly these required fields on the left side.</div>`;
+}
+
+function adminSubmissionQueue(reReview){
+ return `<div class="action-card"><span class="pill ${reReview?'amber':'purple'}">${reReview?'UPDATED SUBMISSION':'NEW SUBMISSION'}</span><h4>${reReview?'Inspect the updated evidence before re-evaluation':'Inspect the submission before evaluation'}</h4><p>${reReview?'The student edited the same submission after your previous review. Open the latest evidence first; the previous review is marked as no longer final.':'Evaluation does not start from this queue. First open the complete submission and inspect GitHub, Live Demo, notes, timing and task requirements.'}</p><div class="action-row"><button class="btn primary" onclick="openSubmissionDetail(false,${reReview})">View submission</button><span class="small muted">Step 1: inspect · Step 2: evaluate</span></div></div>
+ <div class="inline-submission">
+   <div class="top"><div><h4>Responsive API Dashboard</h4><p>${esc(state.student.name)} · ${reReview?'Updated after review':'Submitted before deadline'}</p></div><span class="pill ${reReview?'amber':'blue'}">${reReview?'Needs re-review':'Awaiting inspection'}</span></div>
+   <div class="inline-links">${state.assignmentConfig.requirements.map(key=>`<span class="pill blue">${submissionOptions.find(x=>x.key===key)?.label||key} attached</span>`).join('')}<span class="pill green">On time</span></div>
+ </div>`;
+}
+function adminAfterAssignment(){
+ return `<div class="page-title"><div><h2>Assignment completed</h2><p>The latest submission is reviewed and stored in the student's internal history.</p></div><span class="pill green">Reviewed</span></div><div class="notice purple"><b>Final Tasks are independent tasks.</b><br>You can create several Final Tasks during the Batch. Each accepted Final Task can appear in the Company Showcase.</div><div class="action-card" style="margin-top:13px"><span class="pill purple">NEXT ADMIN ACTION</span><h4>Create the first Final Task</h4><p>A Final Task requires a student explanation video and a formal Accept / Reject decision.</p><div class="action-row"><button class="btn primary" onclick="openTaskModal(true)">Create Final Task</button></div></div>`;
+}
+function adminFinalPublished(){
+ const c=state.finalTaskConfig;
+ return `<div class="page-title"><div><h2>Final Task published</h2><p>Final Tasks are independent and can be created multiple times.</p></div><button class="btn soft" onclick="openTaskModal(true)">Create another Final Task</button></div>
+ <div class="task-card final">
+   <div class="task-top"><div><h4>${esc(c.title)}</h4><p>${esc(c.description)}</p></div><span class="pill purple">Final Task</span></div>
+   <div class="section" style="margin-top:11px"><b class="tiny">SKILLS TO EVALUATE</b><div class="task-requirements">${c.skills.map(x=>`<span class="pill purple">${x}</span>`).join('')}</div></div>
+   <div class="section" style="margin-top:11px"><b class="tiny">REQUIRED STUDENT SUBMISSION</b><div class="task-requirements">${c.requirements.map(key=>`<span class="pill ${key==='video'?'red':'blue'}">${submissionOptions.find(x=>x.key===key)?.label||key}${key==='video'?' · Mandatory':''}</span>`).join('')}</div></div>
+ </div>
+ <div class="empty" style="margin-top:13px"><b>Waiting for Final Task submission</b>The Student must complete every selected requirement.</div>`;
+}
+
+function adminFinalQueue(){
+ return `<div class="action-card"><span class="pill purple">FINAL TASK SUBMISSION</span><h4>Inspect all Final Task evidence first</h4><p>Before accepting or rejecting the Final Task, open the submission and review the repository, live product, explanation video, student note, submission time and required evidence checklist.</p><div class="action-row"><button class="btn primary" onclick="openSubmissionDetail(true,false)">View Final Task submission</button><span class="small muted">Evaluation opens only after inspection</span></div></div>
+ <div class="inline-submission">
+   <div class="top"><div><h4>Product Showcase Walkthrough</h4><p>${esc(state.student.name)} · Final Task submission</p></div><span class="pill purple">Awaiting inspection</span></div>
+   <div class="inline-links">${state.finalTaskConfig.requirements.map(key=>`<span class="pill ${key==='video'?'purple':'blue'}">${submissionOptions.find(x=>x.key===key)?.label||key} attached</span>`).join('')}<span class="pill green">All requirements met</span></div>
+ </div>`;
+}
+function adminEvidenceReady(){
+ return `<div class="page-title"><div><h2>Evidence profile ready</h2><p>The accepted Final Task is now available to Company users.</p></div><button class="btn primary" onclick="setView('company')">Open Company view</button></div><div class="notice green"><b>Final Task accepted.</b><br>It is visible in the student's evidence profile and Company Showcase.</div><div class="section"><div class="section-title"><h4>Accepted Final Tasks</h4><button class="btn sm soft" onclick="openTaskModal(true)">Create another</button></div><div class="task-card final"><div class="task-top"><div><h4>Product Showcase Walkthrough</h4><p>Accepted · Overall score ${state.finalReview.overall}/10</p></div><span class="pill green">Showcase</span></div></div></div>`;
+}
+
+function companyView(){
+ return `<div class="page-title"><div><h2>Company discovery experience</h2><p>Read-only access to approved student profiles, Talent Reels and accepted Final Tasks.</p></div><span class="pill green">Company verified</span></div>
+ <div class="company-grid">
+  <div class="reel">
+   <div class="reel-video"><div class="fake-person"></div><div class="play">▶</div></div>
+   <div class="reel-copy"><span class="pill" style="background:rgba(255,255,255,.17);color:#fff">Talent Reel · 72 sec</span><h2>${esc(state.student.name)}</h2><p>${esc(state.student.target||'Student')} · ${esc(state.student.city)}<br>“I built an interactive dashboard and explain the technical decisions behind it.”</p><div class="reel-actions"><button class="btn" onclick="toast('Profile opened')">View full profile</button><button class="btn ghost" style="color:#fff;border-color:rgba(255,255,255,.32)">Next video ↑</button></div></div>
+  </div>
+  <div class="company-panel">
+   <div class="showcase-card"><span class="pill purple">Student profile</span><h3>${esc(state.student.name)}</h3><p class="small muted">${esc(state.student.target||'Target role not specified')} · ${esc(state.student.city)} · ${esc(state.student.major)}</p><div class="meta"><span class="pill blue">GitHub</span><span class="pill blue">LinkedIn</span><span class="pill">Portfolio</span></div></div>
+   <div class="showcase-card"><div class="section-title"><h4>Accepted Final Tasks</h4><span>${state.finalTaskReviewed?'1 published':'0 published'}</span></div>${state.finalTaskReviewed?`<div class="task-card final"><div class="task-top"><div><h4>Product Showcase Walkthrough</h4><p>Accepted Final Task with GitHub, Live Demo and explanation video.</p></div><span class="pill green">Accepted</span></div><div class="meta"><span class="pill">${state.finalReview.overall}/10 overall</span><span class="pill">Video</span><span class="pill">Live Demo</span></div></div>`:`<div class="empty"><b>No accepted Final Tasks yet</b>Complete the Split Demo to publish the first showcase item.</div>`}</div>
+   <div class="showcase-card"><div class="section-title"><h4>Verified skills</h4><span>Admin-rated</span></div>${Object.entries(state.finalReview.scores).map(([k,v])=>`<div class="score-row"><span class="tiny" style="min-width:130px">${k}</span><div class="score-bar"><i style="width:${v*10}%"></i></div><strong>${v}/10</strong></div>`).join('')}<hr class="sep"><b class="small">Recommendation</b><p class="small muted">${esc(state.finalReview.recommendation)}</p></div>
+  </div>
+ </div>`;
+}
+
+function modal(title,subtitle,body,footer){
+ const wrap=document.createElement('div');wrap.className='modal-backdrop';wrap.id='modal';
+ wrap.innerHTML=`<div class="modal"><div class="modal-head"><div><h3>${title}</h3><p>${subtitle}</p></div><button class="btn sm" onclick="closeModal()">✕</button></div><div class="modal-body">${body}</div><div class="modal-foot">${footer}</div></div>`;
+ document.body.appendChild(wrap);
+}
+function closeModal(){document.getElementById('modal')?.remove()}
+function createBatch(){state.batchCreated=true;render();toast('Summer 2026 created')}
+function createInvite(){state.inviteCreated=true;render();toast('Invitation link generated')}
+function copyInvite(){navigator.clipboard?.writeText('codeyourfuture.app/join/summer-2026');toast('Invitation copied')}
+function oauth(provider){state.oauthDone=true;render();toast(`${provider} account connected`)}
+function focusProfile(){document.getElementById('pfName')?.focus()}
+function toggleGraduation(){
+ const status=document.getElementById('pfStatus')?.value;
+ const field=document.getElementById('graduationField');
+ if(field)field.style.display=status==='Graduate'?'none':'grid';
+}
+function saveProfile(){
+ const name=document.getElementById('pfName')?.value.trim();
+ const phone=document.getElementById('pfPhone')?.value.trim();
+ const major=document.getElementById('pfMajor')?.value.trim();
+ if(!name||!phone||!major){toast('Please complete all required fields');return}
+ state.student.name=name;
+ state.student.phone=phone;
+ state.student.city=document.getElementById('pfCity').value;
+ state.student.dob=document.getElementById('pfDob').value;
+ state.student.university=document.getElementById('pfUniversity').value;
+ state.student.major=major;
+ state.student.status=document.getElementById('pfStatus').value;
+ state.student.target=document.getElementById('pfTarget').value;
+ state.student.why=document.getElementById('pfWhy').value;
+ state.student.github=document.getElementById('pfGithub').value;
+ state.student.linkedin=document.getElementById('pfLinkedin').value;
+ state.student.portfolio=document.getElementById('pfPortfolio').value;
+ state.profileDone=true;render();toast('Profile saved and student joined')
+}
+function editProfile(){state.profileDone=false;render();setTimeout(toggleGraduation,0)}
+function taskSkillCards(finalTask){
+ const defaults=finalTask?state.finalTaskConfig.skills:state.assignmentConfig.skills;
+ return sharedSkills.map(skill=>`<label class="select-card"><input type="checkbox" name="taskSkill" value="${skill}" ${defaults.includes(skill)?'checked':''} onchange="updateTaskBuilderSummary(${finalTask})"><div><b>${skill}</b><span>This skill will appear as a rating field during Admin evaluation.</span></div></label>`).join('');
+}
+function taskRequirementCards(finalTask){
+ const defaults=finalTask?state.finalTaskConfig.requirements:state.assignmentConfig.requirements;
+ return submissionOptions.map(item=>{
+   const locked=finalTask&&item.key==='video';
+   const checked=locked||defaults.includes(item.key);
+   return `<label class="select-card ${locked?'locked':''}"><input type="checkbox" name="taskRequirement" value="${item.key}" ${checked?'checked':''} ${locked?'disabled':''} onchange="updateTaskBuilderSummary(${finalTask})"><div><b>${item.label}${locked?' · Mandatory':''}</b><span>${item.description}</span></div></label>`;
+ }).join('');
+}
+function selectedBuilderValues(name){
+ return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(x=>x.value);
+}
+function addCustomSkill(finalTask){
+ const input=document.getElementById('newTaskSkill');
+ const value=input?.value.trim();
+ if(!value)return;
+ if(!sharedSkills.includes(value))sharedSkills.push(value);
+ const host=document.getElementById('taskSkillOptions');
+ host.innerHTML=taskSkillCards(finalTask);
+ [...host.querySelectorAll('input[name="taskSkill"]')].find(x=>x.value===value).checked=true;
+ input.value='';
+ updateTaskBuilderSummary(finalTask);
+ toast('Skill added to the shared list');
+}
+function updateTaskBuilderSummary(finalTask){
+ const title=document.getElementById('taskTitle')?.value||'Untitled task';
+ const skills=selectedBuilderValues('taskSkill');
+ let requirements=selectedBuilderValues('taskRequirement');
+ if(finalTask&&!requirements.includes('video'))requirements.push('video');
+ const skillHost=document.getElementById('summarySkills');
+ const requirementHost=document.getElementById('summaryRequirements');
+ const titleHost=document.getElementById('summaryTitle');
+ if(titleHost)titleHost.textContent=title;
+ if(skillHost)skillHost.innerHTML=skills.length?skills.map(x=>`<span class="pill purple">${x}</span>`).join(''):'<span class="pill red">Select at least one skill</span>';
+ if(requirementHost)requirementHost.innerHTML=requirements.length?requirements.map(key=>`<span class="pill blue">${submissionOptions.find(x=>x.key===key)?.label||key}</span>`).join(''):'<span class="pill red">Select at least one requirement</span>';
+}
+function openTaskModal(finalTask){
+ const config=finalTask?state.finalTaskConfig:state.assignmentConfig;
+ modal(finalTask?'Create Final Task':'Create Assignment',
+   finalTask?'Create an independent showcase-ready task. Multiple Final Tasks may exist in the same Batch.':'Create a task and define exactly how students will be evaluated and what they must submit.',
+   `<div class="task-builder">
+      <section class="builder-step">
+        <div class="builder-step-num">1</div>
+        <div>
+          <h4>Task information</h4><p>Define what students must build and when they must submit it.</p>
+          <div class="form-row">
+            <div class="field"><label>Task title *</label><input id="taskTitle" class="input" value="${esc(config.title)}" oninput="updateTaskBuilderSummary(${finalTask})"></div>
+            <div class="field"><label>Task type</label><input class="input" readonly value="${finalTask?'Final Task':'Assignment'}"></div>
+          </div>
+          <div class="field"><label>Description *</label><textarea id="taskDescription" class="textarea">${esc(config.description)}</textarea></div>
+          <div class="field"><label>Instructions *</label><textarea id="taskInstructions" class="textarea">${esc(config.instructions)}</textarea></div>
+          <div class="field"><label>Deadline *</label><input id="taskDeadline" class="input" type="date" value="${config.deadline}"></div>
+        </div>
+      </section>
+
+      <section class="builder-step">
+        <div class="builder-step-num">2</div>
+        <div>
+          <h4>Select skills to evaluate *</h4>
+          <p>Only selected skills will appear in the review form. The Admin will rate each selected skill from 0 to 10.</p>
+          <div class="option-grid" id="taskSkillOptions">${taskSkillCards(finalTask)}</div>
+          <div class="custom-skill-row">
+            <input id="newTaskSkill" class="input" placeholder="Add a new skill to the shared list">
+            <button class="btn soft" onclick="addCustomSkill(${finalTask})">Add skill</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="builder-step">
+        <div class="builder-step-num">3</div>
+        <div>
+          <h4>Select what students must submit *</h4>
+          <p>Every checked item becomes a required field in the Student submission form and an evidence item in the Admin review page.</p>
+          <div class="option-grid">${taskRequirementCards(finalTask)}</div>
+          ${finalTask?'<div class="notice purple" style="margin-top:10px"><b>Final Task rule:</b> Video URL is always required and cannot be removed.</div>':''}
+        </div>
+      </section>
+
+      <section class="builder-step">
+        <div class="builder-step-num">4</div>
+        <div>
+          <h4>Review before publishing</h4>
+          <p>This is exactly what students and reviewers will see.</p>
+          <div class="builder-summary">
+            <div class="summary-line"><span>Task</span><b id="summaryTitle">${esc(config.title)}</b></div>
+            <div class="summary-line"><span>Skills evaluated</span><div id="summarySkills" class="summary-chips"></div></div>
+            <div class="summary-line"><span>Required submission</span><div id="summaryRequirements" class="summary-chips"></div></div>
+          </div>
+        </div>
+      </section>
+    </div>`,
+   `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="publishTask(${finalTask})">Publish ${finalTask?'Final Task':'Assignment'}</button>`);
+ setTimeout(()=>updateTaskBuilderSummary(finalTask),0);
+}
+function publishTask(finalTask){
+ const skills=selectedBuilderValues('taskSkill');
+ let requirements=selectedBuilderValues('taskRequirement');
+ if(finalTask&&!requirements.includes('video'))requirements.push('video');
+ if(skills.length===0){toast('Select at least one skill to evaluate');return}
+ if(requirements.length===0){toast('Select at least one required submission item');return}
+ const config={
+   title:document.getElementById('taskTitle').value.trim(),
+   type:finalTask?'Final Task':'Assignment',
+   description:document.getElementById('taskDescription').value.trim(),
+   instructions:document.getElementById('taskInstructions').value.trim(),
+   deadline:document.getElementById('taskDeadline').value,
+   skills,
+   requirements
+ };
+ if(!config.title||!config.description||!config.instructions||!config.deadline){toast('Complete all required task information');return}
+ if(finalTask){
+   state.finalTaskConfig=config;
+   state.finalTasks.push({title:config.title,status:'Open'});
+   state.finalReview.scores=Object.fromEntries(skills.map(skill=>[skill,8]));
+ }else{
+   state.assignmentConfig=config;
+   state.assignmentCreated=true;
+   state.assignmentReview.scores=Object.fromEntries(skills.map(skill=>[skill,7]));
+ }
+ closeModal();render();toast(`${finalTask?'Final Task':'Assignment'} published`);
+}
+
+function submissionInput(finalTask,key){
+ const sub=finalTask?state.finalSubmission:state.assignmentSubmission;
+ const item=submissionOptions.find(x=>x.key===key);
+ const required='*';
+ if(key==='github')return `<div class="field"><label>${item.label} ${required}</label><input id="subGithub" class="input" value="${esc(sub.github||'')}"></div>`;
+ if(key==='demo')return `<div class="field"><label>${item.label} ${required}</label><input id="subDemo" class="input" value="${esc(sub.demo||'')}"></div>`;
+ if(key==='drive')return `<div class="field"><label>${item.label} ${required}</label><input id="subDrive" class="input" value="${esc(sub.drive||'')}"></div>`;
+ if(key==='file')return `<div class="field"><label>${item.label} ${required}</label><input id="subFile" class="input" value="${esc(sub.file||'solution.zip')}" placeholder="Prototype file name"></div>`;
+ if(key==='video')return `<div class="field"><label>${item.label} ${required}</label><input id="subVideo" class="input" value="${esc(sub.video||'')}">${finalTask?'<div class="notice purple">Video is mandatory for every Final Task.</div>':''}</div>`;
+ if(key==='text')return `<div class="field"><label>${item.label} ${required}</label><textarea id="subText" class="textarea">${esc(sub.text||'')}</textarea></div>`;
+ if(key==='notes')return `<div class="field"><label>${item.label} ${required}</label><textarea id="subNotes" class="textarea">${esc(sub.notes||'')}</textarea></div>`;
+ return '';
+}
+function openSubmitModal(finalTask){
+ const config=finalTask?state.finalTaskConfig:state.assignmentConfig;
+ const previouslySubmitted=finalTask?state.finalTaskSubmitted:state.assignmentSubmitted;
+ modal(finalTask?'Submit Final Task':'Submit Assignment',
+   previouslySubmitted?'You may edit the same submission until the deadline.':'Complete every field selected by the Admin when the task was created.',
+   `<div class="notice blue"><b>Required by Admin:</b><br>${config.requirements.map(key=>submissionOptions.find(x=>x.key===key)?.label).join(' · ')}</div>
+    <div class="form" style="margin-top:12px">
+      ${config.requirements.map(key=>submissionInput(finalTask,key)).join('')}
+    </div>`,
+   `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn ${finalTask?'primary':'blue'}" onclick="submitTask(${finalTask})">${previouslySubmitted?'Save changes':'Submit work'}</button>`);
+}
+function submissionValue(key){
+ const ids={github:'subGithub',demo:'subDemo',drive:'subDrive',file:'subFile',video:'subVideo',text:'subText',notes:'subNotes'};
+ return document.getElementById(ids[key])?.value.trim()||'';
+}
+function submitTask(finalTask){
+ const config=finalTask?state.finalTaskConfig:state.assignmentConfig;
+ const values=Object.fromEntries(config.requirements.map(key=>[key,submissionValue(key)]));
+ const missing=config.requirements.filter(key=>!values[key]);
+ if(missing.length){
+   const labels=missing.map(key=>submissionOptions.find(x=>x.key===key)?.label||key).join(', ');
+   toast(`Complete required fields: ${labels}`);return;
+ }
+ const target=finalTask?state.finalSubmission:state.assignmentSubmission;
+ Object.assign(target,values);
+ if(finalTask){
+   state.inspected.final={};
+   state.finalTaskSubmitted=true;
+ }else{
+   state.inspected.assignment={};
+   state.assignmentSubmitted=true;
+ }
+ closeModal();render();toast(finalTask?'Final Task submitted':'Assignment submitted');
+}
+
+function requirementDefinition(key){
+ const item=submissionOptions.find(x=>x.key===key);
+ const details={
+   github:'Source code and commit history',
+   demo:'Deployed working solution',
+   drive:'Shared document or design evidence',
+   file:'Uploaded file required by the task',
+   video:'Student explanation or walkthrough video',
+   text:'Written answer entered in the platform',
+   notes:'Additional submission context'
+ };
+ return [key,item?.label||key,details[key]||item?.description||'Required evidence'];
+}
+function submissionData(finalTask){
+ const config=finalTask?state.finalTaskConfig:state.assignmentConfig;
+ return {
+   title:config.title,
+   type:config.type,
+   sub:finalTask?state.finalSubmission:state.assignmentSubmission,
+   requirements:config.requirements.map(requirementDefinition),
+   skills:config.skills,
+   description:config.description,
+   instructions:config.instructions
+ };
+}
+
+function inspectionKey(finalTask){return finalTask?'final':'assignment'}
+function isEvidenceViewed(finalTask,key){return !!state.inspected[inspectionKey(finalTask)][key]}
+function requiredEvidenceCount(finalTask){return submissionData(finalTask).requirements.length}
+function viewedEvidenceCount(finalTask){
+ return submissionData(finalTask).requirements.filter(([key])=>isEvidenceViewed(finalTask,key)).length
+}
+function inspectionComplete(finalTask){return viewedEvidenceCount(finalTask)===requiredEvidenceCount(finalTask)}
+function openSubmissionDetail(finalTask,reReview){
+ state.inspection={finalTask,reReview};
+ render();
+ setTimeout(()=>document.querySelector('.admin-detail')?.scrollIntoView({behavior:'smooth',block:'start'}),30)
+}
+function closeSubmissionDetail(){state.inspection=null;render()}
+function inspectEvidence(finalTask,key,label){
+ state.inspected[inspectionKey(finalTask)][key]=true;
+ render();
+ toast(`${label} marked as viewed`)
+}
+function evidenceRow(finalTask,key,label,detail,value){
+ const viewed=isEvidenceViewed(finalTask,key);
+ const video=key==='video';
+ return `<div class="evidence-row ${viewed?'viewed':''} ${video?'video':''}">
+   <div class="evidence-badge">${video?'▶':'↗'}</div>
+   <div class="evidence-copy"><b>${label}</b><span>${esc(value)}</span></div>
+   <div class="evidence-state">${viewed?'✓':'•'}</div>
+   <button class="btn sm ${viewed?'success':''}" onclick="inspectEvidence(${finalTask},'${key}','${label}')">${viewed?'Viewed':'Open & inspect'}</button>
+ </div>`;
+}
+function adminSubmissionDetail(finalTask,reReview){
+ const data=submissionData(finalTask);
+ const sub=data.sub;
+ const viewed=viewedEvidenceCount(finalTask);
+ const total=requiredEvidenceCount(finalTask);
+ const progress=Math.round(viewed/total*100);
+ const complete=inspectionComplete(finalTask);
+ return `<div class="admin-detail">
+   <div class="detail-breadcrumb"><button class="btn sm" onclick="closeSubmissionDetail()">← Back to queue</button><span>Submissions</span><span>›</span><span>${esc(state.student.name)}</span><span>›</span><b>${data.title}</b></div>
+
+   <div class="detail-hero">
+     <div class="detail-hero-top">
+       <div><span class="pill ${finalTask?'purple':'blue'}">${data.type}</span><h2 style="margin-top:9px">${data.title}</h2><p>Inspect the complete student submission before entering any score or feedback.</p></div>
+       <span class="pill ${reReview?'amber':finalTask?'purple':'blue'}">${reReview?'Needs re-review':'Awaiting evaluation'}</span>
+     </div>
+     <div class="detail-meta">
+       <span class="pill">Student: ${esc(state.student.name)}</span>
+       <span class="pill green">Submitted on time</span>
+       <span class="pill">Submitted: ${sub.submittedAt}</span>
+       <span class="pill">Deadline: ${sub.deadline}</span>
+     </div>
+   </div>
+
+   ${reReview?`<div class="notice amber"><b>This submission was edited after review.</b><br>You are viewing the latest active submission. The previous review remains in internal history but is no longer final.</div>`:''}
+
+   <div class="detail-layout">
+     <div class="detail-main">
+       <section class="detail-section">
+         <div class="detail-section-head"><div><h4>1. Task brief</h4><p>What the student was asked to complete</p></div><span class="pill">${data.type}</span></div>
+         <div class="task-brief">
+           <div class="brief-row"><span>Description</span><b>${data.description}</b></div>
+           <div class="brief-row"><span>Instructions</span><b>${data.instructions}</b></div>
+           <div class="brief-row"><span>Skills evaluated</span><div class="meta">${data.skills.map(x=>`<span class="pill">${x}</span>`).join('')}</div></div>
+           <div class="brief-row"><span>Required evidence</span><b>${data.requirements.map(x=>x[1]).join(' · ')}</b></div>
+         </div>
+       </section>
+
+       <section class="detail-section">
+         <div class="detail-section-head"><div><h4>2. Student submission</h4><p>Open every required evidence item before evaluation</p></div><span class="pill ${complete?'green':'amber'}">${viewed}/${total} inspected</span></div>
+         <div class="evidence-list">
+           ${data.requirements.map(([key,label,detail])=>evidenceRow(finalTask,key,label,detail,sub[key])).join('')}
+         </div>
+         ${finalTask?`<div class="video-preview"><div class="video-play">▶</div></div>`:''}
+       </section>
+
+       <section class="detail-section">
+         <div class="detail-section-head"><div><h4>3. Student note</h4><p>Context added by the student with the submission</p></div></div>
+         <div class="student-note">${esc(sub.notes)}</div>
+       </section>
+
+       <section class="detail-section">
+         <div class="detail-section-head"><div><h4>4. Submission timing</h4><p>Timing information used by the Admin</p></div><span class="pill green">On time</span></div>
+         <div class="submission-overview">
+           <div class="submission-metric"><span>Submitted</span><b>${sub.submittedAt}</b></div>
+           <div class="submission-metric"><span>Last updated</span><b>${reReview?'After previous review':sub.updatedAt}</b></div>
+           <div class="submission-metric"><span>Deadline</span><b>${sub.deadline}</b></div>
+           <div class="submission-metric"><span>Student edit access</span><b>Open until deadline</b></div>
+         </div>
+       </section>
+     </div>
+
+     <aside class="detail-aside">
+       <div class="readiness">
+         <h4>Review readiness</h4>
+         <p>Evaluation remains locked until all required evidence is inspected.</p>
+         <div class="progress-track"><i style="width:${progress}%"></i></div>
+         <div class="checklist">
+           ${data.requirements.map(([key,label])=>`<div class="check-item ${isEvidenceViewed(finalTask,key)?'done':''}"><div class="check-mark">${isEvidenceViewed(finalTask,key)?'✓':'•'}</div><span>${label}</span></div>`).join('')}
+           <div class="check-item done"><div class="check-mark">✓</div><span>Task brief visible</span></div>
+           <div class="check-item done"><div class="check-mark">✓</div><span>Submission time verified</span></div>
+         </div>
+         <div class="ready-message ${complete?'complete':''}">${complete?'<b>Ready to evaluate.</b><br>All required evidence has been inspected.':'<b>Evaluation locked.</b><br>Open every required evidence item first.'}</div>
+         <div class="detail-actions">
+           <button class="btn ${complete?(finalTask?'primary':'blue'):''} wide" ${complete?'':'disabled'} onclick="startEvaluation(${finalTask},${reReview})">${complete?'Start evaluation →':'Inspect all evidence first'}</button>
+           <button class="btn wide" onclick="closeSubmissionDetail()">Back to submissions queue</button>
+         </div>
+       </div>
+
+       <div class="detail-section">
+         <div class="detail-section-head"><div><h4>Student</h4><p>Profile snapshot</p></div></div>
+         <div class="submission-student"><div class="avatar">LH</div><div><b>${esc(state.student.name)}</b><span>${esc(state.student.email)} · ${esc(state.student.major)}</span></div></div>
+         <hr class="sep">
+         <div class="brief-row"><span>Target role</span><b>${esc(state.student.target||'Not specified')}</b></div>
+         <div class="brief-row" style="margin-top:8px"><span>City</span><b>${esc(state.student.city)}</b></div>
+       </div>
+     </aside>
+   </div>
+ </div>`;
+}
+function startEvaluation(finalTask,reReview){
+ if(!inspectionComplete(finalTask)){toast('Inspect all required evidence first');return}
+ if(finalTask)openFinalReviewModal();
+ else openReviewModal(reReview);
+}
+
+function openReviewModal(reReview){
+ modal(reReview?'Re-evaluate updated Assignment':'Evaluate Assignment',
+   reReview?'You are evaluating the latest active submission after inspecting the updated evidence.':'You have inspected the submission. Now add the evaluation.',
+   `<div class="review-steps"><div class="review-step done">✓ · Submission inspected</div><div class="review-step active">2 · Evaluation</div></div><div class="inspection-bar"><div><b>${esc(state.assignmentConfig.title)}</b><span>${state.assignmentConfig.requirements.map(key=>submissionOptions.find(x=>x.key===key)?.label).join(', ')} inspected · ${reReview?'Updated submission':'Original submission'}</span></div><button class="btn sm" onclick="closeModal();openSubmissionDetail(false,${reReview})">Back to submission</button></div><div class="form"><div class="field"><label>Status</label><select class="select"><option>Reviewed</option><option>Needs Improvement</option><option>Rejected</option></select></div><div class="field"><label>Student feedback</label><textarea id="reviewFeedback" class="textarea">${esc(state.assignmentReview.feedback)}</textarea></div><div class="field"><label>Internal Admin notes</label><textarea id="reviewInternal" class="textarea">${esc(state.assignmentReview.internal)}</textarea></div><div class="form-section"><h4>Skill ratings</h4><p>Selected from the shared skills list</p>${Object.entries(state.assignmentReview.scores).map(([k,v])=>`<div class="field" style="margin-top:8px"><label>${k}</label><input class="input" type="number" min="0" max="10" value="${v}"/></div>`).join('')}</div></div>`,
+   `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveReview(${reReview})">Save review</button>`);
+}
+function saveReview(reReview){
+ state.assignmentReview.feedback=document.getElementById('reviewFeedback').value;
+ state.assignmentReview.internal=document.getElementById('reviewInternal').value;
+ if(reReview)state.assignmentReReviewed=true;
+ else state.assignmentReviewed=true;
+ state.inspection=null;
+ closeModal();render();toast(reReview?'Submission re-reviewed':'Review saved')
+}
+function editReviewedSubmission(){
+ state.assignmentEdited=true;state.assignmentReReviewed=false;state.inspected.assignment={};
+ render();toast('Submission updated — Admin must re-review')
+}
+function openFinalReviewModal(){
+ modal('Evaluate Final Task',
+   'You have inspected the repository, live product and mandatory explanation video.',
+   `<div class="review-steps"><div class="review-step done">✓ · Submission inspected</div><div class="review-step active">2 · Final evaluation</div></div><div class="inspection-bar"><div><b>${esc(state.finalTaskConfig.title)}</b><span>${state.finalTaskConfig.requirements.map(key=>submissionOptions.find(x=>x.key===key)?.label).join(', ')} inspected</span></div><button class="btn sm" onclick="closeModal();openSubmissionDetail(true,false)">Back to submission</button></div><div class="form"><div class="field"><label>Decision</label><select id="finalDecision" class="select"><option>Accepted</option><option>Needs Improvement</option><option>Rejected</option></select></div><div class="field"><label>Student feedback</label><textarea id="finalFeedback" class="textarea">${esc(state.finalReview.feedback)}</textarea></div><div class="field"><label>Internal Admin notes</label><textarea id="finalInternal" class="textarea">${esc(state.finalReview.internal)}</textarea></div><div class="form-section"><h4>Skill ratings</h4><p>Final Tasks may evaluate technical and presentation skills.</p>${Object.entries(state.finalReview.scores).map(([k,v])=>`<div class="field" style="margin-top:8px"><label>${k}</label><input class="input" type="number" min="0" max="10" value="${v}"/></div>`).join('')}</div><div class="form-row"><div class="field"><label>Overall score</label><input id="finalOverall" class="input" type="number" step=".1" value="${state.finalReview.overall}"/></div><div class="field"><label>Overall recommendation</label><input id="finalRecommendation" class="input" value="${esc(state.finalReview.recommendation)}"/></div></div></div>`,
+   `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="saveFinalReview()">Publish decision</button>`);
+}
+function saveFinalReview(){
+ state.finalReview.decision=document.getElementById('finalDecision').value;
+ state.finalReview.feedback=document.getElementById('finalFeedback').value;
+ state.finalReview.internal=document.getElementById('finalInternal').value;
+ state.finalReview.overall=Number(document.getElementById('finalOverall').value||0);
+ state.finalReview.recommendation=document.getElementById('finalRecommendation').value;
+ state.finalTaskReviewed=true;
+ state.inspection=null;
+ closeModal();render();toast('Final Task decision published')
+}
+
+render();
+</script>
+</body>
+</html>

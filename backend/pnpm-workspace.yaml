@@ -1,8 +1,16 @@
+# Explicit build-script decisions for dependencies with install/postinstall scripts.
+# pnpm 10+ refuses to run any package script (compile/start/dev) while a
+# dependency build decision is still undecided (ERR_PNPM_IGNORED_BUILDS), so
+# every entry below must be a real boolean, not a placeholder string.
+#
+#   sharp        — `node install/check` verifies the prebuilt libvips binary (required)
+#   parse-server — benign postinstall banner
+#   others       — telemetry / postinstall banners only, safe to skip
 allowBuilds:
-  '@apollo/protobufjs': set this to true or false
-  '@firebase/util': set this to true or false
-  '@scarf/scarf': set this to true or false
-  core-js-pure: set this to true or false
-  parse-server: set this to true or false
-  protobufjs: set this to true or false
-  sharp: set this to true or false
+  '@apollo/protobufjs': false
+  '@firebase/util': false
+  '@scarf/scarf': false
+  core-js-pure: false
+  parse-server: true
+  protobufjs: false
+  sharp: true

@@ -1,7 +1,10 @@
 # Root
 node_modules
 package-lock.json
-pnpm-lock.yaml
+
+# pnpm lockfiles are TRACKED (root, backend, frontend are independent pnpm
+# projects — see docs/TEMPLATE_ARCHITECTURE.md). Do not add a pnpm-lock.yaml
+# ignore rule: reproducible installs depend on them being committed.
 
 # Backend
 backend/node_modules

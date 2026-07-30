@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Code Your Future — Batch Live Slides V1</title>
+<style>
+:root{
+  --bg:#f4f6fb;--surface:#fff;--surface2:#fafbfe;--text:#171a2c;--muted:#6c7387;
+  --line:#e4e7ef;--brand:#6848f5;--brand2:#2e7cff;--purple:#f0edff;--blue:#eaf2ff;
+  --green:#148862;--greenbg:#e7f7f0;--amber:#a86900;--amberbg:#fff3da;
+  --red:#c73e50;--redbg:#ffeaee;--shadow:0 18px 50px rgba(29,34,72,.08);
+  --shadow-sm:0 8px 24px rgba(29,34,72,.06);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;color:var(--text);
+  background:
+    radial-gradient(circle at 0 0,rgba(104,72,245,.08),transparent 30%),
+    radial-gradient(circle at 100% 0,rgba(46,124,255,.06),transparent 28%),
+    var(--bg);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:14px;
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.topbar{
+  position:sticky;top:0;z-index:70;min-height:72px;padding:12px 22px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  background:rgba(255,255,255,.9);backdrop-filter:blur(16px);border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:11px}
+.logo{
+  width:43px;height:43px;border-radius:14px;display:grid;place-items:center;
+  color:#fff;font-weight:900;font-size:11px;
+  background:linear-gradient(145deg,var(--brand),#8c73ff);
+  box-shadow:0 11px 27px rgba(104,72,245,.28);
+}
+.brand b{display:block;font-size:14px}
+.brand span{display:block;color:var(--muted);font-size:9px;margin-top:3px}
+.mode-switch{display:flex;gap:4px;padding:5px;border-radius:14px;background:#edf0f7}
+.mode-switch button{
+  border:0;background:transparent;border-radius:10px;padding:9px 13px;
+  color:#60677b;font-size:10px;font-weight:850;
+}
+.mode-switch button.active{background:#fff;color:var(--text);box-shadow:var(--shadow-sm)}
+.top-actions{display:flex;align-items:center;gap:8px}
+.shell{max-width:1580px;margin:auto;padding:20px 22px 34px}
+.btn{
+  border:1px solid var(--line);background:#fff;color:var(--text);border-radius:11px;
+  padding:9px 13px;font-size:10px;font-weight:850;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:.18s ease;
+}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--shadow-sm)}
+.btn.primary{background:linear-gradient(135deg,var(--brand),#7c5fff);border-color:transparent;color:#fff}
+.btn.blue{background:linear-gradient(135deg,#276fe2,#3d8dff);border-color:transparent;color:#fff}
+.btn.green{background:var(--green);border-color:var(--green);color:#fff}
+.btn.danger{background:var(--red);border-color:var(--red);color:#fff}
+.btn.soft{background:var(--purple);border-color:#ddd6ff;color:#583bde}
+.btn.sm{padding:7px 10px;font-size:9px;border-radius:9px}
+.btn.wide{width:100%}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+.pill{
+  display:inline-flex;align-items:center;gap:5px;padding:6px 8px;border-radius:999px;
+  background:#eef1f7;color:#5d6578;font-size:8px;font-weight:900;white-space:nowrap;
+}
+.pill.purple{background:var(--purple);color:#593bdf}
+.pill.blue{background:var(--blue);color:#2765c8}
+.pill.green{background:var(--greenbg);color:var(--green)}
+.pill.amber{background:var(--amberbg);color:var(--amber)}
+.pill.red{background:var(--redbg);color:var(--red)}
+.flow-card{
+  background:rgba(255,255,255,.87);border:1px solid var(--line);
+  border-radius:18px;padding:13px;box-shadow:var(--shadow);margin-bottom:14px;
+}
+.flow-head{display:flex;justify-content:space-between;gap:10px;margin-bottom:9px}
+.flow-head b{font-size:11px}
+.flow-head span{font-size:9px;color:var(--muted)}
+.flow-track{display:flex;gap:7px;overflow:auto}
+.flow-step{
+  flex:0 0 128px;border:1px solid var(--line);border-radius:12px;padding:9px;background:#fff;
+}
+.flow-step b{display:block;font-size:9px}
+.flow-step span{display:block;font-size:8px;color:var(--muted);margin-top:3px}
+.flow-step.done{background:var(--greenbg);border-color:#c7e9dc}
+.flow-step.current{background:var(--purple);border-color:#d7d0ff}
+.next-banner{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:14px 16px;border-radius:17px;color:#fff;
+  background:linear-gradient(135deg,#1e1b40,var(--brand) 60%,var(--brand2));
+  box-shadow:0 15px 36px rgba(76,61,181,.23);margin-bottom:14px;
+}
+.next-copy{display:flex;align-items:center;gap:11px}
+.next-num{
+  width:36px;height:36px;border-radius:11px;display:grid;place-items:center;
+  background:rgba(255,255,255,.16);font-weight:900;
+}
+.next-banner b{display:block;font-size:11px}
+.next-banner span{display:block;font-size:9px;color:#e7e4ff;margin-top:3px}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:15px;align-items:start}
+.pane{
+  background:#fff;border:1px solid var(--line);border-radius:21px;
+  box-shadow:var(--shadow);overflow:hidden;min-height:690px;
+}
+.pane.student{border-top:4px solid var(--brand2)}
+.pane.admin{border-top:4px solid var(--brand)}
+.pane-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:15px 17px;border-bottom:1px solid var(--line);
+}
+.workspace{display:flex;align-items:center;gap:10px}
+.workspace-icon{
+  width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
+  font-size:10px;font-weight:900;
+}
+.student .workspace-icon{background:var(--blue);color:#2866c7}
+.admin .workspace-icon{background:var(--purple);color:#5a3cdf}
+.workspace b{display:block;font-size:12px}
+.workspace span{display:block;font-size:9px;color:var(--muted);margin-top:3px}
+.pane-body{padding:15px}
+.single{max-width:1120px;margin:auto}
+.page-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}
+.page-title h2,.page-title h3{margin:0;font-size:18px;letter-spacing:-.25px}
+.page-title p{margin:5px 0 0;color:var(--muted);font-size:9px;line-height:1.5}
+.card{
+  background:#fff;border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow-sm);
+}
+.card.pad{padding:14px}
+.grid{display:grid;gap:10px}
+.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+.stat{border:1px solid var(--line);border-radius:14px;padding:13px;background:linear-gradient(180deg,#fff,#fbfcff)}
+.stat span{display:block;font-size:8px;color:var(--muted)}
+.stat strong{display:block;font-size:20px;margin:7px 0 3px}
+.stat small{font-size:8px;color:var(--muted)}
+.section{margin-top:13px}
+.section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.section-title h4{margin:0;font-size:11px}
+.section-title span{font-size:9px;color:var(--muted)}
+.notice{
+  border:1px solid #d9e7ff;background:var(--blue);color:#2b5fad;
+  border-radius:13px;padding:11px 12px;font-size:9px;line-height:1.55;
+}
+.notice.purple{background:var(--purple);border-color:#ddd6ff;color:#5538da}
+.notice.green{background:var(--greenbg);border-color:#c7eadc;color:var(--green)}
+.notice.amber{background:var(--amberbg);border-color:#f4ddaa;color:var(--amber)}
+.notice.red{background:var(--redbg);border-color:#ffd0d6;color:var(--red)}
+.empty{
+  border:1px dashed #ccd2de;border-radius:15px;padding:25px;
+  text-align:center;background:#fbfcfe;color:var(--muted);font-size:9px;
+}
+.empty b{display:block;color:var(--text);font-size:11px;margin-bottom:5px}
+.list{display:grid;gap:8px}
+.list-item{
+  border:1px solid var(--line);border-radius:13px;padding:11px;
+  background:#fff;display:flex;align-items:center;gap:10px;
+}
+.avatar{
+  width:40px;height:40px;border-radius:12px;background:var(--purple);
+  color:#5a3cdf;display:grid;place-items:center;font-size:10px;font-weight:900;flex:0 0 auto;
+}
+.grow{flex:1;min-width:0}
+.grow b{display:block;font-size:10px}
+.grow span{
+  display:block;color:var(--muted);font-size:8px;margin-top:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.form{display:grid;gap:11px}
+.form-section{border:1px solid var(--line);border-radius:15px;padding:13px}
+.form-section h4{margin:0;font-size:11px}
+.form-section>p{margin:4px 0 11px;color:var(--muted);font-size:8px}
+.field{display:grid;gap:5px}
+.field label{font-size:8px;color:#50576a;font-weight:850}
+.input,.select,.textarea{
+  width:100%;border:1px solid #dfe3ec;border-radius:10px;background:#fff;
+  padding:9px 10px;font-size:10px;outline:none;
+}
+.input:focus,.select:focus,.textarea:focus{
+  border-color:#9a89ff;box-shadow:0 0 0 3px rgba(104,72,245,.08);
+}
+.textarea{min-height:86px;resize:vertical}
+.form-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.action-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:13px}
+.tabs button{
+  border:1px solid var(--line);background:#fff;border-radius:10px;
+  padding:8px 11px;font-size:9px;font-weight:850;color:#5e6578;
+}
+.tabs button.active{background:var(--purple);border-color:#dad3ff;color:#593bdf}
+.session-card{
+  border:1px solid #d9d2ff;border-radius:17px;padding:14px;
+  background:linear-gradient(145deg,#fff,#f7f5ff);
+}
+.session-card h3{margin:8px 0 4px;font-size:14px}
+.session-card p{margin:0;color:var(--muted);font-size:9px;line-height:1.5}
+.slide-builder{display:grid;grid-template-columns:250px minmax(0,1fr);gap:12px}
+.slide-list{border:1px solid var(--line);border-radius:15px;padding:11px;background:#fbfcff}
+.slide-list-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:9px}
+.slide-list-head b{font-size:10px}
+.slide-item{
+  border:1px solid var(--line);border-radius:11px;padding:9px;background:#fff;
+  display:flex;align-items:center;gap:8px;margin-top:7px;cursor:pointer;
+}
+.slide-item.active{border-color:#bdb2ff;background:var(--purple)}
+.slide-number{
+  width:25px;height:25px;border-radius:8px;background:#eef1f7;
+  display:grid;place-items:center;font-size:8px;font-weight:900;flex:0 0 auto;
+}
+.slide-item.active .slide-number{background:#fff;color:#593bdf}
+.slide-copy{flex:1;min-width:0}
+.slide-copy b{display:block;font-size:9px}
+.slide-copy span{
+  display:block;font-size:8px;color:var(--muted);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.slide-actions{display:flex;gap:4px}
+.icon-btn{
+  width:27px;height:27px;border:1px solid var(--line);border-radius:8px;
+  background:#fff;display:grid;place-items:center;font-size:9px;
+}
+.slide-editor{border:1px solid var(--line);border-radius:15px;padding:14px;background:#fff}
+.slide-preview{
+  min-height:270px;border-radius:17px;padding:24px;display:grid;place-items:center;
+  text-align:center;background:linear-gradient(145deg,#211d48,#6848f5 58%,#2f7cff);
+  color:#fff;box-shadow:0 18px 46px rgba(62,49,151,.2);
+}
+.slide-preview.info{background:linear-gradient(145deg,#14324a,#2677c9 58%,#4aa4ff)}
+.slide-preview.question{background:linear-gradient(145deg,#33204d,#8b4fc9 58%,#d16dca)}
+.slide-preview.closing{background:linear-gradient(145deg,#173d36,#168565 58%,#42b88e)}
+.slide-preview h2{font-size:25px;line-height:1.25;margin:0}
+.slide-preview p{font-size:11px;color:#ece9ff;line-height:1.6;margin:10px 0 0;max-width:620px}
+.builder-toolbar{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;
+  margin-top:11px;flex-wrap:wrap;
+}
+.presenter{
+  min-height:630px;border-radius:21px;overflow:hidden;position:relative;
+  background:#0c0d1a;color:#fff;
+}
+.presenter-top{
+  position:absolute;left:0;right:0;top:0;z-index:3;padding:13px 15px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:linear-gradient(180deg,rgba(7,8,18,.72),transparent);
+}
+.presenter-stage{
+  min-height:630px;padding:80px 28px 90px;display:grid;place-items:center;text-align:center;
+  background:linear-gradient(145deg,#211d48,#6848f5 58%,#2f7cff);
+}
+.presenter-stage.info{background:linear-gradient(145deg,#14324a,#2677c9 58%,#4aa4ff)}
+.presenter-stage.question{background:linear-gradient(145deg,#33204d,#8b4fc9 58%,#d16dca)}
+.presenter-stage.closing{background:linear-gradient(145deg,#173d36,#168565 58%,#42b88e)}
+.presenter-stage h1{font-size:34px;line-height:1.22;margin:0;max-width:760px}
+.presenter-stage p{font-size:13px;color:#eeebff;line-height:1.65;max-width:720px;margin:12px 0 0}
+.presenter-controls{
+  position:absolute;left:0;right:0;bottom:0;z-index:3;padding:13px 15px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:linear-gradient(0deg,rgba(7,8,18,.82),transparent);
+}
+.live-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:12px}
+.responses-panel{
+  border:1px solid var(--line);border-radius:17px;background:#fff;
+  padding:13px;max-height:630px;overflow:auto;
+}
+.response-card{
+  border:1px solid var(--line);border-radius:13px;padding:11px;background:#fff;margin-top:8px;
+}
+.response-card b{display:block;font-size:9px}
+.response-card p{margin:5px 0 0;font-size:9px;line-height:1.55;color:#444b5d}
+.student-live{
+  min-height:560px;border-radius:19px;overflow:hidden;border:1px solid var(--line);background:#fff;
+}
+.student-slide{
+  min-height:340px;padding:28px;display:grid;place-items:center;text-align:center;color:#fff;
+  background:linear-gradient(145deg,#211d48,#6848f5 58%,#2f7cff);
+}
+.student-slide.info{background:linear-gradient(145deg,#14324a,#2677c9 58%,#4aa4ff)}
+.student-slide.question{background:linear-gradient(145deg,#33204d,#8b4fc9 58%,#d16dca)}
+.student-slide.closing{background:linear-gradient(145deg,#173d36,#168565 58%,#42b88e)}
+.student-slide h2{font-size:23px;line-height:1.25;margin:0}
+.student-slide p{font-size:10px;line-height:1.6;color:#ece9ff;margin:10px 0 0}
+.answer-area{padding:14px}
+.answer-saved{
+  border:1px solid #c7eadc;background:var(--greenbg);color:var(--green);
+  border-radius:13px;padding:12px;font-size:9px;line-height:1.55;
+}
+.answer-locked{
+  border:1px solid #e3d4a1;background:var(--amberbg);color:var(--amber);
+  border-radius:13px;padding:12px;font-size:9px;line-height:1.55;
+}
+.profile-answer{
+  border-left:3px solid var(--brand);padding:10px 12px;border-radius:0 12px 12px 0;
+  background:#f8f7ff;margin-top:9px;
+}
+.profile-answer b{display:block;font-size:9px}
+.profile-answer p{font-size:9px;line-height:1.6;margin:5px 0 0;color:#43495c}
+.presenter-fullscreen{
+  position:fixed;inset:0;z-index:160;background:#090a14;padding:18px;
+  overflow:auto;color:#fff;
+}
+.presenter-fullscreen .live-layout{min-height:calc(100vh - 36px)}
+.presenter-fullscreen .presenter,.presenter-fullscreen .presenter-stage{min-height:calc(100vh - 36px)}
+.modal-backdrop{
+  position:fixed;inset:0;z-index:220;background:rgba(18,20,35,.48);
+  backdrop-filter:blur(6px);display:grid;place-items:center;padding:18px;
+}
+.modal{
+  width:min(720px,100%);max-height:90vh;overflow:auto;background:#fff;
+  border-radius:21px;box-shadow:0 30px 90px rgba(10,12,30,.3);
+}
+.modal-head,.modal-foot{
+  padding:16px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+  border-bottom:1px solid var(--line);
+}
+.modal-head h3{margin:0;font-size:15px}
+.modal-head p{margin:5px 0 0;color:var(--muted);font-size:8px}
+.modal-body{padding:16px}
+.modal-foot{justify-content:flex-end;border-top:1px solid var(--line);border-bottom:0;background:#fafbfe}
+.toast{
+  position:fixed;right:20px;bottom:20px;z-index:400;
+  background:#1e2033;color:#fff;padding:10px 13px;border-radius:11px;
+  font-size:9px;box-shadow:var(--shadow);
+}
+@media(max-width:1180px){
+  .split,.live-layout{grid-template-columns:1fr}
+  .pane{min-height:auto}
+}
+@media(max-width:900px){.slide-builder{grid-template-columns:1fr}}
+@media(max-width:720px){
+  .topbar{padding:10px 12px;flex-wrap:wrap}
+  .mode-switch{order:3;width:100%;overflow:auto}
+  .shell{padding:13px 11px 24px}
+  .grid.two,.grid.three,.grid.four,.form-row{grid-template-columns:1fr}
+  .next-banner{align-items:flex-start;flex-direction:column}
+  .presenter-stage h1{font-size:27px}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const students=[
+  {id:'lina',name:'Lina Haddad',email:'lina.haddad@gmail.com',major:'Computer Science',city:'Damascus',initials:'LH'},
+  {id:'omar',name:'Omar Al-Khatib',email:'omar.khatib@gmail.com',major:'Software Engineering',city:'Aleppo',initials:'OA'},
+  {id:'maya',name:'Maya Darwish',email:'maya.darwish@gmail.com',major:'Information Technology',city:'Latakia',initials:'MD'},
+  {id:'yousef',name:'Yousef Hamdan',email:'yousef.hamdan@gmail.com',major:'Computer Engineering',city:'Homs',initials:'YH'},
+  {id:'sara',name:'Sara Nasser',email:'sara.nasser@gmail.com',major:'Computer Science',city:'Hama',initials:'SN'}
+];
+
+const sampleSlides=()=>[
+  {id:'welcome',type:'welcome',title:'Welcome to Code Your Future',body:'Today we will get to know each other, your goals, and what you want to achieve.'},
+  {id:'info',type:'information',title:'How today works',body:'The Admin controls the slides. On question slides, write your answer and press Submit Answer.'},
+  {id:'intro',type:'question',title:'Introduce yourself briefly.',body:'Tell us about your background, studies, and interests.',answerType:'long',required:true},
+  {id:'why',type:'question',title:'Why did you choose software development?',body:'Share the main reason that attracted you to this field.',answerType:'long',required:true},
+  {id:'role',type:'question',title:'What role are you interested in?',body:'For example: Frontend, Backend, Mobile, QA, UI/UX, or another role.',answerType:'short',required:true},
+  {id:'goal',type:'question',title:'What do you want to achieve in this Batch?',body:'Describe the most important outcome you want from Code Your Future.',answerType:'long',required:true},
+  {id:'closing',type:'closing',title:'Thank you',body:'Your submitted answers are saved in your student profile for the Admin.'}
+];
+
+const initialState=()=>({
+  mode:'split',
+  adminTab:'live-slides',
+  sessionCreated:false,
+  session:{
+    title:'Summer 2026 — First Meeting',
+    date:'2026-08-10',
+    description:'Getting to know the students and their goals',
+    status:'none',
+    slides:[],
+    selectedSlideId:null,
+    currentIndex:0,
+    joinedStudentIds:[],
+    lockedQuestionIds:[],
+    responses:{},
+    startedAt:null,
+    completedAt:null
+  },
+  studentId:'lina',
+  studentDraft:'',
+  resultsView:'student',
+  presenterFullscreen:false,
+  responsesVisible:true
+});
+
+let state=initialState();
+
+const flow=[
+  ['1. Create Session','Admin'],
+  ['2. Build Slides','Questions'],
+  ['3. Mark Ready','Before class'],
+  ['4. Start Session','Admin'],
+  ['5. Student Joins','Dashboard'],
+  ['6. Show Question','Presenter'],
+  ['7. Submit Answer','Student'],
+  ['8. Next Slide','Lock answer'],
+  ['9. End Session','Admin'],
+  ['10. Save to Profile','Admin only']
+];
+
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function uid(){return 'slide_'+Math.random().toString(36).slice(2,9)}
+function currentStudent(){return students.find(s=>s.id===state.studentId)||students[0]}
+function currentSlide(){return state.session.slides[state.session.currentIndex]||null}
+function selectedSlide(){return state.session.slides.find(s=>s.id===state.session.selectedSlideId)||state.session.slides[0]||null}
+function isQuestion(slide){return slide?.type==='question'}
+function isQuestionLocked(slideId){return state.session.lockedQuestionIds.includes(slideId)}
+function responseKey(slideId,studentId){return `${slideId}:${studentId}`}
+function getResponse(slideId,studentId){return state.session.responses[responseKey(slideId,studentId)]||null}
+function saveResponse(slideId,studentId,value){
+  state.session.responses[responseKey(slideId,studentId)]={
+    value,
+    submittedAt:new Date().toISOString()
+  };
+}
+function slideTypeLabel(type){
+  return ({welcome:'Welcome',information:'Information',question:'Question',closing:'Closing'})[type]||type;
+}
+function slideClass(type){
+  return type==='information'?'info':type==='question'?'question':type==='closing'?'closing':'';
+}
+function joinedCount(){return state.session.joinedStudentIds.length}
+function submittedCount(slideId){return students.filter(s=>getResponse(slideId,s.id)).length}
+function unansweredStudents(slideId){return students.filter(s=>!getResponse(slideId,s.id))}
+function questionSlides(){return state.session.slides.filter(isQuestion)}
+function participantCount(){
+  return students.filter(s=>questionSlides().some(q=>getResponse(q.id,s.id))).length;
+}
+
+function flowStep(){
+  if(!state.sessionCreated)return 0;
+  if(state.session.status==='draft')return 1;
+  if(state.session.status==='ready')return 2;
+  if(state.session.status==='live'&&!state.session.joinedStudentIds.includes(state.studentId))return 4;
+  if(state.session.status==='live'){
+    const slide=currentSlide();
+    if(isQuestion(slide)&&!getResponse(slide.id,state.studentId)&&!isQuestionLocked(slide.id))return 6;
+    return 7;
+  }
+  if(state.session.status==='completed')return 9;
+  return 0;
+}
+
+function nextAction(){
+  const map={
+    0:['Admin action','Create the first Live Slides session for Summer 2026.','Create Session','openCreateSession()'],
+    1:['Admin action','Prepare all slides and questions before the lecture.','Open Builder','openBuilder()'],
+    2:['Admin action','Start the session when the first lecture begins.','Start Session','openStartConfirmation()'],
+    4:['Student action','The session is live. Join from the Student Dashboard.','Join Session','joinSession()'],
+    6:['Student action','Write the answer and press Submit Answer. The Admin sees nothing before submission.','Focus Answer',"document.getElementById('studentAnswer')?.focus()"],
+    7:['Admin action','Move to the next slide. The current question becomes locked.','Next Slide','nextSlide()'],
+    9:['Completed','The answers are saved in Admin-only student profiles.','Open Profiles',"state.adminTab='students';render()"]
+  };
+  return map[flowStep()]||map[0];
+}
+
+function topbar(){
+  return `<header class="topbar">
+    <div class="brand"><div class="logo">CYF</div><div><b>Code Your Future</b><span>Batch Live Slides · Interactive first lecture</span></div></div>
+    <nav class="mode-switch">
+      ${[['split','Split Demo'],['admin','Admin'],['student','Student']].map(item=>`<button class="${state.mode===item[0]?'active':''}" onclick="setMode('${item[0]}')">${item[1]}</button>`).join('')}
+    </nav>
+    <div class="top-actions"><span class="pill green">Summer 2026</span><button class="btn" onclick="resetDemo()">Reset</button></div>
+  </header>`;
+}
+function flowbar(){
+  const active=flowStep();
+  return `<section class="flow-card">
+    <div class="flow-head"><b>Complete Live Slides flow</b><span>Answers appear only after Submit Answer</span></div>
+    <div class="flow-track">${flow.map((item,index)=>`<div class="flow-step ${index<active?'done':index===active?'current':''}"><b>${item[0]}</b><span>${item[1]}</span></div>`).join('')}</div>
+  </section>`;
+}
+function nextBanner(){
+  const action=nextAction();
+  return `<div class="next-banner">
+    <div class="next-copy"><div class="next-num">${flowStep()+1}</div><div><b>Next: ${action[0]}</b><span>${action[1]}</span></div></div>
+    <button class="btn" onclick="${action[3]}">${action[2]}</button>
+  </div>`;
+}
+function paneHeader(type){
+  const student=type==='student';
+  return `<div class="pane-head">
+    <div class="workspace"><div class="workspace-icon">${student?'ST':'AD'}</div><div><b>${student?'Student workspace':'Admin workspace'}</b><span>${student?'Join, answer and wait for the next slide':'Build, present and view submitted answers'}</span></div></div>
+    <span class="pill ${state.session.status==='live'?'red':'green'}">${state.session.status==='live'?'● Live':'Synced'}</span>
+  </div>`;
+}
+function panel(type){
+  return `<section class="pane ${type}">${paneHeader(type)}<div class="pane-body">${type==='student'?studentPanel():adminPanel()}</div></section>`;
+}
+function render(){
+  let content='';
+  if(state.mode==='split')content=`${flowbar()}${nextBanner()}<div class="split">${panel('student')}${panel('admin')}</div>`;
+  if(state.mode==='admin')content=`<div class="single">${panel('admin')}</div>`;
+  if(state.mode==='student')content=`<div class="single">${panel('student')}</div>`;
+  document.getElementById('root').innerHTML=topbar()+`<main class="shell">${content}</main>`;
+  renderPresenterFullscreen();
+}
+function setMode(mode){state.mode=mode;render()}
+function resetDemo(){state=initialState();closePresenterFullscreen();render();toast('Demo reset')}
+
+function adminTabs(){
+  return `<div class="tabs">
+    ${[
+      ['overview','Overview'],
+      ['students','Students'],
+      ['tasks','Tasks'],
+      ['live-slides','Live Slides'],
+      ['pinned','Pinned Students']
+    ].map(item=>`<button class="${state.adminTab===item[0]?'active':''}" onclick="state.adminTab='${item[0]}';render()">${item[1]}</button>`).join('')}
+  </div>`;
+}
+function adminPanel(){
+  const tabs=adminTabs();
+  if(state.adminTab==='overview')return tabs+overviewTab();
+  if(state.adminTab==='students')return tabs+studentsTab();
+  if(state.adminTab==='tasks')return tabs+tasksTab();
+  if(state.adminTab==='pinned')return tabs+pinnedTab();
+  return tabs+liveSlidesTab();
+}
+function overviewTab(){
+  return `<div class="page-title"><div><h2>Summer 2026</h2><p>Batch overview</p></div><span class="pill green">Active</span></div>
+    <div class="grid three">
+      <div class="stat"><span>Students</span><strong>${students.length}</strong><small>Joined Batch</small></div>
+      <div class="stat"><span>Live Slides</span><strong>${state.sessionCreated?1:0}</strong><small>${state.sessionCreated?state.session.status:'Not created'}</small></div>
+      <div class="stat"><span>Saved Answers</span><strong>${Object.keys(state.session.responses).length}</strong><small>Admin only</small></div>
+    </div>`;
+}
+function tasksTab(){
+  return `<div class="page-title"><div><h2>Tasks</h2><p>Assignments and Final Tasks remain separate.</p></div></div>
+    <div class="notice">This prototype focuses on the Batch Live Slides feature and its complete Student–Admin flow.</div>`;
+}
+function pinnedTab(){
+  return `<div class="page-title"><div><h2>Pinned Students</h2><p>Quick-return students from the main product.</p></div></div>
+    <div class="empty"><b>No pinned students in this feature demo</b>Live Slides answers are stored in profiles but do not automatically pin a student.</div>`;
+}
+function studentsTab(){
+  return `<div class="page-title"><div><h2>Students</h2><p>${state.session.status==='completed'?'Live Session Answers are available inside each Admin-only profile.':'Open a student profile.'}</p></div><span class="pill purple">Admin only</span></div>
+    <div class="list">${students.map(studentRow).join('')}</div>`;
+}
+function studentRow(student){
+  const answers=questionSlides().filter(q=>getResponse(q.id,student.id)).length;
+  const summary=state.session.status==='completed'?`${answers}/${questionSlides().length} Live Session answers`:`${student.email} · ${student.major} · ${student.city}`;
+  return `<div class="list-item"><div class="avatar">${student.initials}</div><div class="grow"><b>${student.name}</b><span>${summary}</span></div><button class="btn sm" onclick="openStudentProfile('${student.id}')">Open profile</button></div>`;
+}
+function openStudentProfile(studentId){
+  const student=students.find(s=>s.id===studentId)||students[0];
+  modal('Student Profile','Admin-only profile view.',studentProfileContent(student),`<button class="btn primary" onclick="closeModal()">Close</button>`);
+}
+function studentProfileContent(student){
+  const questions=questionSlides();
+  return `<div class="list-item">
+    <div class="avatar">${student.initials}</div>
+    <div class="grow"><b>${student.name}</b><span>${student.email} · ${student.major} · ${student.city}</span></div>
+    <span class="pill purple">Admin only</span>
+  </div>
+  <div class="section">
+    <div class="section-title"><h4>Live Session Answers</h4><span>${state.sessionCreated?state.session.title:'No session'}</span></div>
+    ${state.session.status!=='completed'
+      ?'<div class="notice amber">Answers appear here after the Live Session is completed.</div>'
+      :questions.map(question=>{
+        const response=getResponse(question.id,student.id);
+        return `<div class="profile-answer"><b>${esc(question.title)}</b><p>${response?esc(response.value):'<span style="color:#a86900">No Answer</span>'}</p></div>`;
+      }).join('')}
+  </div>`;
+}
+
+function liveSlidesTab(){
+  if(!state.sessionCreated)return noSessionView();
+  if(state.session.status==='draft')return draftSessionView();
+  if(state.session.status==='ready')return readySessionView();
+  if(state.session.status==='live')return presenterView(false);
+  return completedSessionView();
+}
+function noSessionView(){
+  return `<div class="page-title"><div><h2>Live Slides</h2><p>Create the interactive first lecture for this Batch.</p></div></div>
+    <div class="session-card">
+      <span class="pill purple">FIRST LECTURE</span>
+      <h3>Meet the students through live questions</h3>
+      <p>Prepare slides before class, control them during the lecture, and save submitted answers inside each Admin student profile.</p>
+      <div class="action-row"><button class="btn primary" onclick="openCreateSession()">Create Live Slides Session</button></div>
+    </div>`;
+}
+function openCreateSession(){
+  modal('Create Live Slides Session','Prepare the first lecture before meeting the students.',
+    `<div class="form">
+      <div class="field"><label>Session title *</label><input id="sessionTitle" class="input" value="Summer 2026 — First Meeting"></div>
+      <div class="form-row">
+        <div class="field"><label>Session date *</label><input id="sessionDate" class="input" type="date" value="2026-08-10"></div>
+        <div class="field"><label>Batch</label><input class="input" readonly value="Summer 2026"></div>
+      </div>
+      <div class="field"><label>Description</label><textarea id="sessionDescription" class="textarea">Getting to know the students and their goals</textarea></div>
+      <div class="notice purple"><b>Recommended structure:</b><br>Welcome → Information → Questions → Closing</div>
+    </div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="createSession()">Create Session</button>`
+  );
+}
+function createSession(){
+  const title=document.getElementById('sessionTitle').value.trim();
+  const date=document.getElementById('sessionDate').value;
+  if(!title||!date){toast('Complete the required session fields');return}
+  state.sessionCreated=true;
+  state.session.title=title;
+  state.session.date=date;
+  state.session.description=document.getElementById('sessionDescription').value.trim();
+  state.session.status='draft';
+  state.session.slides=sampleSlides();
+  state.session.selectedSlideId=state.session.slides[0].id;
+  closeModal();render();toast('Live Slides session created');
+}
+function openBuilder(){
+  state.session.status='draft';
+  render();
+}
+function draftSessionView(){
+  return `<div class="page-title"><div><h2>${esc(state.session.title)}</h2><p>Prepare all questions before the lecture.</p></div><span class="pill amber">Draft</span></div>
+    ${slideBuilder()}`;
+}
+function slideBuilder(){
+  const slide=selectedSlide();
+  return `<div class="slide-builder">
+    <aside class="slide-list">
+      <div class="slide-list-head"><b>Slides</b><button class="btn sm primary" onclick="openAddSlide()">+ Add Slide</button></div>
+      ${state.session.slides.map((item,index)=>`<div class="slide-item ${item.id===slide?.id?'active':''}" onclick="selectSlide('${item.id}')">
+        <div class="slide-number">${index+1}</div>
+        <div class="slide-copy"><b>${esc(item.title)}</b><span>${slideTypeLabel(item.type)}</span></div>
+        <div class="slide-actions">
+          <button class="icon-btn" onclick="event.stopPropagation();moveSlide('${item.id}',-1)">↑</button>
+          <button class="icon-btn" onclick="event.stopPropagation();moveSlide('${item.id}',1)">↓</button>
+        </div>
+      </div>`).join('')}
+    </aside>
+    <section class="slide-editor">${slide?slideEditor(slide):'<div class="empty"><b>No slide selected</b>Add a slide to continue.</div>'}</section>
+  </div>
+  <div class="builder-toolbar">
+    <div class="action-row"><button class="btn" onclick="previewSession()">Preview Session</button><button class="btn danger" onclick="deleteSelectedSlide()">Delete Slide</button></div>
+    <div class="action-row"><button class="btn" onclick="toast('Draft saved')">Save Draft</button><button class="btn green" onclick="markReady()">Mark as Ready</button></div>
+  </div>`;
+}
+function slideEditor(slide){
+  return `<div class="section-title"><h4>Edit ${slideTypeLabel(slide.type)} Slide</h4><span>Slide ${state.session.slides.findIndex(s=>s.id===slide.id)+1} of ${state.session.slides.length}</span></div>
+    <div class="form">
+      <div class="field"><label>Slide type</label><input class="input" readonly value="${slideTypeLabel(slide.type)}"></div>
+      <div class="field"><label>${slide.type==='question'?'Question':'Title'} *</label><input class="input" value="${esc(slide.title)}" oninput="updateSlideField('title',this.value)"></div>
+      <div class="field"><label>${slide.type==='question'?'Optional description':'Body text'}</label><textarea class="textarea" oninput="updateSlideField('body',this.value)">${esc(slide.body||'')}</textarea></div>
+      ${slide.type==='question'?`<div class="form-row">
+        <div class="field"><label>Answer type</label><select class="select" onchange="updateSlideField('answerType',this.value)"><option value="short" ${slide.answerType==='short'?'selected':''}>Short Answer</option><option value="long" ${slide.answerType==='long'?'selected':''}>Long Answer</option></select></div>
+        <div class="field"><label>Required</label><select class="select" onchange="updateSlideField('required',this.value==='true')"><option value="true" ${slide.required?'selected':''}>Required</option><option value="false" ${!slide.required?'selected':''}>Optional</option></select></div>
+      </div>`:''}
+    </div>
+    <div class="section"><div class="section-title"><h4>Slide Preview</h4><span>Presenter view</span></div><div id="builderPreview">${slidePreview(slide)}</div></div>`;
+}
+function slidePreview(slide){
+  return `<div class="slide-preview ${slideClass(slide.type)}"><div><span class="pill" style="background:rgba(255,255,255,.16);color:#fff">${slideTypeLabel(slide.type)}</span><h2 style="margin-top:10px">${esc(slide.title)}</h2>${slide.body?`<p>${esc(slide.body)}</p>`:''}</div></div>`;
+}
+function selectSlide(id){state.session.selectedSlideId=id;render()}
+function updateSlideField(field,value){
+  const slide=selectedSlide();if(!slide)return;
+  slide[field]=value;
+  const preview=document.getElementById('builderPreview');if(preview)preview.innerHTML=slidePreview(slide);
+  const index=state.session.slides.findIndex(s=>s.id===slide.id);
+  const titleNode=document.querySelectorAll('.slide-copy b')[index];if(titleNode)titleNode.textContent=slide.title;
+}
+function openAddSlide(){
+  const types=[
+    ['welcome','Welcome Slide','Opening title and welcome message'],
+    ['information','Information Slide','Instructions or context without an answer'],
+    ['question','Question Slide','Students submit a short or long answer'],
+    ['closing','Closing Slide','End the lecture and confirm answers are saved']
+  ];
+  modal('Add Slide','Choose one simple slide type for Version 1.',
+    `<div class="grid two">${types.map(type=>`<button class="card pad" style="text-align:left;cursor:pointer" onclick="addSlide('${type[0]}')"><span class="pill ${type[0]==='question'?'purple':'blue'}">${type[1]}</span><h3 style="font-size:12px;margin:9px 0 4px">${type[1]}</h3><p style="font-size:9px;color:var(--muted);line-height:1.5">${type[2]}</p></button>`).join('')}</div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button>`
+  );
+}
+function addSlide(type){
+  const defaults={
+    welcome:{title:'Welcome to Code Your Future',body:'Add your welcome message.'},
+    information:{title:'Information',body:'Add instructions or context.'},
+    question:{title:'Write your question here.',body:'Optional description.',answerType:'long',required:true},
+    closing:{title:'Thank you',body:'Your submitted answers have been saved.'}
+  };
+  const slide={id:uid(),type,...defaults[type]};
+  const closingIndex=state.session.slides.findIndex(s=>s.type==='closing');
+  if(type!=='closing'&&closingIndex>=0)state.session.slides.splice(closingIndex,0,slide);
+  else state.session.slides.push(slide);
+  state.session.selectedSlideId=slide.id;
+  closeModal();render();toast(`${slideTypeLabel(type)} slide added`);
+}
+function moveSlide(id,direction){
+  const index=state.session.slides.findIndex(s=>s.id===id);
+  const target=index+direction;
+  if(index<0||target<0||target>=state.session.slides.length)return;
+  const [slide]=state.session.slides.splice(index,1);
+  state.session.slides.splice(target,0,slide);
+  render();
+}
+function deleteSelectedSlide(){
+  if(state.session.slides.length<=1){toast('The session needs at least one slide');return}
+  const id=state.session.selectedSlideId;
+  state.session.slides=state.session.slides.filter(s=>s.id!==id);
+  state.session.selectedSlideId=state.session.slides[0]?.id||null;
+  render();toast('Slide deleted');
+}
+function markReady(){
+  if(!state.session.slides.some(isQuestion)){toast('Add at least one Question Slide');return}
+  state.session.status='ready';render();toast('Session marked as Ready');
+}
+function previewSession(){
+  const first=state.session.slides[0];
+  modal('Session Preview',`${state.session.slides.length} slides · ${questionSlides().length} questions`,
+    `${slidePreview(first)}<div class="notice" style="margin-top:10px">This quick preview displays the first slide. Presenter Mode shows one slide at a time.</div>`,
+    `<button class="btn primary" onclick="closeModal()">Close Preview</button>`
+  );
+}
+function readySessionView(){
+  return `<div class="page-title"><div><h2>${esc(state.session.title)}</h2><p>Prepared for ${esc(state.session.date)}</p></div><span class="pill green">Ready</span></div>
+    <div class="notice green"><b>The session is ready.</b><br>Start it when the first lecture begins. Students will see Join Live Session automatically.</div>
+    <div class="action-row"><button class="btn primary" onclick="openStartConfirmation()">Start Session</button><button class="btn" onclick="state.session.status='draft';render()">Back to Draft</button><button class="btn" onclick="previewSession()">Preview</button></div>
+    <div class="section">${sessionSlidesSummary()}</div>`;
+}
+function sessionSlidesSummary(){
+  return `<div class="card pad"><div class="section-title"><h4>Session Slides</h4><span>${questionSlides().length} questions</span></div><div class="list">${state.session.slides.map((slide,index)=>`<div class="list-item"><div class="avatar">${index+1}</div><div class="grow"><b>${esc(slide.title)}</b><span>${slideTypeLabel(slide.type)}${slide.required?' · Required':''}</span></div><span class="pill ${slide.type==='question'?'purple':'blue'}">${slideTypeLabel(slide.type)}</span></div>`).join('')}</div></div>`;
+}
+function openStartConfirmation(){
+  modal('Start Live Session?',`All students in Summer 2026 will receive a Join Live Session action.`,
+    `<div class="notice purple"><b>${esc(state.session.title)}</b><br>${state.session.slides.length} slides · ${questionSlides().length} questions</div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" onclick="startSession()">Start Session</button>`
+  );
+}
+function startSession(){
+  closeModal();
+  state.session.status='live';
+  state.session.currentIndex=0;
+  state.session.joinedStudentIds=['omar','maya','yousef'];
+  state.session.lockedQuestionIds=[];
+  state.session.responses={};
+  state.session.startedAt=new Date().toISOString();
+  state.studentDraft='';
+  state.responsesVisible=true;
+  seedDemoResponses();
+  render();toast('Live Session started');
+}
+
+function presenterView(fullscreen){
+  const slide=currentSlide();
+  const body=`<div class="live-layout">
+    <div class="presenter">
+      <div class="presenter-top">
+        <div><b style="font-size:10px">${esc(state.session.title)}</b><div style="font-size:8px;color:#d9d6ef;margin-top:3px">Slide ${state.session.currentIndex+1} of ${state.session.slides.length}</div></div>
+        <div class="action-row">
+          <span class="pill" style="background:rgba(255,255,255,.14);color:#fff">${joinedCount()}/${students.length} joined</span>
+          ${!fullscreen?`<button class="btn sm" onclick="openPresenterFullscreen()">Full Screen</button>`:`<button class="btn sm" onclick="closePresenterFullscreen()">Exit Full Screen</button>`}
+          <button class="btn sm" onclick="toggleResponses()">${state.responsesVisible?'Hide Responses':'Show Responses'}</button>
+        </div>
+      </div>
+      <div class="presenter-stage ${slideClass(slide.type)}">
+        <div><span class="pill" style="background:rgba(255,255,255,.16);color:#fff">${slideTypeLabel(slide.type)}</span><h1 style="margin-top:12px">${esc(slide.title)}</h1>${slide.body?`<p>${esc(slide.body)}</p>`:''}</div>
+      </div>
+      <div class="presenter-controls">
+        <button class="btn" ${state.session.currentIndex===0?'disabled':''} onclick="previousSlide()">← Previous</button>
+        <span class="pill" style="background:rgba(255,255,255,.14);color:#fff">${isQuestion(slide)?`${submittedCount(slide.id)} submitted`:'No response required'}</span>
+        ${state.session.currentIndex===state.session.slides.length-1
+          ?`<button class="btn green" onclick="endSession()">End Session</button>`
+          :`<button class="btn primary" onclick="nextSlide()">Next Slide →</button>`}
+      </div>
+    </div>
+    ${state.responsesVisible?`<aside class="responses-panel">${responsesPanel(slide)}</aside>`:''}
+  </div>`;
+  if(fullscreen)return body;
+  return `<div class="page-title"><div><h2>Presenter Mode</h2><p>${esc(state.session.title)}</p></div><span class="pill red">● Live</span></div>${body}`;
+}
+function responsesPanel(slide){
+  if(!isQuestion(slide)){
+    return `<div class="section-title"><h4>Submitted Responses</h4><span>Admin only</span></div><div class="empty"><b>No answer required</b>This is a ${slideTypeLabel(slide.type)} Slide.</div>`;
+  }
+  const submitted=students.map(student=>({student,response:getResponse(slide.id,student.id)})).filter(item=>item.response);
+  return `<div class="section-title"><h4>Submitted Responses</h4><span>${submitted.length}/${students.length}</span></div>
+    <div class="notice purple"><b>Privacy:</b><br>Only submitted answers appear. Typing and draft text are never shown.</div>
+    ${submitted.length
+      ?submitted.map(item=>`<div class="response-card"><b>${item.student.name}</b><p>${esc(item.response.value)}</p></div>`).join('')
+      :'<div class="empty" style="margin-top:9px"><b>No submitted answers yet</b>Responses appear only after students press Submit Answer.</div>'}`;
+}
+function openPresenterFullscreen(){state.presenterFullscreen=true;render()}
+function closePresenterFullscreen(){state.presenterFullscreen=false;document.getElementById('presenterFullscreen')?.remove()}
+function renderPresenterFullscreen(){
+  document.getElementById('presenterFullscreen')?.remove();
+  if(!state.presenterFullscreen||state.session.status!=='live')return;
+  const overlay=document.createElement('div');
+  overlay.className='presenter-fullscreen';
+  overlay.id='presenterFullscreen';
+  overlay.innerHTML=presenterView(true);
+  document.body.appendChild(overlay);
+}
+function toggleResponses(){state.responsesVisible=!state.responsesVisible;render()}
+function previousSlide(){
+  if(state.session.currentIndex===0)return;
+  state.session.currentIndex--;
+  state.studentDraft='';
+  render();
+}
+function nextSlide(){
+  const slide=currentSlide();
+  if(isQuestion(slide)&&!isQuestionLocked(slide.id)){
+    const unanswered=unansweredStudents(slide.id);
+    if(unanswered.length){
+      modal('Continue to the next slide?',`${submittedCount(slide.id)} of ${students.length} students submitted an answer.`,
+        `<div class="notice amber"><b>${unanswered.length} students have no submitted answer.</b><br>Continuing locks this question and records No Answer for them.</div>
+        <div class="list" style="margin-top:10px">${unanswered.map(student=>`<div class="list-item"><div class="avatar">${student.initials}</div><div class="grow"><b>${student.name}</b><span>No submitted answer</span></div><span class="pill amber">No Answer</span></div>`).join('')}</div>`,
+        `<button class="btn" onclick="closeModal()">Stay on this Slide</button><button class="btn primary" onclick="continueAndLock()">Continue and Lock Answers</button>`
+      );
+      return;
+    }
+    lockCurrentQuestion();
+  }
+  goToNextSlide();
+}
+function continueAndLock(){closeModal();lockCurrentQuestion();goToNextSlide()}
+function lockCurrentQuestion(){
+  const slide=currentSlide();
+  if(isQuestion(slide)&&!isQuestionLocked(slide.id))state.session.lockedQuestionIds.push(slide.id);
+}
+function goToNextSlide(){
+  if(state.session.currentIndex>=state.session.slides.length-1)return;
+  state.session.currentIndex++;
+  state.studentDraft='';
+  seedDemoResponses();
+  render();
+}
+function endSession(){
+  const slide=currentSlide();
+  if(isQuestion(slide)&&!isQuestionLocked(slide.id)&&unansweredStudents(slide.id).length){
+    modal('End Live Session?',`${unansweredStudents(slide.id).length} students have no submitted answer on the current question.`,
+      `<div class="notice amber">Ending locks the current question, saves submitted answers, and records No Answer for missing responses. Students cannot answer after completion.</div>`,
+      `<button class="btn" onclick="closeModal()">Return to Session</button><button class="btn danger" onclick="confirmEndSession()">End Session</button>`
+    );
+    return;
+  }
+  openEndConfirmation();
+}
+function openEndConfirmation(){
+  modal('End Live Session?','All submitted answers will be saved to Admin student profiles.',
+    `<div class="notice green"><b>Session summary</b><br>${questionSlides().length} questions · ${Object.keys(state.session.responses).length} submitted answers</div>`,
+    `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="confirmEndSession()">End Session</button>`
+  );
+}
+function confirmEndSession(){
+  closeModal();
+  lockCurrentQuestion();
+  state.session.status='completed';
+  state.session.completedAt=new Date().toISOString();
+  state.presenterFullscreen=false;
+  render();toast('Session completed and answers saved');
+}
+function seedDemoResponses(){
+  const slide=currentSlide();
+  if(!isQuestion(slide)||isQuestionLocked(slide.id))return;
+  const examples={
+    intro:{
+      omar:'I am a software engineering student from Aleppo and I enjoy backend systems.',
+      maya:'I study information technology and I am interested in design and user experience.'
+    },
+    why:{
+      omar:'I like solving logical problems and understanding how systems work.',
+      maya:'Technology allows me to turn ideas into useful products.'
+    },
+    role:{
+      omar:'Backend Developer',
+      maya:'UI/UX Designer',
+      yousef:'Flutter Developer'
+    },
+    goal:{
+      omar:'I want to build stronger backend projects and become ready for junior roles.',
+      maya:'I want to improve my portfolio and work on real product challenges.'
+    }
+  };
+  const values=examples[slide.id]||{};
+  Object.entries(values).forEach(([studentId,value])=>{
+    if(!getResponse(slide.id,studentId))saveResponse(slide.id,studentId,value);
+  });
+}
+
+function studentPanel(){
+  if(!state.sessionCreated)return `<div class="empty"><b>No Live Session yet</b>The Admin prepares the first-lecture slides before class.</div>`;
+  if(state.session.status==='draft'||state.session.status==='ready')return studentWaitingView();
+  if(state.session.status==='live'&&!state.session.joinedStudentIds.includes(state.studentId))return studentJoinView();
+  if(state.session.status==='live')return studentLiveView();
+  return studentCompletedView();
+}
+function studentWaitingView(){
+  return `<div class="page-title"><div><h2>Summer 2026</h2><p>Student Dashboard</p></div></div>
+    <div class="session-card"><span class="pill ${state.session.status==='ready'?'green':'amber'}">${state.session.status==='ready'?'UPCOMING':'NOT STARTED'}</span><h3>${esc(state.session.title)}</h3><p>${esc(state.session.description)}</p><div class="notice" style="margin-top:10px">The Join button appears automatically when the Admin starts the session.</div></div>`;
+}
+function studentJoinView(){
+  return `<div class="page-title"><div><h2>Live Session Started</h2><p>Summer 2026 · First lecture</p></div><span class="pill red">● Live now</span></div>
+    <div class="session-card"><span class="pill purple">JOIN NOW</span><h3>${esc(state.session.title)}</h3><p>${esc(state.session.description)}</p><div class="action-row"><button class="btn primary wide" onclick="joinSession()">Join Live Session</button></div></div>`;
+}
+function joinSession(){
+  if(!state.session.joinedStudentIds.includes(state.studentId))state.session.joinedStudentIds.push(state.studentId);
+  state.studentDraft='';
+  render();toast('Student joined the Live Session');
+}
+function studentLiveView(){
+  const slide=currentSlide();
+  const response=isQuestion(slide)?getResponse(slide.id,state.studentId):null;
+  const locked=isQuestion(slide)&&isQuestionLocked(slide.id);
+  return `<div class="page-title"><div><h2>${esc(state.session.title)}</h2><p>Slide ${state.session.currentIndex+1} of ${state.session.slides.length}</p></div><span class="pill red">● Live</span></div>
+    <div class="student-live">
+      <div class="student-slide ${slideClass(slide.type)}"><div><span class="pill" style="background:rgba(255,255,255,.16);color:#fff">${slideTypeLabel(slide.type)}</span><h2 style="margin-top:10px">${esc(slide.title)}</h2>${slide.body?`<p>${esc(slide.body)}</p>`:''}</div></div>
+      <div class="answer-area">${studentAnswerArea(slide,response,locked)}</div>
+    </div>`;
+}
+function studentAnswerArea(slide,response,locked){
+  if(!isQuestion(slide))return `<div class="notice"><b>No answer required.</b><br>Wait for the Admin to continue.</div>`;
+  if(response)return `<div class="answer-saved"><b>Answer submitted</b><br>${esc(response.value)}<br><br>Waiting for the Admin to continue. This answer cannot be edited.</div>`;
+  if(locked)return `<div class="answer-locked"><b>This question is closed.</b><br>No Answer was recorded. You cannot answer it now.</div>`;
+  return `<div class="field"><label>Your answer ${slide.required?'*':'· Optional'}</label><textarea id="studentAnswer" class="textarea" rows="${slide.answerType==='short'?2:5}" placeholder="Write your answer here..." oninput="state.studentDraft=this.value">${esc(state.studentDraft)}</textarea></div>
+    <div class="action-row"><button class="btn primary wide" onclick="submitStudentAnswer()">Submit Answer</button></div>
+    <div style="font-size:8px;color:var(--muted);margin-top:7px">The Admin cannot see your answer before you press Submit Answer.</div>`;
+}
+function submitStudentAnswer(){
+  const slide=currentSlide();
+  if(!isQuestion(slide)||isQuestionLocked(slide.id))return;
+  const value=(document.getElementById('studentAnswer')?.value||'').trim();
+  if(slide.required&&!value){toast('Write an answer before submitting');return}
+  if(!value){toast('The answer is empty');return}
+  saveResponse(slide.id,state.studentId,value);
+  state.studentDraft='';
+  render();toast('Answer submitted');
+}
+function studentCompletedView(){
+  return `<div class="page-title"><div><h2>Session Completed</h2><p>${esc(state.session.title)}</p></div><span class="pill green">Completed</span></div>
+    <div class="notice green"><b>Thank you.</b><br>Your submitted answers were saved. They are visible only to the Admin inside your student profile.</div>
+    <div class="section">${studentOwnAnswers()}</div>`;
+}
+function studentOwnAnswers(){
+  return `<div class="card pad"><div class="section-title"><h4>Your submitted answers</h4><span>Read-only</span></div>${questionSlides().map(question=>{
+    const response=getResponse(question.id,state.studentId);
+    return `<div class="profile-answer"><b>${esc(question.title)}</b><p>${response?esc(response.value):'<span style="color:#a86900">No Answer</span>'}</p></div>`;
+  }).join('')}</div>`;
+}
+
+function completedSessionView(){
+  return `<div class="page-title"><div><h2>${esc(state.session.title)}</h2><p>Completed · Answers saved to Admin student profiles</p></div><span class="pill green">Completed</span></div>
+    <div class="grid four">
+      <div class="stat"><span>Students</span><strong>${students.length}</strong><small>In Batch</small></div>
+      <div class="stat"><span>Participants</span><strong>${participantCount()}</strong><small>At least one answer</small></div>
+      <div class="stat"><span>Questions</span><strong>${questionSlides().length}</strong><small>Question Slides</small></div>
+      <div class="stat"><span>Submitted Answers</span><strong>${Object.keys(state.session.responses).length}</strong><small>Saved</small></div>
+    </div>
+    <div class="tabs" style="margin-top:13px"><button class="${state.resultsView==='student'?'active':''}" onclick="state.resultsView='student';render()">View by Student</button><button class="${state.resultsView==='question'?'active':''}" onclick="state.resultsView='question';render()">View by Question</button></div>
+    ${state.resultsView==='student'?resultsByStudent():resultsByQuestion()}
+    <div class="action-row"><button class="btn" onclick="state.adminTab='students';render()">Open Student Profiles</button><button class="btn primary" onclick="duplicateSession()">Duplicate as Draft</button></div>`;
+}
+function resultsByStudent(){
+  return `<div class="list">${students.map(student=>{
+    const count=questionSlides().filter(q=>getResponse(q.id,student.id)).length;
+    return `<div class="list-item"><div class="avatar">${student.initials}</div><div class="grow"><b>${student.name}</b><span>${count}/${questionSlides().length} submitted answers</span></div><button class="btn sm" onclick="openStudentProfile('${student.id}')">View Answers</button></div>`;
+  }).join('')}</div>`;
+}
+function resultsByQuestion(){
+  return `<div class="list">${questionSlides().map(question=>`<div class="list-item"><div class="avatar">Q</div><div class="grow"><b>${esc(question.title)}</b><span>${submittedCount(question.id)}/${students.length} submitted answers</span></div><button class="btn sm" onclick="openQuestionResponses('${question.id}')">View Responses</button></div>`).join('')}</div>`;
+}
+function openQuestionResponses(questionId){
+  const question=state.session.slides.find(s=>s.id===questionId);
+  const submitted=students.map(student=>({student,response:getResponse(questionId,student.id)})).filter(item=>item.response);
+  modal('Question Responses',question.title,
+    `<div class="notice purple"><b>Admin only.</b><br>Only submitted answers appear. There is no editing or evaluation.</div>
+    <div style="margin-top:10px">${submitted.length?submitted.map(item=>`<div class="response-card"><b>${item.student.name}</b><p>${esc(item.response.value)}</p></div>`).join(''):'<div class="empty"><b>No submitted answers</b></div>'}</div>`,
+    `<button class="btn primary" onclick="closeModal()">Close</button>`
+  );
+}
+function duplicateSession(){
+  state.session.title=state.session.title+' — Copy';
+  state.session.status='draft';
+  state.session.currentIndex=0;
+  state.session.joinedStudentIds=[];
+  state.session.lockedQuestionIds=[];
+  state.session.responses={};
+  state.session.startedAt=null;
+  state.session.completedAt=null;
+  state.session.selectedSlideId=state.session.slides[0]?.id||null;
+  state.resultsView='student';
+  render();toast('Session duplicated as Draft');
+}
+
+function modal(title,subtitle,body,footer){
+  const overlay=document.createElement('div');
+  overlay.className='modal-backdrop';
+  overlay.id='modal';
+  overlay.innerHTML=`<div class="modal"><div class="modal-head"><div><h3>${esc(title)}</h3><p>${esc(subtitle)}</p></div><button class="btn sm" onclick="closeModal()">✕</button></div><div class="modal-body">${body}</div><div class="modal-foot">${footer}</div></div>`;
+  document.body.appendChild(overlay);
+}
+function closeModal(){document.getElementById('modal')?.remove()}
+function toast(message){
+  document.querySelector('.toast')?.remove();
+  const node=document.createElement('div');
+  node.className='toast';
+  node.textContent=message;
+  document.body.appendChild(node);
+  setTimeout(()=>node.remove(),2000);
+}
+
+render();
+</script>
+</body>
+</html>
