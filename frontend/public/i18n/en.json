@@ -1,12 +1,22 @@
 {
+  "app": {
+    "name": "Code Your Future",
+    "shortName": "CYF"
+  },
+  "auth": {
+    "adminSignIn": "Admin sign in",
+    "username": "Username",
+    "password": "Password",
+    "signIn": "Sign in",
+    "fillAllFields": "Please fill in all fields",
+    "studentSignInUnavailable": "Student sign-in with Google is coming in the next checkpoint.",
+    "studentInvitationNotice": "You can sign in and complete your profile now. An invitation is required only to join a batch."
+  },
   "nav": {
     "home": "Home",
     "dashboard": "Dashboard",
     "settings": "Settings",
     "management": "Management",
-    "users": "Users",
-    "roles": "Roles",
-    "permissions": "Permissions",
     "pinned": "Pinned"
   },
   "actions": {
@@ -67,20 +77,6 @@
     "gridView": "Grid view",
     "tableView": "Table view",
     "paginationTemplate": "{first} - {last} of {totalRecords}"
-  },
-  "users": {
-    "title": "Users",
-    "addUser": "Add User",
-    "username": "Username",
-    "email": "Email",
-    "name": "Name",
-    "firstName": "First Name",
-    "lastName": "Last Name",
-    "searchHint": "Search by username or email",
-    "phone": "Phone",
-    "joined": "Joined",
-    "sendEmail": "Send Email",
-    "copiedToClipboard": "Copied to clipboard"
   },
   "notifications": {
     "title": "Notifications",

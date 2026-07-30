@@ -1,6 +1,7 @@
 const readline = require('readline');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -21,13 +22,14 @@ const defaults = {
   mountPath: '/api',
 };
 
+/**
+ * Generate a server key with a cryptographically secure RNG.
+ *
+ * This previously used `Math.random()`, which is seeded predictably and is not
+ * suitable for anything secret — a masterKey produced that way is guessable.
+ */
 function generateKey(length = 32) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
+  return crypto.randomBytes(length).toString('base64url').slice(0, length);
 }
 
 function question(prompt, defaultValue) {
@@ -67,7 +69,17 @@ async function setup() {
     .map(([key, value]) => `${key}=${value}`)
     .join('\n');
 
-  // Write to .env file
+  // Never clobber an existing environment file — it may already hold real
+  // credentials for a configured project.
+  if (fs.existsSync(envPath)) {
+    console.log('\n========================================');
+    console.log('  backend/.env already exists — not overwritten.');
+    console.log('  Move or delete it first if you want to regenerate it.');
+    console.log('========================================\n');
+    rl.close();
+    return;
+  }
+
   fs.writeFileSync(envPath, envContent + '\n');
 
   console.log('\n========================================');

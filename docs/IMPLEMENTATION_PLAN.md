@@ -54,30 +54,56 @@ protected files still ignored, no product feature added. ✅
 These were all confirmed during discovery and deliberately **not** fixed in the closeout. Each has
 an owning checkpoint:
 
-| Finding | Owning checkpoint |
-|---|---|
-| `SuperAdmin` / `Employee` legacy roles | **Checkpoint 1** |
-| Missing `Admin` / `Student` role boundaries | **Checkpoint 1** |
-| No backend test script; zero backend tests | **Checkpoint 1** |
-| Zero frontend tests (runner works, no specs) | **Checkpoint 1** |
-| `AppSettings` route mis-pluralised to `/api/app-settingses/…` | **Checkpoint 1** — no route fix needed: OQ-13 is resolved and the whole `AppSettings` class is *to be* removed, so the route disappears with it |
-| Legacy `AppSettings` key-value store (no consumer, widens API/security surface) | **Checkpoint 1** — *to be removed* outright (resolved product-owner decision, OQ-13); still present today |
-| Auth-page language initialisation (`initLang()` only runs in the shell, so `/auth` renders RTL with English text) | **Checkpoint 2** — the login page is rebuilt there |
-| Private-file serving / unauthenticated Parse file URLs (OQ-10) | **Checkpoint 7**, hardened in **Checkpoint 11** |
-| Public fallback ACL in `getSchemaDefinition` (`{'*':{read:true,write:true}}` when a class omits `ACL`) | **Checkpoint 11** — every new class declares `ACL` explicitly from Checkpoint 1 onward |
-| `IMG` / `File` public ACL | **Checkpoint 11** |
-| Broad `useMasterKey` usage | **Checkpoint 11** |
-| Open `masterKeyIps` | **Checkpoint 11** |
-| Missing log redaction | **Checkpoint 11** |
-| Direct Parse access concerns / raw-object exposure | **Checkpoint 11** (public DTO discipline starts at Checkpoint 1) |
-| GitLab CI targeting `dev` while the repo is GitHub/`master` (OQ-14) | **Checkpoint 12** |
+| Finding | Owning checkpoint | Status |
+|---|---|---|
+| `SuperAdmin` / `Employee` legacy roles | Checkpoint 1 | ✅ retired |
+| Missing `Admin` / `Student` role boundaries | Checkpoint 1 | ✅ done |
+| No backend test script; zero backend tests | Checkpoint 1 | ✅ 131 tests |
+| Zero frontend tests (runner works, no specs) | Checkpoint 1 | ✅ 66 tests |
+| `AppSettings` route mis-pluralised | Checkpoint 1 | ✅ gone with the class |
+| Legacy `AppSettings` key-value store (OQ-13) | Checkpoint 1 | ✅ removed |
+| Auth-page language initialisation | Checkpoint 1 *(pulled forward from 2)* | ✅ fixed at bootstrap |
+| Public fallback ACL in `getSchemaDefinition` | Checkpoint 1 *(pulled forward from 11)* | ✅ neutralised by `schemaGuard` |
+| `IMG` / `File` public ACL | Checkpoint 1 *(pulled forward from 11)* | ✅ deny-by-default |
+| Broad `useMasterKey` usage | Checkpoint 1 *(pulled forward from 11)* | ✅ audited; 7 client-facing uses deleted |
+| Open `masterKeyIps` | Checkpoint 1 *(pulled forward from 11)* | ✅ localhost-only |
+| Missing log redaction | Checkpoint 1 *(pulled forward from 11)* | ✅ recursive boundary + Parse adapter |
+| Direct Parse access / raw-object exposure | Checkpoint 1 *(pulled forward from 11)* | ✅ `/classes`, `/schemas`, raw files all 403; DTOs are allow-lists |
+| Private-file **serving** (OQ-10) | **Checkpoint 7**, hardened in **11** | ⏳ raw access closed; controlled read not built |
+| Upload MIME/size/magic-byte validation | **Checkpoints 4 and 7** | ⏳ deferred — no client-reachable upload path exists |
+| `cors()` open when `CORS_ORIGINS` unset | **Checkpoint 11/12** | ⏳ |
+| Session token in `localStorage` | **Checkpoint 11** | ⏳ storage decision |
+| Committed REST API key (S-13) | **Checkpoint 12** | ⏳ rotate before deploy |
+| Kit accepts a master key from the request body (S-6) | **upstream / Checkpoint 11** | ⏳ not exploitable; lives in `node_modules` |
+| Parse `Date` truncation in the interceptor (L-9) | **Checkpoint 4** | ⏳ will matter once profiles store dates |
+| Hash vs path routing (OQ-12) | **Checkpoint 6** | ⏳ decision due before invitation links |
+| GitLab CI targeting `dev` while the repo is GitHub/`master`; **CI runs no tests** (OQ-14) | **Checkpoint 12** | ⏳ |
+| `GENERATE.md` and `backend/CLAUDE.md` still cite `SuperAdmin`/`Employee` and `models/Employee.ts` | **Checkpoint 2** | ⏳ documentation follow-up |
 
 ---
 
-## Checkpoint 1 — Product foundation and access boundaries
+## Checkpoint 1 — Product foundation and access boundaries ✅ COMPLETE
 
-**Prerequisites:** Checkpoint 0 approved. **No Open Question blocks this checkpoint** — OQ-13 is
-resolved (`AppSettings` is to be removed; see Backend scope below).
+**Delivered.** 197 tests (131 backend + 66 frontend), runtime-validated against a clean isolated
+database. See [CURRENT_STATE.md](CURRENT_STATE.md) and [HANDOFF.md](HANDOFF.md).
+
+**Scope changes agreed during delivery** (the checkpoint spec superseded the original plan lines):
+
+| Planned | Actual | Why |
+|---|---|---|
+| "Split the shell into an Admin workspace and a Student workspace" | Not done | The checkpoint spec forbids implementing a Student dashboard and any UI redesign. The Student workspace belongs to Checkpoints 3–4. |
+| "Add a `visitorGuard` / public layout for Talent Reels and `/join/:token`" | Not done | Those routes belong to Checkpoints 6 and 10; adding a guard for non-existent routes would be speculative. |
+| "keep Admin user administration" | **Removed instead** | The spec directs removing unsupported user management, and no authoritative document requires generic Admin account administration. Admins are provisioned by seeding. |
+| "Decide hash vs path routing (OQ-12)" | Deferred | No public link is built in this checkpoint; the decision is due before Checkpoint 6. |
+| `requireEnrolledStudent` helper | Not added | Enrollment does not exist until Checkpoint 6; an empty helper would be a fake API. `requireAdmin` / `requireStudent` are in place. |
+
+**Additional work not in the original plan**, required by the checkpoint spec: deny-by-default
+schema guard, private `File`/`IMG`, master-key and read-only-master-key IP restriction, anonymous
+users disabled, raw file routes blocked, log redaction, sanitised errors, safe DTOs, branding, and
+the EN/AR auth-initialisation fix.
+
+**Prerequisites:** Checkpoint 0 approved. **No Open Question blocked this checkpoint** — OQ-13 was
+resolved (`AppSettings` removed).
 
 **Backend scope**
 - Introduce the `Admin` and `Student` roles and seed them; retire `SuperAdmin` / `Employee`
@@ -129,14 +155,17 @@ Boot the server and confirm the startup log registers 3 models and 10 routes, wi
 done; update `CURRENT_STATE.md`, `HANDOFF.md`.
 **Out of scope:** OAuth, profiles, Batches. Replacing `AppSettings` with any new settings mechanism —
 none is required, and a generic settings store is now prohibited.
-**Definition of done:**
-- no `SuperAdmin` / `Employee` string remains in app code;
-- no unauthenticated write path exists;
-- **`AppSettings` is fully removed** — the model file, the module file, the `getAppSetting` cloud
-  function, the `/api/app-settingses/*` route, and the `AppSettings` Swagger schema are all gone,
-  the startup log shows 3 registered models and 10 routes, and no `AppSettings` reference remains
-  anywhere in `backend/src` or `frontend/src`;
-- both test suites run green in CI.
+**Definition of done — all met:**
+- ✅ no `SuperAdmin` / `Employee` grants access anywhere; the only occurrences in app code are the
+  `LEGACY_ROLE_NAMES` migration list and tests asserting they authorise nothing;
+- ✅ no unauthenticated write path exists — every class is deny-by-default and `POST /users` 404s;
+- ✅ **`AppSettings` fully removed** — model file, module file, `getAppSetting`, the
+  `/api/app-settingses/*` route, and the Swagger schema are all gone. Runtime shows **3 registered
+  models** (`_User`, `File`, `IMG`; 4 definitions including `_Role`) and **3 routes**. *(The plan
+  predicted 10 routes; the actual figure is 3 because user management was removed rather than
+  retained.)* No `AppSettings` reference remains in `backend/src` or `frontend/src`;
+- ✅ both suites green: 131 backend, 66 frontend. **CI does not yet run them** — `.gitlab-ci.yml`
+  has no test step. Adding it is Checkpoint 12 work (OQ-14 must be answered first).
 
 ---
 
@@ -144,11 +173,17 @@ none is required, and a generic settings store is now prohibited.
 
 **Prerequisites:** Checkpoint 1.
 
-**Backend scope:** Admin-only password login; session restore endpoint; logout that destroys the
-`_Session`; reject Student accounts on the password path. Rate-limit login
-(`@CloudFunction({rateLimit})` is supported by the kit).
-**Frontend scope:** Admin login page; session restoration via `provideAppInitializer`; protected
-Admin routes; logout; translated auth errors (EN/AR).
+> **Note:** Checkpoint 1 already delivered the functional core of this checkpoint — Admin-only
+> password login with an after-authentication role check and session revocation, session
+> restoration via a safe DTO, idempotent logout, and a 10/min login rate limit. What remains here is
+> the Admin **UI** work plus the items listed below.
+
+**Backend scope:** hardening only — the login/session/logout functions exist. Add the account-kind
+discriminator so a Student can never hold a password, and review the 400-vs-401 response for
+unauthenticated calls. Also update `GENERATE.md` and `backend/CLAUDE.md`, which still cite
+`SuperAdmin`/`Employee` and a non-existent `models/Employee.ts`.
+**Frontend scope:** the Admin workspace / dashboard design. Login, session restoration via
+`provideAppInitializer`, protected routes, logout, and EN/AR auth copy are already in place.
 **Data-model scope:** `_User` gains an explicit account-kind discriminator so a Student can never
 authenticate by password.
 **Authorization and security:** no password endpoint reachable by Students; no session token in

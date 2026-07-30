@@ -16,7 +16,8 @@
   },
   "scripts": {
     "setup": "node setup.js",
-    "compile": "tsc",
+    "compile": "rimraf build && tsc",
+    "test": "rimraf build && tsc && node --test \"build/test/*.test.js\"",
     "watch": "tsc --watch",
     "clean": "rimraf build",
     "start": "rimraf build && tsc && node --max-old-space-size=1024 ./build/src/app.js",

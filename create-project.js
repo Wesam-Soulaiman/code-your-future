@@ -17,18 +17,135 @@ const { execSync } = require('child_process');
 
 const TEMPLATE_REPO = 'https://git.90-soft.com/90_soft/fullstack-template.git';
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+/**
+ * The readline interface is created lazily. Creating it at module scope would
+ * open stdin the moment this file is required, so a test that imports the
+ * credential rules could never exit.
+ */
+let rlInstance = null;
+function getRl() {
+  if (!rlInstance) {
+    rlInstance = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+  }
+  return rlInstance;
+}
+
+/** Close the interface if one was ever opened. */
+function closeRl() {
+  if (rlInstance) {
+    rlInstance.close();
+    rlInstance = null;
+  }
+}
 
 function ask(question, defaultVal) {
   return new Promise((resolve) => {
     const prompt = defaultVal ? `${question} (${defaultVal}): ` : `${question}: `;
-    rl.question(prompt, (answer) => {
+    getRl().question(prompt, (answer) => {
       resolve(answer.trim() || defaultVal || '');
     });
   });
+}
+
+/**
+ * Prompt for a secret with terminal echo suppressed.
+ *
+ * There is deliberately no default value: a credential must never fall back to a
+ * predictable string. Input is not echoed, so the password does not appear on
+ * screen and is not left in the visible scrollback.
+ */
+function askSecret(question) {
+  return new Promise((resolve) => {
+    const rl = getRl();
+    const output = rl.output;
+    let muted = false;
+
+    const originalWrite = output.write.bind(output);
+    output.write = (chunk, ...rest) => {
+      if (muted) return true; // swallow the echoed characters
+      return originalWrite(chunk, ...rest);
+    };
+
+    originalWrite(`${question}: `);
+    muted = true;
+
+    rl.question('', (answer) => {
+      muted = false;
+      output.write = originalWrite;
+      originalWrite('\n');
+      resolve(answer);
+    });
+  });
+}
+
+/**
+ * Obtain the initial Admin password.
+ *
+ * Order of precedence:
+ *   1. `CYF_ADMIN_PASSWORD` environment variable — for non-interactive runs, and
+ *      it keeps the value out of the interactive prompt entirely.
+ *   2. A masked interactive prompt.
+ *
+ * There is **no default and no fallback**. An empty, missing, weak, or obviously
+ * placeholder value aborts the run. Failure messages never contain the value.
+ */
+const MIN_ADMIN_PASSWORD_LENGTH = 12;
+
+/** Obvious placeholders that must never become a real credential. */
+const FORBIDDEN_ADMIN_PASSWORDS = [
+  'admin',
+  'admin123',
+  'password',
+  'passw0rd',
+  'change-me',
+  'changeme',
+  'letmein',
+  'secret',
+  'test',
+  '123456',
+  '12345678',
+  'qwerty',
+];
+
+function validateAdminPassword(candidate) {
+  if (typeof candidate !== 'string' || candidate.trim().length === 0) {
+    return 'An Admin password is required. Set CYF_ADMIN_PASSWORD or enter one at the prompt.';
+  }
+  if (candidate !== candidate.trim()) {
+    return 'The Admin password must not begin or end with whitespace.';
+  }
+  if (candidate.length < MIN_ADMIN_PASSWORD_LENGTH) {
+    return `The Admin password must be at least ${MIN_ADMIN_PASSWORD_LENGTH} characters.`;
+  }
+  if (FORBIDDEN_ADMIN_PASSWORDS.includes(candidate.toLowerCase())) {
+    return 'That Admin password is a well-known placeholder. Choose a unique password.';
+  }
+  return null;
+}
+
+async function resolveAdminPassword() {
+  const fromEnv = process.env.CYF_ADMIN_PASSWORD;
+  if (fromEnv !== undefined) {
+    const problem = validateAdminPassword(fromEnv);
+    if (problem) {
+      // The message describes the rule that failed — never the value.
+      throw new Error(`CYF_ADMIN_PASSWORD is not acceptable. ${problem}`);
+    }
+    console.log('    Using Admin password from CYF_ADMIN_PASSWORD');
+    return fromEnv;
+  }
+
+  const entered = await askSecret(
+    `Admin password (min ${MIN_ADMIN_PASSWORD_LENGTH} chars, not echoed)`
+  );
+  const problem = validateAdminPassword(entered);
+  if (problem) {
+    throw new Error(problem);
+  }
+  return entered;
 }
 
 function generateKey(length = 32) {
@@ -61,7 +178,7 @@ async function main() {
   const projectDir = path.join(process.cwd(), projectName);
   if (fs.existsSync(projectDir)) {
     console.error(`\n  Error: Folder "${projectName}" already exists in this directory.\n`);
-    rl.close();
+    closeRl();
     process.exit(1);
   }
 
@@ -71,9 +188,11 @@ async function main() {
   const keepExample = await ask('Keep Employee example entity? (y/n)', 'y');
   const adminUser = await ask('Admin username', 'admin');
   const adminEmail = await ask('Admin email', 'admin@example.com');
-  const adminPass = await ask('Admin password', 'admin123');
+  // No default: a credential must be supplied explicitly. Aborts on a missing,
+  // weak, or placeholder value, with a message that contains no secret.
+  const adminPass = await resolveAdminPassword();
 
-  rl.close();
+  closeRl();
 
   // ── Step 2: Clone template ───────────────────────────────
 
@@ -118,7 +237,17 @@ ADMIN_PASSWORD=${adminPass}
 ADMIN_EMAIL=${adminEmail}
 `;
 
-  fs.writeFileSync(path.join(projectDir, 'backend', '.env'), envContent, 'utf8');
+  // Never clobber an existing environment file — it may already hold real
+  // credentials for a configured project.
+  const envPath = path.join(projectDir, 'backend', '.env');
+  if (fs.existsSync(envPath)) {
+    console.error(
+      `\n  Error: ${path.relative(process.cwd(), envPath)} already exists.\n` +
+        '  Refusing to overwrite it. Move or delete it first, then re-run.\n'
+    );
+    process.exit(1);
+  }
+  fs.writeFileSync(envPath, envContent, 'utf8');
   console.log('    Created backend/.env');
 
   // ── Step 4b: Create dashboard.json ───────────────────────
@@ -271,20 +400,37 @@ ADMIN_EMAIL=${adminEmail}
   Folder:   ${projectName}/
   App ID:   ${appId}
   Database: ${dbName}
-  Admin:    ${adminUser} / ${adminPass}
+  Admin:    ${adminUser}
+
+  The Admin password was written to backend/.env (git-ignored) and is
+  deliberately NOT printed here.
 
   Next steps:
 
     cd ${projectName}
     npm run dev
 
-  Then open http://localhost:4200 and login with ${adminUser} / ${adminPass}
+  Then open http://localhost:4200 and sign in as ${adminUser}.
 ${gitUrl ? `\n    git add -A && git commit -m "Initial setup" && git push -u origin master` : ''}
 `);
 }
 
-main().catch((err) => {
-  console.error('Setup failed:', err);
-  rl.close();
-  process.exit(1);
-});
+// Run only when executed directly. Requiring this file (as the tests do) must NOT
+// start the generator — no prompt, no clone, no file written.
+if (require.main === module) {
+  main().catch((err) => {
+    // Print the message only — never the error object, which could carry the
+    // supplied credential in a stack frame or an attached property.
+    console.error(`\n  Setup failed: ${err && err.message ? err.message : 'unknown error'}\n`);
+    closeRl();
+    process.exit(1);
+  });
+}
+
+// Exported for tests. Requiring this file does not run the generator, so tests
+// can validate the credential rules without cloning or writing anything.
+module.exports = {
+  validateAdminPassword,
+  MIN_ADMIN_PASSWORD_LENGTH,
+  FORBIDDEN_ADMIN_PASSWORDS,
+};

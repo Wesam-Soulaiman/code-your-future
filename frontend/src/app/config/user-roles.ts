@@ -1,20 +1,32 @@
 /**
- * User Roles
+ * Code Your Future application roles.
  *
- * Defines the application roles. These must match the role names
- * seeded in the backend (see backend/src/cloudCode/database/seed.ts).
+ * Authenticated roles are exactly Admin and Student. A Visitor is an
+ * unauthenticated caller and is deliberately NOT a role value — it is the
+ * absence of a session.
  *
- * Used for:
- *   - Route guards: roleGuard(UserRoles.ADMIN)
- *   - Conditional UI: *ngIf="hasRole(UserRoles.ADMIN)"
- *   - Menu visibility in shell.component.ts
+ * These names must match the roles seeded by the backend
+ * (`backend/src/cloudCode/utils/constants/roles.ts`).
  *
- * To add a new role:
- *   1. Add the enum value here
- *   2. Add the matching role name to the backend's UserRoles (from @90soft/parse-server-kit)
- *   3. The backend seed function will auto-create it on next server start
+ * IMPORTANT: these values drive UI visibility only. They are never a source of
+ * authorization — the backend re-checks live `_Role` membership on every
+ * request, so a tampered local value grants nothing.
  */
-export enum UserRoles {
-  ADMIN = 'SuperAdmin',
-  EMPLOYEE = 'Employee',
+export enum AppRole {
+  ADMIN = 'Admin',
+  STUDENT = 'Student',
+}
+
+/** Every application role, for iteration. */
+export const APP_ROLES: readonly AppRole[] = [AppRole.ADMIN, AppRole.STUDENT];
+
+/**
+ * Legacy template role names, retired in Checkpoint 1. Exported only so tests
+ * can assert they never authorise anything; never use them in a guard.
+ */
+export const LEGACY_ROLE_NAMES: readonly string[] = ['SuperAdmin', 'Employee'];
+
+/** Narrow an arbitrary value to an application role, or `undefined`. */
+export function toAppRole(value: unknown): AppRole | undefined {
+  return APP_ROLES.find(role => role === value);
 }

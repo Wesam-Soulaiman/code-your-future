@@ -1,12 +1,22 @@
 {
+  "app": {
+    "name": "Code Your Future",
+    "shortName": "CYF"
+  },
+  "auth": {
+    "adminSignIn": "تسجيل دخول المشرف",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "signIn": "تسجيل الدخول",
+    "fillAllFields": "يرجى إكمال جميع الحقول",
+    "studentSignInUnavailable": "تسجيل دخول الطالب عبر Google سيتوفر في المرحلة القادمة.",
+    "studentInvitationNotice": "يمكنك تسجيل الدخول وإكمال ملفك الشخصي الآن. ستحتاج إلى دعوة فقط للانضمام إلى دفعة."
+  },
   "nav": {
     "home": "الرئيسية",
     "dashboard": "لوحة التحكم",
     "settings": "الإعدادات",
     "management": "الإدارة",
-    "users": "المستخدمين",
-    "roles": "الأدوار",
-    "permissions": "الصلاحيات",
     "pinned": "المثبت"
   },
   "actions": {
@@ -67,20 +77,6 @@
     "gridView": "عرض شبكي",
     "tableView": "عرض جدول",
     "paginationTemplate": "{first} - {last} من {totalRecords}"
-  },
-  "users": {
-    "title": "المستخدمين",
-    "addUser": "إضافة مستخدم",
-    "username": "اسم المستخدم",
-    "email": "البريد الإلكتروني",
-    "name": "الاسم",
-    "firstName": "الاسم الأول",
-    "lastName": "الاسم الأخير",
-    "searchHint": "بحث باسم المستخدم أو البريد",
-    "phone": "الهاتف",
-    "joined": "تاريخ الانضمام",
-    "sendEmail": "إرسال بريد",
-    "copiedToClipboard": "تم النسخ"
   },
   "notifications": {
     "title": "الإشعارات",

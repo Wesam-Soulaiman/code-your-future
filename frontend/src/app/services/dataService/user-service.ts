@@ -1,60 +1,48 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { finalize, Observable } from 'rxjs';
-import { User } from '../../models/User';
-import { ApiService } from '../api';
+import { CurrentUser, LoginResponse } from '../../models/User';
 import { SharedVarsService } from '../shared-vars';
 import { SessionService } from '../session.service';
 
+/**
+ * Authentication service — deliberately minimal.
+ *
+ * Checkpoint 1 retired the template's user-management calls (`listUsers`,
+ * `getUser`, `createUser`, `updateUser`, `deleteUser`, `searchEmployees`) along
+ * with their backend cloud functions. Code Your Future has no manual user
+ * administration requirement: Admins are provisioned server-side and Students
+ * arrive through Google OAuth in Checkpoint 3.
+ *
+ * There is deliberately no Student login, signup, password-reset, or
+ * password-change method here.
+ */
 @Injectable({
   providedIn: 'root',
 })
-export class UserService {
+export class AuthApiService {
   private httpClient = inject(HttpClient);
   private sharedVarService = inject(SharedVarsService);
   private sessionService = inject(SessionService);
   private baseURL = this.sharedVarService.baseURL;
-  private api: ApiService<User>;
 
-  constructor() {
-    this.api = new ApiService<User>(this.httpClient);
+  /** Admin password login. The only response that carries a session token. */
+  login(data: { username: string; password: string }): Observable<LoginResponse> {
+    return this.httpClient.post<LoginResponse>(`${this.baseURL}/users/loginUser`, data);
   }
 
-  login(data: { username: string; password: string }): Observable<User> {
-    return this.httpClient.post<User>(`${this.baseURL}/functions/loginUser`, data);
+  /** Restore the session. Returns the safe DTO — no session token. */
+  getCurrentUser(): Observable<CurrentUser> {
+    return this.httpClient.get<CurrentUser>(`${this.baseURL}/users/getCurrentUser`);
   }
 
-  getCurrentUser(): Observable<User> {
-    return this.httpClient.get<User>(`${this.baseURL}/functions/getCurrentUser`);
-  }
-
-  logout(): Observable<{ message: string }> {
+  /**
+   * Invalidate the server session, then clear local state regardless of the
+   * server outcome so a failed call cannot leave a half-signed-in client.
+   */
+  logout(): Observable<{ success: boolean }> {
     return this.httpClient
-      .post<{ message: string }>(`${this.baseURL}/functions/logout`, {})
+      .post<{ success: boolean }>(`${this.baseURL}/users/logout`, {})
       .pipe(finalize(() => this.sessionService.clearSession()));
-  }
-
-  listUsers(params?: Record<string, unknown>) {
-    return this.api.getList('functions/listUsers', params);
-  }
-
-  getUser(id: string): Observable<User> {
-    return this.httpClient.post<User>(`${this.baseURL}/functions/getUser`, { id });
-  }
-
-  createUser(user: Partial<User>): Observable<User> {
-    return this.httpClient.post<User>(`${this.baseURL}/functions/createUser`, user);
-  }
-
-  updateUser(user: Partial<User>): Observable<User> {
-    return this.httpClient.post<User>(`${this.baseURL}/functions/updateUser`, user);
-  }
-
-  deleteUser(id: string): Observable<{ success: boolean; id: string }> {
-    return this.httpClient.post<{ success: boolean; id: string }>(`${this.baseURL}/functions/deleteUser`, { id });
-  }
-
-  searchEmployees(searchString: string): Observable<User[]> {
-    return this.httpClient.get<User[]>(`${this.baseURL}/functions/searchEmployees`, { params: { searchString } });
   }
 }

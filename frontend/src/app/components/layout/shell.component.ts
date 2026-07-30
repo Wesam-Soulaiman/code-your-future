@@ -22,17 +22,18 @@ import { Popover, PopoverModule } from 'primeng/popover';
 import { SwitchThemeService } from '../../services/switch-theme.service';
 import { ChangeLangService } from '../../services/change-lang.service';
 import { PageTitleService } from '../../services/page-title.service';
-import { UserService } from '../../services/dataService/user-service';
+import { AuthApiService } from '../../services/dataService/user-service';
 import { SessionService } from '../../services/session.service';
 import { DividerModule } from 'primeng/divider';
 import { SearchInputComponent } from '../shared/data-table/search-input.component';
+import { AppRole } from '../../config/user-roles';
 
 interface NavItem {
   id: string;
   labelKey: string;
   icon: string;
   route?: string;
-  roles?: string[];
+  roles?: AppRole[];
   children?: NavItem[];
 }
 
@@ -60,7 +61,7 @@ interface NavItem {
 })
 export class ShellComponent implements OnInit, OnDestroy {
   private themeService = inject(SwitchThemeService);
-  private userService = inject(UserService);
+  private authApi = inject(AuthApiService);
   protected sessionService = inject(SessionService);
   private router = inject(Router);
   protected langService = inject(ChangeLangService);
@@ -82,7 +83,8 @@ export class ShellComponent implements OnInit, OnDestroy {
     const user = this.sessionService.user();
     const f = user?.firstName?.[0] ?? '';
     const l = user?.lastName?.[0] ?? '';
-    return (f + l).toUpperCase() || (user?.email?.[0] ?? 'U').toUpperCase();
+    // Falls back to the username: the safe DTO carries no email address.
+    return (f + l).toUpperCase() || (user?.username?.[0] ?? 'U').toUpperCase();
   });
   themeIcon = computed(() => (this.isDarkMode() ? 'fa-solid fa-sun' : 'fa-solid fa-moon'));
   backIcon = computed(() =>
@@ -201,6 +203,9 @@ export class ShellComponent implements OnInit, OnDestroy {
     }
   }
 
+  // The template's /users management screen was retired in Checkpoint 1.
+  // Batch navigation (Overview, Students, Resources, Live Slides, Tasks, Pinned
+  // Students) arrives with the Batch checkpoints; nothing is stubbed here.
   private allNavItems: NavItem[] = [
     {
       id: 'dashboard',
@@ -208,20 +213,15 @@ export class ShellComponent implements OnInit, OnDestroy {
       icon: 'fa-solid fa-gauge',
       route: '/dashboard',
     },
-    {
-      id: 'users',
-      labelKey: 'nav.users',
-      icon: 'fa-solid fa-users',
-      route: '/users',
-      roles: ['SuperAdmin', 'Employee'],
-    },
-    // Add your nav items here
   ];
 
+  // Role-set aware: an item without `roles` is visible to any authenticated
+  // user; otherwise the user must hold at least one listed role.
   navItems = computed(() => {
-    const role = this.sessionService.userRole();
-    if (role === 'SuperAdmin') return this.allNavItems;
-    return this.allNavItems.filter((item) => !item.roles || item.roles.includes(role));
+    const held = this.sessionService.roles();
+    return this.allNavItems.filter(
+      (item) => !item.roles || item.roles.some((role) => held.includes(role as AppRole)),
+    );
   });
 
   userMenuItems: MenuItem[] = [
@@ -301,7 +301,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   }
 
   logout(): void {
-    this.userService.logout().subscribe(() => {
+    this.authApi.logout().subscribe(() => {
       this.router.navigate(['/auth']);
     });
   }

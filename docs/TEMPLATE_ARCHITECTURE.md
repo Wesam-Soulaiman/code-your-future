@@ -1,9 +1,17 @@
 # Template Architecture
 
-What the full-stack template actually is, traced from source at baseline commit `c1517e4`.
-Every claim below was verified against source or observed at runtime — not taken from README.
+What this codebase actually is, traced from source. The template baseline was recorded at
+commit `c1517e4`; **Checkpoint 1 changes are folded in and marked ⟨CP1⟩**. Every claim was
+verified against source or observed at runtime — not taken from README.
 
 Planned Code Your Future models and features are marked **Not implemented**.
+
+> ⟨CP1⟩ summary — what changed from the template: `AppSettings` removed; roles are now
+> `Admin`/`Student`; `_User`, `File`, and `IMG` are deny-by-default; a repository-owned
+> schema guard neutralises the kit's public-wildcard ACL fallback; user management retired
+> down to login / current-user / logout; master key restricted to localhost; anonymous users
+> and direct file upload disabled; raw file routes blocked; all logging routed through a
+> recursive redaction boundary; DTOs are hand-built allow-lists; and both test suites exist.
 
 ---
 
@@ -20,7 +28,8 @@ code-your-future/
 ├── docs/                        five context documents — TRACKED
 │   └── prototypes/              index.html (1278 L), slides.html (1005 L) — TRACKED, read-only refs
 ├── backend/
-│   ├── package.json             Parse Server 9.x + Express 5 + TS 5.2
+│   ├── package.json             Parse Server 9.x + Express 5 + TS 5.2 (+ `test` script ⟨CP1⟩)
+│   ├── test/                    ⟨CP1⟩ node:test suites (131 tests)
 │   ├── pnpm-lock.yaml           TRACKED
 │   ├── pnpm-workspace.yaml      allowBuilds decisions (see §14)
 │   ├── tsconfig.json            extends gts/tsconfig-google.json
@@ -33,11 +42,14 @@ code-your-future/
 │       └── cloudCode/
 │           ├── main.ts          Cloud Code entry (auto-imports models + modules)
 │           ├── cron.ts          empty CronJobs class
-│           ├── database/seed.ts seedRoles + seedAdminUser + seedLookupTable helper
-│           ├── models/          AppSettings, File, IMG, User
-│           ├── modules/         AppSettings/functions.ts, User/functions.ts
-│           └── utils/           fileAdapter, handleFile, handleImage,
-│                                imageProcessing, sharedGetFields, config/parseConfig
+│           ├── database/seed.ts ⟨CP1⟩ role seeding + legacy migration + stale reporting
+│           ├── models/          ⟨CP1⟩ File, IMG, User  (AppSettings deleted)
+│           ├── modules/         ⟨CP1⟩ User/functions.ts only
+│           └── utils/           auth/authorize ⟨CP1⟩, config/{parseConfig,env,schemaGuard} ⟨CP1⟩,
+│                                constants/roles ⟨CP1⟩, dto/userDto ⟨CP1⟩,
+│                                logging/{redact,safeLogger} ⟨CP1⟩,
+│                                fileAdapter, handleFile, handleImage,
+│                                imageProcessing, sharedGetFields
 └── frontend/
     ├── angular.json             project `code-your-future-frontend`
     ├── package.json             Angular 21 + PrimeNG 21 + Tailwind 4 + vitest
@@ -56,7 +68,7 @@ code-your-future/
             ├── directives/if-role.directive.ts
             ├── guards/auth.guard.ts, role.guard.ts
             ├── models/User.ts, IMG.ts, public/MultiLang.ts
-            ├── pages/auth, pages/dashboard, pages/users
+            ├── pages/auth, pages/dashboard   ⟨CP1⟩ pages/users removed
             ├── pipes/relative-time.pipe.ts, time12h.pipe.ts
             ├── services/          api.ts, http.interceptor.ts, session.service.ts,
             │                      live-query.service.ts, change-lang, switch-theme,
@@ -65,10 +77,9 @@ code-your-future/
             └── utils/catchError.ts, palette-generator.ts
 ```
 
-**126 files tracked at baseline `c1517e4`. Zero test files.** The Phase 0 closeout makes three
-`pnpm-lock.yaml` files (root, `backend/`, `frontend/`), five `docs/*.md` documents, and two
-prototypes trackable. They are untracked-but-no-longer-ignored, awaiting the first Phase 0 commit —
-nothing has been staged or committed.
+**Tracked at `a796aa0`: 133 files.** ⟨CP1⟩ adds 13 source/test files and removes 3
+(`models/AppSettings.ts`, `modules/AppSettings/functions.ts`, `pages/users/*`). Test files:
+**197 tests across two suites** (131 backend, 66 frontend), where the template had none.
 
 ## 2. Root orchestration
 
@@ -91,7 +102,8 @@ Backend scripts (`backend/package.json`):
 
 | Script | Command |
 |---|---|
-| `compile` | `tsc` |
+| `compile` | ⟨CP1⟩ `rimraf build && tsc` |
+| `test` | ⟨CP1⟩ `rimraf build && tsc && node --test "build/test/*.test.js"` |
 | `watch` | `tsc --watch` |
 | `clean` | `rimraf build` |
 | `start` | `rimraf build && tsc && node --max-old-space-size=1024 ./build/src/app.js` |
@@ -103,7 +115,13 @@ Backend scripts (`backend/package.json`):
 Frontend scripts: `start` → `ng serve`, `build` → `ng build` (defaults to `production`),
 `test` → `ng test`, `watch`, `ng`.
 
-**No backend `test` script exists.**
+⟨CP1⟩ **`compile` and `test` now clean `build/` first.** Plain `tsc` does not delete orphaned
+output, so after `models/AppSettings.ts` was removed the stale `build/src/.../AppSettings.js`
+kept being auto-discovered and re-registered at runtime. Runtime validation caught it; the
+`rimraf` prefix makes the class of bug impossible.
+
+⟨CP1⟩ The backend test suite uses Node's built-in `node:test` — **no new dependency**, so the
+committed lockfiles stay valid under `--frozen-lockfile`.
 
 ## 3. The toolkit package — `@90soft/parse-server-kit`
 
@@ -145,23 +163,25 @@ Module scope, in order:
 | 1 | `await initializeParseServer()` | `new ParseServer(createParseConfig())` then `await parseServer.start()`. `start()` loads Cloud Code from `./build/src/cloudCode/main.js`. |
 | 2 | `Parse.masterKey = process.env.masterKey` | Master key available to Cloud Code. |
 | 3 | `app.use(removeResultMiddleware)` | Unwraps `{result: …}` from every JSON response. |
-| 4 | `app.use(cors())` | **All origins allowed.** |
+| 4 | ⟨CP1⟩ `app.use(cors(buildCorsOptions()))` | Fails closed — see §11a. Never a wildcard. |
 | 5 | `app.use(mountPath, validateEntityRoutes)` | `/api/{entity}/{action}` → 404/405 check → rewrite to `/functions/{name}` → merge GET query into body → force `POST`. |
 | 6 | `app.use(mountPath + '/functions', validateFunctionRoutes)` | Legacy path; registry + method check, force `POST`. |
 | 7 | `app.use(conditionalJsonMiddleware)` | `express.json({limit:'10mb', type:['text/plain'], verify: extractMasterKey})`; skipped for `${mountPath}/files`. |
 | 8 | `app.use(mountPath, restrictRoutes)` | Blocks everything except `/health`, `/serverInfo`, `/files`, registered entity prefixes, and `/functions*`. Body master key bypasses it. |
 | 9 | `app.use(mountPath, parseServer.app)` | Mounts the Parse REST API at `/api`. |
-| 10 | `app.use(express.static('../../files'))` | Serves `backend/files` at the **web root**, unauthenticated. |
+| 10 | ⟨CP1⟩ *removed* | The template served `backend/files` at the web root, unauthenticated. Gone. |
 | 11 | `app.use('/.well-known', express.static(…))` | Domain-verification files. |
 | 12 | `CloudFunctionRegistry.initialize()` | `Parse.Cloud.define(name, handler, validation)` per function, then `RouteRegistry.initialize()` builds the route map. |
 | 13 | `TriggerRegistry.initialize()` | Registers all decorator-declared triggers. |
 | 14 | `CronRegistry.initialize()` | No jobs in this template. |
 | 15 | `setupSwagger(app, {basePath: mountPath})` | Serves `/api-docs` and `/api-docs/json`. |
-| 16 | `server.listen(1337, …)` | Then `seedAll()` (**not awaited**), `await applyUniqueIndexes()`, `await applyMongoValidators()`. |
+| 16 | ⟨CP1⟩ `server.listen(PORT, …)` | `PORT` env or 1337. **Awaits** `seedAll()`, then `applyUniqueIndexes()` and `applyMongoValidators()`. |
 | 17 | `ParseServer.createLiveQueryServer(server)` | LiveQuery WebSocket server on the same HTTP server. |
 | 18 | `server.on('upgrade', …)` | Logs every WebSocket upgrade URL. |
 
-Port `1337` is **hard-coded** in `app.ts:118`; only `mountPath` comes from the environment.
+⟨CP1⟩ Port comes from `PORT` (default 1337). `blockRawFileRoutes` is mounted before route
+validation, and `sanitizedErrorHandler` is registered last. `serverURL` must still be kept
+consistent with `PORT` manually.
 
 `main()` is called with `.then/.catch` — a boot failure is logged and the process stays alive.
 
@@ -175,20 +195,30 @@ scan. The `beforeSubscribe` LiveQuery guard block is present but fully commented
 |---|---|
 | `databaseURI`, `appName`, `appId`, `restAPIKey`, `masterKey`, `javascriptKey`, `serverURL`, `publicServerURL`, `mountPath` | from `.env` |
 | `cloud` | `'./build/src/cloudCode/main.js'` |
-| `masterKeyIps` | `['::/0','0.0.0.0/0']` — **all IPs** |
+| `masterKeyIps` | ⟨CP1⟩ `['127.0.0.1','::1']`, or `MASTER_KEY_IPS` (was `['::/0','0.0.0.0/0']`) |
+| `readOnlyMasterKeyIps` | ⟨CP1⟩ `['127.0.0.1','::1']` (Parse default is any IP) |
+| `allowOrigin` | ⟨CP1⟩ `parseAllowOrigin()` — same allow-list as the Express layer (Parse defaults to `'*'`) |
+| `allowClientClassCreation` | ⟨CP1⟩ `false` (explicit) |
+| `enableAnonymousUsers` | ⟨CP1⟩ `false` (Parse default is `true`) |
+| `allowCustomObjectId` | ⟨CP1⟩ `false` (explicit) |
 | `protectedFieldsTriggerExempt` | `true` |
 | `requestComplexity.batchRequestLimit` | `50` |
-| `fileUpload` | `enableForAnonymousUser: true`, `enableForAuthenticatedUser: true`, `enableForPublic: false` |
+| `fileUpload` | ⟨CP1⟩ all three flags `false` |
+| `loggerAdapter` | ⟨CP1⟩ `parseLoggerAdapter` — redacts Parse's own logs |
+| `logLevel` | ⟨CP1⟩ `LOG_LEVEL` or `info` |
 | `liveQuery.classNames` | `[]` (empty) |
-| `schema` | `createSchemaConfig()` |
+| `schema` | ⟨CP1⟩ `createHardenedSchemaConfig()` — deny-by-default, `adminRole: 'Admin'` |
 
 `utils/fileAdapter.ts` defines a full local-disk `FileAdapter` (create/delete/read/stream with
 HTTP Range support) but **is never referenced** — no `filesAdapter` key is passed, so Parse
 Server uses its default GridFS adapter.
 
-### Environment validation
-**There is none.** `parseConfig.ts` reads `process.env` directly; `app.ts` casts
-`process.env.mountPath as string`. Missing keys surface as runtime failures, not startup errors.
+### Environment validation ⟨CP1⟩
+`utils/config/env.ts` → `assertEnv()` runs at the very top of `app.ts`. It requires
+`databaseURI`, `appId`, `masterKey`, `serverURL`, `mountPath`, treats a whitespace-only value as
+absent, and on failure throws listing the **missing key names only** — no value, no partial value,
+no length. Optional keys are counted, never echoed. 8 tests assert that no configured value can
+appear in the message.
 
 ## 5. Decorator architecture
 
@@ -209,7 +239,20 @@ Validates the field type against 12 allowed Parse types and validates option com
 classLevelPermissions.ACL = defaultACL || { '*': { read: true, write: true } };
 ```
 **A `@ParseClass` without an explicit `ACL` option gets a public read+write default object ACL.**
-`IMG` and `File` are both in that state.
+
+⟨CP1⟩ This insecure fallback is **neutralised** by `utils/config/schemaGuard.ts`. The kit lives in
+`node_modules` and must not be patched, so hardening happens at the boundary where this project
+builds its schema — `createHardenedSchemaConfig()` wraps `createSchemaConfig({adminRole: 'Admin'})`
+and enforces two rules on every definition:
+
+1. **A class with no explicit CLP, or with any of the six operations left undecided, aborts
+   startup** (`InsecureSchemaError`). Silence never means public.
+2. **A public wildcard grant (`'*'` with read or write) is rewritten to `{}`**, and a missing ACL
+   template likewise becomes `{}`.
+
+`_Role`, `_Session`, and `_Installation` are exempted from rule 1's operation check because Parse
+Server owns them. Net effect: forget the ACL on a new private class and the server refuses to boot
+instead of publishing the collection.
 
 ### `@CloudFunction(config)` — `dist/decorators/cloudDecorator.js`
 Wraps the method; if `config.requireRoles` is set, runs `checkUserRoles()` (a `_Role` query with
@@ -247,38 +290,34 @@ Extends `Parse.User`.
 | `lastName` | String | |
 | `phoneNumber` | String | |
 
-- **CLP:** `find`/`get`/`count` → SuperAdmin + Employee; `create`/`delete` → SuperAdmin;
-  `update` → SuperAdmin + Employee.
-- **protectedFields:** `{'*': ['email'], authenticated: []}` — any authenticated user can read
-  every user's email.
-- **ACL:** SuperAdmin read+write, Employee read.
+⟨CP1⟩ **rewritten to deny-by-default.**
+- **CLP:** `find`, `get`, `count`, `create`, `update`, `delete` → **all `{}`**. No client session
+  can enumerate, read, create, or modify a user. `create: {}` closes the unauthenticated `_User`
+  creation hole the template shipped with.
+- **protectedFields:** `'*'` → `email, username, emailVerified, authData, phoneNumber, firstName,
+  lastName`; `authenticated` → `email, username, emailVerified, authData, phoneNumber`. A signed-in
+  user learns nothing about another account from this class.
+- **ACL:** `role:Admin` read+write. Never public.
 - **Triggers:** none.
-- **Exposure:** via `User.map()` → `{id, email, username, firstName, lastName, phoneNumber, createdAt, updatedAt, sessionToken, role}`.
+- **Exposure:** hand-built DTOs in `utils/dto/userDto.ts` — `toCurrentUserDto()` →
+  `{id, username, firstName?, lastName?, roles[]}` (**no** session token, email, or phone) and
+  `toLoginDto()` which adds `sessionToken` for the single successful-login response.
+  `User.map()` was deleted.
 
-### `AppSettings` — `models/AppSettings.ts`
-Extends `BaseModel`.
+### `AppSettings` — REMOVED ⟨CP1⟩
 
-| Field | Type | Notes |
-|---|---|---|
-| `key` | String | `required: true`, `unique: true` → index `key_unique` |
-| `value` | String | ISO string / JSON / plain text |
+Deleted in Checkpoint 1 (resolved decision OQ-13): `models/AppSettings.ts` and
+`modules/AppSettings/functions.ts` are gone, along with the `getAppSetting` cloud function, the
+mis-pluralised `/api/app-settingses/getAppSetting` route, the `AppSettings` Swagger schema, and
+the `key_unique` index — the only unique index the project had, so startup now logs
+`[Indexes] No indexes to apply`.
 
-- **CLP:** `find`/`get` → SuperAdmin + Employee; `count`/`create`/`update`/`delete` → `{}` (no one but master key).
-- **ACL:** SuperAdmin read+write, Employee read.
-- **Triggers:** none. **Exposure:** `getAppSetting` returns `setting.value` only.
-- **Route:** `/api/app-settingses/getAppSetting` — mis-pluralised by the kit's `toKebabPlural` (§5).
+A generic key-value settings store is a **prohibited pattern**: future configuration needs use
+narrowly scoped, typed, sanitised endpoints.
 
-> **Decision note — scheduled for removal (OQ-13, resolved).** The product owner has decided this
-> legacy feature will be **removed during Phase 1 (Checkpoint 1)**: it has no consumer (the only
-> reference to `getAppSetting` in `backend/src` or `frontend/src` is its own definition), Code Your
-> Future has no confirmed requirement for a generic settings model, retaining it needlessly widens
-> the API and security surface, and its route prefix is legacy behaviour. Future configuration needs
-> must use narrowly scoped, typed, sanitised endpoints instead of a generic settings store.
->
-> **It is still present as described above** — this section documents the template as it exists
-> today. Nothing has been removed yet; the route prefix therefore needs no `@Route('app-settings')`
-> fix, since the class goes away with it. After removal the registered classes will be `_User`,
-> `File`, and `IMG`.
+An `AppSettings` **collection** may still exist in a developer's database. Source removal and data
+deletion are separate actions: startup reports the collection name and document count and never
+deletes it (`reportStaleCollections` in `database/seed.ts`).
 
 ### `IMG` — `models/IMG.ts` (protected)
 
@@ -288,11 +327,18 @@ Extends `BaseModel`.
 | `imageThumbNail` | File |
 | `blurHash` | String |
 
-- **CLP:** all six operations → SuperAdmin + Employee.
-- **ACL:** **none declared → public read+write default object ACL.**
-- **Triggers:** `beforeSave` (WebP conversion, thumbnail, blurhash via `processImage`; skipped
-  unless the `image` field is dirty), `afterSave` (destroys the previous files when the name
-  changed), `afterDelete` (destroys both files).
+⟨CP1⟩ **now fully private.**
+- **CLP:** all six operations → **`{}`**.
+- **ACL:** **`{}`** — deny-by-default. (Was: none declared, which the kit turned into public
+  read+write.)
+- **protectedFields:** `image`, `imageThumbNail` hidden from non-master callers.
+- **Triggers:** `beforeSave` **rejects a client-supplied ACL** and then runs the unchanged
+  pipeline (WebP conversion, thumbnail, blurhash via `processImage`; skipped unless `image` is
+  dirty); `afterSave` destroys superseded files; `afterDelete` destroys both files. Failures log
+  through the redacting logger instead of printing the raw error.
+- **Extension point (Checkpoint 4):** the StudentProfile photo is uploaded via a cloud function
+  that authorises the caller, saves with the master key, and stamps a per-record ACL; reads go
+  through a function that authorises then streams bytes. No public URL. See OQ-10.
 
 ### `File` — `models/File.ts` (protected)
 
@@ -302,10 +348,14 @@ Extends `BaseModel`.
 | `fileSize` | Number |
 | `type` | String |
 
-- **CLP:** `find`/`get`/`create`/`update`/`delete` → SuperAdmin + Employee (**no `count` entry**).
-- **ACL:** **none declared → public read+write default object ACL.**
-- **Triggers:** `beforeSave` sets `type` from the filename extension on create. `fileSize` is
-  declared but never populated.
+⟨CP1⟩ **now fully private.**
+- **CLP:** all six operations → **`{}`** (the template also omitted `count` entirely).
+- **ACL:** **`{}`** — deny-by-default.
+- **protectedFields:** `file` hidden from non-master callers.
+- **Triggers:** `beforeSave` **rejects a client-supplied ACL**, then sets `type` from the filename
+  extension on create. `fileSize` is still declared but never populated.
+- **Extension point (Checkpoint 7):** Batch Resources add controlled read access via a cloud
+  function that authorises against the owning record and streams the bytes. See OQ-10.
 
 ### Planned Code Your Future models — **Not implemented**
 `StudentProfile`, `Batch`, `BatchInvitation`, `Enrollment`, `Resource`, `LiveSlidesSession`,
@@ -326,19 +376,44 @@ exist in any form.
 
 ## 8. Roles, seeding, sessions, ACL, CLP, Master Key
 
-### Roles
-`UserRoles` in the kit: `ADMIN = 'SuperAdmin'`, `EMPLOYEE = 'Employee'`. The frontend mirrors
-this in `frontend/src/app/config/user-roles.ts`. **Neither `Admin` nor `Student` exists.**
+### Roles ⟨CP1⟩
+Application roles are **exactly `Admin` and `Student`**, defined in
+`backend/src/cloudCode/utils/constants/roles.ts` (`AppRole` enum) and mirrored in
+`frontend/src/app/config/user-roles.ts`. A **Visitor** is an unauthenticated caller and is
+deliberately not a stored role.
 
-### Seeding — `database/seed.ts`
-`seedAll()` → `seedRoles()` then `seedAdminUser()`.
-- `seedRoles()` creates any missing `_Role` from `Object.values(UserRoles)` with an ACL granting
-  SuperAdmin read+write and no public access.
-- `seedAdminUser()` creates a user from `ADMIN_USERNAME` / `ADMIN_PASSWORD` / `ADMIN_EMAIL`,
-  defaulting to `admin` / `ChangeMe!2024` / `admin@example.com`, then adds it to the SuperAdmin role.
-- `seedLookupTable()` is a private helper, currently unused (declared-but-unused).
-- `seedAll()` is invoked **without `await`** inside the `listen` callback, so seeding races with
-  `applyUniqueIndexes` / `applyMongoValidators`.
+The kit still exports a template `UserRoles` enum with `SuperAdmin`/`Employee`. **It is not
+imported anywhere in this project** — a project-local constants module was added instead, exactly
+as the plan required, because the package must not be edited. The legacy names appear in
+`roles.ts` only as `LEGACY_ROLE_NAMES`, used by startup migration and by tests that assert the
+names authorise nothing. There is **no compatibility alias**: `toAppRole('SuperAdmin')` returns
+`undefined`, so a legacy membership resolves to an empty role list.
+
+### Seeding and legacy migration — `database/seed.ts` ⟨CP1⟩
+`seedAll()` → `seedRoles()` → `migrateLegacyRoles()` → `seedAdminUser()` →
+`reportStaleCollections()`, and returns a structured `SeedReport`. It is now **awaited** in the
+`listen` callback before indexes and validators run.
+
+- **`seedRoles()`** creates any missing `Admin` / `Student` role with an ACL granting `Admin`
+  read+write and no public access. Idempotent.
+- **`migrateLegacyRoles()`**
+  - `SuperAdmin` → members are added to `Admin` (a safe widening of an already-privileged
+    account, and it preserves the seeded administrator), then the legacy role object is deleted.
+  - `Employee` → **never migrated.** Employee membership carries no Code Your Future meaning, so
+    promoting those accounts would be an escalation and deleting them would be data loss. An
+    **empty** `Employee` role is deleted; a **populated** one is retained and reported with its
+    member count for a human decision. Members are never touched.
+- **`seedAdminUser()`** is keyed on username. If the account exists it is never deleted or
+  recreated — only membership is ensured. If it does not exist and `ADMIN_PASSWORD` is unset,
+  seeding **skips with a warning rather than inventing a default password** (the template
+  hardcoded `ChangeMe!2024`). No credential is ever logged; only `userId` and whether creation
+  happened.
+- **`reportStaleCollections()`** reports an obsolete `AppSettings` collection — name and document
+  count only, never contents — and never deletes data.
+- `seedLookupTable()` was removed along with the rest of the lookup-table scaffolding.
+
+**On a clean database the stored application roles are exactly `Admin` and `Student`** (verified at
+runtime).
 
 ### Sessions
 Standard Parse `_Session`. `loginUser` calls `User.logIn(username, password, {installationId:
@@ -354,55 +429,92 @@ generateRandomString(10)})` and returns the session token in the response body. 
 
 ### CLP
 Declared per class in `@ParseClass({clp})` and emitted into the Parse Server `schema` config.
-`_Role` CLP is generated by `createSchemaConfig()`: all six operations restricted to
-`role:SuperAdmin`.
+`_Role` CLP is generated by `createSchemaConfig()`. ⟨CP1⟩ `adminRole: 'Admin'` is passed, so all
+six operations are restricted to **`role:Admin`** — the legacy `role:SuperAdmin` grant is gone.
 
-### Master Key
-- `Parse.masterKey` is set globally in `app.ts`.
-- `masterKeyIps: ['::/0','0.0.0.0/0']` — no IP restriction.
-- Every read/write in `modules/User/functions.ts` uses `{useMasterKey: true}`, so CLP is bypassed
-  and authorisation depends entirely on `validation.requireAnyUserRoles`. The one exception is
-  `searchEmployees`, whose final `find()` uses `{sessionToken}`.
-- `extractMasterKey` (the `express.json` verify hook) lifts `masterKey` / `_MasterKey` out of the
-  request **body** into `req['x-master-key']`, and `restrictRoutes` treats a match as a full
-  bypass. Probed at runtime: a `text/plain` body carrying the master key against
-  `/api/classes/AppSettings` returned **403**, so the path is not exploitable in this
-  configuration — but the code path exists.
+### Master Key ⟨CP1⟩
+- `Parse.masterKey` is still set globally in `app.ts` (Cloud Code needs it).
+- **`masterKeyIps` now defaults to `['127.0.0.1', '::1']`** — localhost only, failing closed.
+  Deployments override with the `MASTER_KEY_IPS` env var (comma-separated); no production topology
+  is hardcoded. Was `['::/0','0.0.0.0/0']`, i.e. any address on the internet.
+- **`readOnlyMasterKeyIps: ['127.0.0.1','::1']`** — Parse Server defaults this to *any* IP, and the
+  read-only key still bypasses CLP, ACL, and `protectedFields` on reads.
+- **Master-key audit of every call site.** Remaining uses, all trusted server operations:
 
-## 9. Cloud functions and REST routes
+  | Site | Classification | Kept because |
+  |---|---|---|
+  | `seedRoles`, `migrateLegacyRoles`, `seedAdminUser` | required | `_Role`/`_User` are closed to clients; provisioning is server-only |
+  | `reportStaleCollections` | required | counts a collection no client may query |
+  | `getAppRoles` (`_Role` lookup) | required | `_Role` CLP grants clients nothing; this is the authorization primitive itself |
+  | `loginUser` / `logout` session destroy | required | `_Session` is closed to clients |
+  | `IMG`/`File` trigger file cleanup | required | server-side trigger context |
+  | `handleImage` / `handleFile` uploads | required | server-controlled creation path |
 
-11 functions, 11 routes. Observed at runtime and in `/api-docs/json`.
+  Removed with their functions: the master-key reads and writes in `listUsers`, `getUser`,
+  `createUser`, `updateUser`, `deleteUser`, `signupUser`, and `searchEmployees` — seven
+  client-facing operations that bypassed CLP and depended entirely on a `requireAnyUserRoles`
+  declaration being present and correct.
+- The master key is never returned, never sent to Angular, never logged (the redaction key list
+  covers `masterkey` and `readonlymasterkey`), never placed in a DTO, and
+  `rejectPrivilegedParams` refuses `masterKey` / `_MasterKey` as request parameters.
+- `extractMasterKey` (the kit's `express.json` verify hook) still lifts `masterKey` / `_MasterKey`
+  from the request **body** into `req['x-master-key']`, and the kit's `restrictRoutes` treats a
+  match as a bypass. Re-probed at runtime after CP1: a `text/plain` body carrying the key against
+  `/api/classes/AppSettings` returns **403**, so it is not exploitable here. The mechanism lives in
+  the kit and cannot be removed from this repository; it is tracked as a residual gap.
 
-| Route | Function | Methods | Validation |
+## 9. Cloud functions and REST routes ⟨CP1⟩
+
+**3 functions, 3 routes** (was 11 and 11). Observed at runtime and in `/api-docs/json`.
+
+| Route | Function | Methods | Guard |
 |---|---|---|---|
-| `/api/users/loginUser` | `loginUser` | POST | `requireUser: false`; `username`, `password` required |
-| `/api/users/signupUser` | `signupUser` | POST | `requireUser: false`; `username`, `email`, `password` required → assigns `Employee` |
+| `/api/users/loginUser` | `loginUser` | POST | `requireUser: false`; `username`+`password` required; **rate limited 10/min**; rejects privileged params; verifies the Admin role after authentication and revokes the session otherwise |
 | `/api/users/getCurrentUser` | `getCurrentUser` | GET | `requireUser: true` |
-| `/api/users/logout` | `logout` | POST | *(no validation block)* |
-| `/api/users/listUsers` | `listUsers` | GET | `requireUser`, `requireAnyUserRoles: ['SuperAdmin','Employee']` |
-| `/api/users/getUser` | `getUser` | POST | `requireAnyUserRoles: ['SuperAdmin']` |
-| `/api/users/createUser` | `createUser` | POST | `requireAnyUserRoles: ['SuperAdmin']` |
-| `/api/users/updateUser` | `updateUser` | POST | `requireAnyUserRoles: ['SuperAdmin']` |
-| `/api/users/deleteUser` | `deleteUser` | POST | `requireAnyUserRoles: ['SuperAdmin']` |
-| `/api/users/searchEmployees` | `searchEmployees` | GET | `requireUser: true` |
-| `/api/app-settingses/getAppSetting` | `getAppSetting` | POST | `requireUser: true`; `key` required |
+| `/api/users/logout` | `logout` | POST | `requireUser: true`; rejects privileged params; idempotent |
 
-Both the entity route and the legacy `/api/functions/{name}` path work and both correctly pass
-GET query parameters through (verified: `?limit=1&withCount=true&searchString=…` returned
-`{"results":[],"count":0}` on both paths).
+**Retired**, with the reason recorded in the module header:
+
+| Removed | Why |
+|---|---|
+| `signupUser` | open unauthenticated self-signup that granted a role — there is no public email/password signup |
+| `createUser` | manual creation with a client-chosen role — manual Student creation and manual role assignment are both forbidden |
+| `updateUser` | arbitrary field and role reassignment (privilege-escalation surface) |
+| `deleteUser` | account deletion with no product requirement |
+| `listUsers` | user enumeration with no product requirement |
+| `getUser` | arbitrary user read by id |
+| `searchEmployees` | built on the retired `Employee` role |
+| `getAppSetting` | `AppSettings` removed (OQ-13) |
+
+**Blocked at runtime** (verified): `GET /api/classes/_User`, `/classes/File`, `/classes/IMG`,
+`/classes/_Role`, `/classes/_Session`, `/api/schemas`, `/api/requestPasswordReset`, and
+`/api/app-settingses/getAppSetting` all return **403**; Parse's `POST /api/users` signup returns
+**404** because `/users` is a registered entity prefix that resolves no such function; raw
+`/api/files/*` returns **403** from `blockRawFileRoutes`.
 
 Cloud functions return data **directly**; `removeResultMiddleware` strips Parse's `{result: …}`
 wrapper server-side, so the frontend must not unwrap it again.
+
+Authorization helpers live in `utils/auth/authorize.ts`: `requireUser`, `requireAdmin`,
+`requireStudent`, `getAppRoles`, `hasAppRole`, and `rejectPrivilegedParams`. Every role decision
+reads live `_Role` membership; a client-sent role value is never consulted.
+`rejectPrivilegedParams` refuses `role`, `roles`, `ACL`, `acl`, `CLP`, `clp`, `sessionToken`,
+`authData`, `masterKey`, `_MasterKey`, `protectedFields`, `owner`, `user`, `userId`, `studentId`.
 
 ## 10. Files and images
 
 - **Storage:** Parse Server's default **GridFS** adapter (Mongo). The bespoke local-disk
   `FileAdapter` in `utils/fileAdapter.ts` is dead code.
-- **Public URL shape:** `/api/files/{appId}/{filename}` — served by Parse Server, allowed through
-  `restrictRoutes` (`/files` is a system route), and **unauthenticated**. Verified: an
-  unauthenticated GET for a non-existent file returns 404, i.e. it is reachable, not blocked.
-- `express.static(join(__dirname,'../../files'))` additionally serves `backend/files/` at the web
-  root with no auth.
+- ⟨CP1⟩ **`/api/files/*` is now blocked.** `blockRawFileRoutes` in `app.ts` returns **403** for
+  `/files` and `/files/*` before any routing, closing Parse's unauthenticated file endpoint.
+  Verified at runtime.
+- ⟨CP1⟩ **`express.static('../../files')` was removed** — the template served `backend/files/` at
+  the web root with no auth. Only `/.well-known` is still served statically.
+- ⟨CP1⟩ **Direct upload is closed for every caller class**: `fileUpload.enableForAnonymousUser`,
+  `enableForAuthenticatedUser`, and `enableForPublic` are all `false`.
+- ⟨CP1⟩ **Extension point for controlled access** (documented on both models): a cloud function
+  authorises the caller against the owning record, then streams the bytes itself. No public
+  download route, and no signed-URL scheme is committed to before the requirement exists (OQ-10).
 - **Image pipeline** (`utils/imageProcessing.ts`): `axios` downloads the uploaded file by URL,
   `sharp` produces a 1000 px WebP at quality 70 (`large`) and quality 30 (`thumbnail`), and
   `blurhash.encode` produces a 4×4 hash. Triggered from `IMG.beforeSave`.
@@ -413,17 +525,102 @@ wrapper server-side, so the frontend must not unwrap it again.
   ignores the return value, and the character-class check is commented out — the validation is
   a no-op even if the adapter were wired in.
 
-## 11. Logging and errors
+## 11a. CORS policy ⟨CP1⟩ — fails closed
 
-- **Logging** is `console.log` / `console.error` plus Parse Server's own winston logger
-  (`backend/logs/`, git-ignored). Startup prints every model path, every registered function,
-  every route, and every WebSocket upgrade URL. **There is no redaction layer** — nothing strips
-  tokens or keys from log output.
-- **Errors:** `catchError(promise)` returns `[error, result]`; `backend/CLAUDE.md` forbids
-  `try/catch` with `await` outside synchronous code and whole-function boundaries. Handlers throw
-  `Parse.Error` with explicit codes. Middleware returns bare JSON (`{message}`) with 403/404/405.
-- Unauthenticated calls to a `requireUser: true` function return **HTTP 400** (Parse validation),
-  not 401.
+`utils/config/cors.ts` is the single source of truth. **There is no wildcard fallback on any
+code path.**
+
+| Situation | Allow-list |
+|---|---|
+| `CORS_ORIGINS` set | exactly those origins (dev and production alike) |
+| unset, `NODE_ENV !== 'production'` | `http://localhost:4200`, `http://127.0.0.1:4200`, `http://localhost:1337`, `http://127.0.0.1:1337` |
+| unset, **`NODE_ENV === 'production'`** | **empty** — every cross-origin browser request denied, error logged at startup |
+
+- A request with **no `Origin` header** is allowed through (curl, server-to-server, health
+  probes); CORS is a browser mechanism and does not apply.
+- `credentials: false` is explicit — this API authenticates with `X-Parse-Session-Token`, not
+  cookies.
+- Methods are `GET, POST, OPTIONS`; allowed headers are an explicit list. Neither is a wildcard.
+- No production domain is hardcoded.
+
+### Two layers are required, and why
+
+The Express `cors()` middleware alone is **not sufficient**. Parse Server's mounted app runs its
+own `allowCrossDomain` middleware, which unconditionally writes
+`Access-Control-Allow-Origin` and defaults it to `'*'` — overwriting whatever the upstream
+middleware decided. Runtime validation caught exactly this: with only the Express layer in place,
+`/api/*` still answered `Access-Control-Allow-Origin: *` to an arbitrary origin.
+
+The fix feeds the same list into Parse Server's supported **`allowOrigin`** option
+(`parseAllowOrigin()` in `parseConfig.ts`). Parse then echoes the request origin when it is in the
+list, and otherwise returns the list's first entry — which a browser rejects because it does not
+match the requesting origin.
+
+Because Parse always emits the header and picks `baseOrigins[0]` on a miss, the list must never be
+empty (an empty array makes Parse emit `undefined`). When nothing is allowed, `parseAllowOrigin()`
+returns a single sentinel, `https://cors-disallowed.invalid` — `.invalid` is a reserved TLD
+(RFC 2606), so no real browser origin can ever match it.
+
+**Observed at runtime:**
+
+| Request origin | Response header |
+|---|---|
+| `http://localhost:4200` (allowed) | `Access-Control-Allow-Origin: http://localhost:4200` → allowed |
+| `https://evil.example.test` (not allowed) | `Access-Control-Allow-Origin: http://localhost:4200` → browser blocks |
+| none | header present but irrelevant; request succeeds |
+| any origin, production without `CORS_ORIGINS` | `Access-Control-Allow-Origin: https://cors-disallowed.invalid` → browser blocks |
+
+No response in any configuration contains `Access-Control-Allow-Origin: *`.
+
+One residual: Parse's own `Access-Control-Allow-Methods` / `-Headers` are broader than this
+project's (they include `X-Parse-Master-Key`) and are baked into the package. That is a list of
+*permitted request headers*, not an authorisation grant — sending a master key still requires
+knowing it, and `masterKeyIps` restricts it to localhost.
+
+## 11. Logging and errors ⟨CP1⟩
+
+### The redaction boundary
+`utils/logging/redact.ts` + `utils/logging/safeLogger.ts` are the only sanctioned way to write a
+log line. The template had `console.log` everywhere and **no redaction at all**.
+
+- **Key-name deny-list, applied recursively.** A key whose normalised form (non-alphanumerics
+  stripped, lower-cased) contains a sensitive fragment is replaced with `[REDACTED]` regardless of
+  nesting depth or casing — so `sessionToken`, `session_token`, `SESSION-TOKEN`, and
+  `X-Parse-Session-Token` all match. Covered fragments include passwords, all Parse keys
+  (`masterkey`, `readonlymasterkey`, `restapikey`, `javascriptkey`, …), tokens, `authdata`,
+  `authorization`, `cookie`, `databaseuri`, `email`, `phone`, `dateofbirth`, `base64`, and buffer
+  payloads.
+- **Whole subtrees dropped:** `body`, `params`, `headers`, `request`, `response` → `[OMITTED]`.
+- **Handles** nested objects, arrays (capped), `Map`, `Set`, `Date`, `Buffer` (summarised as a byte
+  count), circular graphs, depth (capped at 8), long strings (truncated), and `Error` — including
+  request data hung off an axios-style error.
+- **Raw Parse objects never printed:** anything Parse-shaped becomes
+  `[ParseObject _User#abc123]`.
+- **`redactMessage()`** scrubs free text, and matters more than it looks: Parse Server logs every
+  cloud-function call as a message containing serialised `Input:` and `Result:` bodies, and Parse
+  masks only `password`. `redactMessage` masks any `"sensitiveKey": value` pair inside embedded
+  JSON (reusing the same key rules), Mongo URIs, and bare `r:` session tokens. Verified live:
+  `Input: {"username":"admin","password":"[REDACTED]"}` and
+  `Result: {…,"sessionToken":"[REDACTED]"} {"functionName":"loginUser","params":"[OMITTED]"}`.
+- **`parseLoggerAdapter`** is wired via Parse Server's supported `loggerAdapter` option, so Parse's
+  own logs pass through the same redaction. **`node_modules` is not patched.**
+- **Safe fields** a log line may carry: `op`, `route`, `userId` (opaque objectId, never an email),
+  `code`, `stage`, `ok`, and counts. `LOG_LEVEL` controls verbosity.
+- 20 redaction tests plant canary secrets at each of these locations and assert absence.
+
+### Errors
+- `catchError(promise)` → `[error, result]`; `backend/CLAUDE.md` forbids `try/catch` with `await`
+  outside synchronous code and whole-function boundaries.
+- ⟨CP1⟩ `sanitizedErrorHandler` in `app.ts` is registered last: clients receive
+  `{"error":"Request failed"}` with 403 or 500 and **never** a stack trace, a Mongo error, a Parse
+  internal, an ACL, a CLP, or a raw object. Detail goes to the redacting logger.
+- ⟨CP1⟩ Login failure is deliberately opaque — unknown username and wrong password produce the
+  same `Invalid credentials`, so the endpoint cannot enumerate accounts. A non-Admin account gets a
+  distinct `This account cannot sign in with a password` **after** its transient session is
+  revoked.
+- Unauthenticated calls to a `requireUser: true` function still surface as **HTTP 400** from
+  Parse's validator (not 401). `requireUser()` in `authorize.ts` throws
+  `INVALID_SESSION_TOKEN` so the client can distinguish "not signed in" from "forbidden".
 
 ## 12. Frontend architecture
 
@@ -441,40 +638,54 @@ template is `<router-outlet/>` + `<p-toast/>`, `OnPush`.
 - `providePrimeNG({theme: {preset: MyPreset, options: {darkModeSelector: '.dark'}}})`
 - `provideTranslateService({loader: provideTranslateHttpLoader({prefix:'./i18n/', suffix:'.json'}), fallbackLang:'en', lang:'en'})`
 
-### Routing and guards — `app.routes.ts`
+### Routing and guards — `app.routes.ts` ⟨CP1⟩
 ```
 /auth                        AuthComponent (public, lazy)
 ''      canActivate:[authGuard]  ShellComponent (lazy)
   ''        → redirect to dashboard
   dashboard                  DashboardComponent (lazy)
-  users     canActivate:[roleGuard(ADMIN, EMPLOYEE)]  UsersComponent (lazy)
+**        → redirect to ''
 ```
-Every route is lazy (`loadComponent`). `authGuard` redirects to `/auth` when no token;
-`roleGuard(...roles)` compares against `sessionService.userRole()` (**the first role only**) and
-redirects to `/dashboard` on failure.
+`/users` was removed with the user-management screen. Every route is lazy (`loadComponent`).
 
-### Session handling — `services/session.service.ts`
+`authGuard` redirects to `/auth` when no token. ⟨CP1⟩ `roleGuard(...roles)` is now **role-set
+aware** — it checks `sessionService.hasAnyRole()` across the whole role list instead of comparing
+only `roles[0]`, sends a Visitor to `/auth`, and an authenticated user without a permitted role to
+`/dashboard`. `adminGuard` is a convenience wrapper. The same fix was applied to the `appIfRole`
+directive. Guards are UI routing only; the backend re-authorises independently.
+
+### Session handling — `services/session.service.ts` ⟨CP1⟩
 Signals `user` / `token` hydrated from `localStorage` keys `currentUser` and `sessionToken`;
-`isLoggedIn` / `userRole` / `userDisplayName` computed. `saveSession` / `clearSession` write
-through to `localStorage`.
+computed `isLoggedIn`, `roles`, `isAdmin`, `isStudent`, `userDisplayName`, plus `hasAnyRole()`.
+
+`saveSession()` and the loader both run the payload through `sanitize()`, which keeps **only** the
+five allow-listed DTO fields and **only recognised role names**. Two consequences: a field the API
+stops sending cannot be depended on by a component, and a stale or tampered cached session naming
+`SuperAdmin` or `Employee` resolves to an empty role list (`isAdmin() === false`). Corrupt JSON
+yields `null` rather than throwing. `userRole()` (first-role-only) was removed.
 
 ### API layer
 - `ApiService<T>` — generic `getList` / `getSingle` / `add` / `update` / `edit` / `delete`,
   built on `HttpClient`, base URL from `SharedVarsService` → `environment.apiUrl`.
-- `services/dataService/user-service.ts` — calls the **legacy `/functions/{name}` paths**, not
-  the entity routes.
+- ⟨CP1⟩ `services/dataService/user-service.ts` — renamed export **`AuthApiService`**, reduced to
+  `login`, `getCurrentUser`, `logout`, and switched to the **entity routes**
+  (`/users/loginUser` etc.) instead of the legacy `/functions/{name}` paths. The six
+  user-management methods were deleted along with their backend functions. There is deliberately
+  no Student login, signup, reset, or change method.
 - `http.interceptor.ts` — injects `X-Parse-Application-Id` and `X-Parse-REST-API-Key` on every
   request, adds `X-Parse-Session-Token` from `localStorage`, converts every Parse `{__type:'Date',
   iso}` value to a `YYYY-MM-DD` **string** (dropping the time component), toasts every error, and
-  on Parse error codes 142/209 clears the token and routes to `/auth`.
+  on Parse error codes 142/209 clears the token and routes to `/auth`. ⟨CP1⟩ its login exemption
+  now matches `loginUser` — the template checked for `/functions/login`, which never matched the
+  real route, so the session header was attached even to the login call.
 
 ### State, forms, UI
 - **State:** Angular signals throughout (`signal`, `computed`, `effect`, `input()`, `output()`),
   `ChangeDetectionStrategy.OnPush` everywhere, `inject()` instead of constructor injection,
   `takeUntilDestroyed(destroyRef)` for component subscriptions.
 - **RxJS 7.8** for HTTP only.
-- **Typed reactive forms:** *none in the template.* `AuthComponent` uses `FormsModule` with
-  `signal()`-backed `[(ngModel)]`-style bindings. There is no `FormGroup` anywhere.
+- **Typed reactive forms:** still none. `AuthComponent` uses `FormsModule` with `signal()`-backed
+  bindings. Typed `FormGroup` usage begins with Complete Profile (Checkpoint 4).
 - **PrimeNG 21** + `@primeuix/themes` Aura preset, customised in `app/theme.ts` from a single
   `PRIMARY_BASE = '#6096bb'` via `utils/palette-generator.ts` (320 lines).
 - **Tailwind CSS 4** via `@tailwindcss/postcss` (`.postcssrc.json`), entry `src/styles.css` (482 lines).
@@ -499,12 +710,17 @@ is removed. **No backend class is LiveQuery-enabled** (`liveQuery.classNames` is
 
 - `@ngx-translate/core` 17 + `@ngx-translate/http-loader` 17, files `public/i18n/en.json` and
   `ar.json`. Verified: **77 keys each, no drift in either direction.**
-- `ChangeLangService` — `currentLang` signal seeded from `localStorage.lang` (default `en`);
-  `currentDirection` computed (`ar` → `rtl`); a constructor `effect` writes `dir` onto
-  `<html>` and `<body>`; `changeLang()` persists and calls `translate.use()`.
-- `initLang()` is called **only** from `ShellComponent.ngOnInit`. On a cold load of `/auth`, the
-  direction effect applies RTL from `localStorage` but `translate.use()` is never called, so
-  strings stay English until the user toggles.
+- `ChangeLangService` — `currentLang` signal seeded from `localStorage.lang` (default `en`, with an
+  unsupported value falling back to `en`); `currentDirection` computed (`ar` → `rtl`); a constructor
+  `effect` keeps `<html lang>`, `<html dir>`, and `<body dir>` synchronized; `changeLang()` persists
+  and calls `translate.use()`.
+- ⟨CP1⟩ **The auth-page initialization defect is fixed.** `initLang()` (and `initTheme()`) now run
+  in a `provideAppInitializer` in `app.config.ts`, i.e. during bootstrap **before the router
+  activates any route** — previously it ran only in `ShellComponent.ngOnInit`, so a cold load of
+  `/auth` with `lang=ar` applied RTL while leaving the text in English. `applyLang()` also writes
+  the attributes eagerly rather than waiting for the first effect flush, so there is no direction
+  flash. 15 tests cover English init, Arabic init, `dir`/`lang` synchronization, switching, and the
+  fallback paths.
 - Cairo Arabic webfont shipped in `public/Cairo/` (woff/woff2/ttf + 8 static weights).
 - `SwitchThemeService` toggles a `dark` class on `<html>`/`<body>`, persisted to
   `localStorage.theme`, **defaulting to `dark`**; `index.html` ships `class="dark"` on both
@@ -596,6 +812,41 @@ lockfile rule.
 - **Frontend test:** `@angular/build:unit-test` with `vitest` ^4 and `jsdom` ^27;
   `tsconfig.spec.json` includes `src/**/*.spec.ts` and types `vitest/globals`. All
   `angular.json` schematics set `skipTests: true`.
+
+### ⟨CP1⟩ Test foundation — 197 tests, zero new dependencies
+
+**Backend — `node:test`** (`backend/test/`, run by `pnpm run test`, 131 tests):
+
+| File | Covers |
+|---|---|
+| `roles.test.ts` | role constants; legacy names resolve to `undefined`; Visitor is not a role |
+| `authBoundaries.test.ts` | `requireUser`/`requireAdmin`/`requireStudent` against live membership; Student refused Admin; Visitor refused; legacy membership grants nothing; unknown roles discarded; every privileged param rejected; the registered function surface is exactly login/current-user/logout; no Student password flow; no `getAppSetting` |
+| `schemaAccess.test.ts` | registered classes are exactly `_Role`,`_User`,`File`,`IMG`; no `AppSettings`; no future model; `_Role` is Admin-scoped; deny-by-default CLP; no public wildcard ACL; protected fields; the schema guard rewrites and aborts correctly |
+| `seeding.test.ts` | clean-DB seeding; idempotency across three runs; `SuperAdmin`→`Admin` migration; empty `Employee` removed; populated `Employee` retained, never promoted, never deleted; stale collection reported not deleted |
+| `redaction.test.ts` | 20 canary tests — top level, deep nesting, arrays, mixed casing, dropped bodies, errors with request data, Parse objects, buffers, circular graphs, Parse `Input:`/`Result:` lines, query strings |
+| `userDto.test.ts` | DTO key allow-lists; no session token on the routine DTO; no email/phone/authData/ACL anywhere; role names only |
+| `env.test.ts` | missing-key reporting by name; no value ever in the failure message |
+
+`test/support/parseTestGlobal.ts` installs the **real** Parse JS SDK (resolved through
+`parse-server`, so no new dependency) as the `Parse` global, rather than a stub, so decorators and
+`Parse.Object.extend`/`registerSubclass` behave as in production. It also tracks and `unref`s the
+interval the kit starts at import and clears it in an `after()` hook — the suite therefore exits
+cleanly with **no `--test-force-exit` and no hidden open handle**.
+
+**Frontend — Vitest** (`pnpm run test`, 85 tests): `user-roles.spec.ts`, `role.guard.spec.ts`
+(Admin allowed, Student/Visitor refused, role-set awareness, legacy roles refused),
+`session.service.spec.ts` (safe-DTO sanitisation, legacy-role stripping, logout clears state),
+`change-lang.service.spec.ts` (EN/AR init, `dir`/`lang` sync, no flash), `user-service.spec.ts`
+(surface, safe restore, logout), `auth.component.spec.ts` (exactly one password field, no Student
+credential UI, no signup/reset/change, no non-functional OAuth button),
+`app.branding.spec.ts` (EN/AR parity, branding, retired vocabulary, approved copy, route surface),
+and `security.credentials.spec.ts` (frontend credential audit — see §16a).
+
+Backend suites added in the closeout: `cors.test.ts` (allow-list resolution, rejected origins,
+missing-Origin, production-without-config, development fallback, no-wildcard, Parse `allowOrigin`
+semantics, explicit credentials/methods/headers) and `generatorCredentials.test.ts` (no hardcoded
+Admin-password fallback, weak/missing values rejected, password never printed, written only to the
+ignored `.env`, existing `.env` never overwritten, secure RNG for server keys).
 - **CI — `.gitlab-ci.yml`** (GitLab, while the remote is GitHub): stages `build` → `deploy`,
   every job gated on `$CI_COMMIT_BRANCH == "dev"`, image `node:20-alpine`.
   `build:backend` → `pnpm install`, `rm -rf build/src/cloudCode build/src/app.js`, `npx tsc`.
@@ -646,6 +897,56 @@ Adding a frontend entity: interface in `app/models/`, service in `app/services/d
 pages under `app/pages/{feature}/`, a lazy route in `app.routes.ts`, a nav entry in
 `shell.component.ts` (`allNavItems`), and keys in **both** `public/i18n/en.json` and `ar.json`.
 
+## 16a. Credentials — what is public, what is not ⟨CP1⟩
+
+### `parseApiKey` in frontend source is **public client configuration, not a secret**
+
+`frontend/src/environments/environment{,.prod}.ts` declare `parseApiKey`, which is the Parse
+**REST API key** (verified: it equals the backend's `restAPIKey`, and is neither the `masterKey`
+nor the `javascriptKey`). It is sent as the `X-Parse-REST-API-Key` header on every browser request.
+
+Parse client keys — `restAPIKey`, `javascriptKey`, `clientKey`, `dotNetKey` — **identify an
+application; they do not authorise anything.** They are designed to ship inside client
+applications. In this product all authority comes from the session token plus live `_Role`
+membership, on top of deny-by-default CLP, so possession of this key grants a caller nothing they
+could not already attempt.
+
+An earlier Phase 0 note classified this as a committed secret requiring rotation (gap "S-13").
+**That classification was wrong and is corrected here.** It is not a Master Key and does not
+require rotation on security grounds. The only remaining observation is hygiene: development and
+production currently use the same value, which is worth differentiating but is not a
+vulnerability.
+
+### What must never appear in frontend source
+
+`masterKey`, `readOnlyMasterKey`, `maintenanceKey`, any database URI, any OAuth client secret, and
+any Admin password. `security.credentials.spec.ts` enforces this: it asserts the environment
+objects declare only an allow-list of keys, contain no key name matching a backend-credential
+fragment, and contain no Mongo URI, embedded URL credentials, or Parse session token. It also
+checks that production is not left pointing at localhost and that the production websocket uses TLS.
+
+### The project generator ⟨CP1 closeout⟩
+
+`create-project.js` previously prompted for the Admin password with a hardcoded, publicly-known
+default, echoed the chosen password to stdout twice on success, and overwrote any existing `.env`.
+All three are fixed:
+
+- **No default and no fallback.** `resolveAdminPassword()` reads `CYF_ADMIN_PASSWORD` or prompts
+  with terminal echo suppressed. `validateAdminPassword()` requires ≥ 12 characters, no
+  surrounding whitespace, and rejects a deny-list of well-known placeholders. Failure aborts with
+  a message that states the rule, never the value.
+- **Never printed.** The completion summary shows the username only; no `console.*` call
+  interpolates the password; the top-level catch prints `err.message` rather than the error
+  object; and the value is never passed to a shell command.
+- **Written to exactly one place** — the generated `backend/.env`, which the template git-ignores.
+- **An existing `.env` is never overwritten** — the generator stops instead. `backend/setup.js`
+  now does the same.
+- `backend/setup.js` also generated the `masterKey` and `restAPIKey` with **`Math.random()`**,
+  which is predictable and unsuitable for secrets. Both generators now use `crypto.randomBytes`.
+
+`create-project.js` only runs under `require.main === module`, and its readline interface is
+created lazily, so the credential rules can be imported and tested without launching the generator.
+
 ## 17. Known limitations of the template
 
 1. No environment validation; missing `.env` keys fail at runtime.
@@ -659,24 +960,34 @@ pages under `app/pages/{feature}/`, a lazy route in `app.routes.ts`, a nav entry
    that is **test absence, not test failure**. The Vitest runner itself is functional (proved in
    Phase 0 with a temporary probe spec that passed and was then deleted). Standing up both harnesses
    is Checkpoint 1 work.
-5. `cors()` allows all origins; `masterKeyIps` allows all IPs.
-6. `IMG` and `File` default to a public read+write object ACL.
-7. Parse file URLs are unauthenticated, and `backend/files/` is also served statically.
-8. No MIME / extension / size / magic-byte validation on any upload path.
-9. No log redaction.
+5. ⟨CP1⟩ **Fixed** — `masterKeyIps` is localhost-only and CORS fails closed (§11a). No wildcard
+   remains on any path; production without `CORS_ORIGINS` denies every cross-origin request.
+6. ⟨CP1⟩ **Fixed** — `IMG` and `File` are deny-by-default with an empty ACL.
+7. ⟨CP1⟩ **Fixed** — `/api/files/*` returns 403 and the static `backend/files/` mount is removed.
+8. No MIME / extension / size / magic-byte validation on any upload path. Deliberately deferred:
+   no upload path is reachable by a client today (`fileUpload.*` all `false`), and the real rules
+   arrive with StudentProfile photos (5 MiB, image-only) and Resources (20 MiB, PDF + `%PDF-`
+   signature).
+9. ⟨CP1⟩ **Fixed** — recursive redaction boundary covering Parse Server's own logs.
 10. `fileAdapter.ts` is dead code with a broken `validateFilename`.
 11. `toKebabPlural` mis-pluralises names ending in `s` (`app-settingses`).
-12. `seedAll()` is not awaited.
-13. Only unique indexes are applied; `applyAllIndexes` is never called.
+12. ⟨CP1⟩ **Fixed** — `seedAll()` is awaited.
+13. Only unique indexes are applied; `applyAllIndexes` is never called. Moot today: removing
+    `AppSettings` removed the only unique index, so startup logs `No indexes to apply`.
 14. Hash-based routing (`withHashLocation`) makes deep links `…/#/path`.
-15. `roleGuard` and `appIfRole` consider only the user's **first** role.
+15. ⟨CP1⟩ **Fixed** — `roleGuard` and `appIfRole` are role-set aware.
 16. The interceptor truncates every Parse `Date` to `YYYY-MM-DD`, losing the time component.
-17. `signupUser` is an open, unauthenticated self-signup endpoint that grants the `Employee` role.
+17. ⟨CP1⟩ **Fixed** — `signupUser` deleted; `_User` `create` CLP is `{}` and Parse's `POST /users`
+    returns 404.
 18. Unused dependency surface: `nodemailer`, `pdfkit`, `multer`, `web-push`, `node-cron`,
     `node-geocoder`, `node-schedule` are declared but imported nowhere in `backend/src`.
-19. `frontend/public/images/login1..6.webp` and `favicon.ico` are referenced but absent (404).
+19. ⟨CP1⟩ The six `login*.webp` references were removed (they always 404'd). `favicon.ico` is still
+    referenced by `index.html` and still absent.
 20. `PROJECT.md`, `GENERATE.md`, `README.md`, and `backend/CLAUDE.md` reference paths and
     entities that do not exist (`.claude/skills/`, `.claude/agents/`, `models/Employee.ts`,
     `decorator/`, `swagger/`, `database/schema.ts`, `backend/.env.example`, `deploy.js`).
-21. `backend/package.json` declares `parse-server: ^9.9.0`; **9.10.0** is installed, and
-    documentation says 9.9.0.
+21. `backend/package.json` declares `parse-server: ^9.9.0`; **9.10.0** is installed.
+22. ⟨CP1⟩ Residual: the kit's `extractMasterKey` still accepts a master key from the request body
+    and its `rateLimit` module starts a non-`unref`'d `setInterval` at import. Both live in
+    `@90soft/parse-server-kit`, which must not be patched; the interval is neutralised in the test
+    harness and the body-key path is not exploitable in this configuration.

@@ -31,8 +31,11 @@ export const httpInterceptor: HttpInterceptorFn = (req, next) => {
     'X-Parse-Application-Id': environment.parseAppId,
   };
 
+  // Attach the session token to every request except login, which is the call
+  // that establishes the session. The template checked for '/functions/login',
+  // which never matched the real 'loginUser' route.
   const sessionToken = localStorage.getItem('sessionToken');
-  if (sessionToken && !req.url.includes('/functions/login')) {
+  if (sessionToken && !req.url.includes('loginUser')) {
     headers['X-Parse-Session-Token'] = sessionToken;
   }
 

@@ -1,30 +1,55 @@
 import {ParseClass, ParseField} from '@90soft/parse-server-kit';
-import type {AuthRole} from '@90soft/parse-server-kit';
+import {AppRole, roleKey} from '../utils/constants/roles';
 
+/**
+ * `_User` — identity only.
+ *
+ * Deny-by-default: every class-level operation is `{}`, so no client session can
+ * find, get, count, create, update, or delete a user directly. All legitimate
+ * access goes through a cloud function that resolves the caller from its session
+ * and returns a hand-built DTO. In particular `create: {}` closes the
+ * unauthenticated `_User` creation hole that the template shipped with.
+ *
+ * `protectedFields` is a second layer: even if a future query somehow reaches
+ * this class, the sensitive columns are stripped for every non-master caller.
+ */
 @ParseClass('_User', {
   clp: {
-    find: {'role:SuperAdmin': true, 'role:Employee': true},
-    get: {'role:SuperAdmin': true, 'role:Employee': true},
-    create: {'role:SuperAdmin': true},
-    update: {
-      'role:SuperAdmin': true,
-      'role:Employee': true,
-    },
-    delete: {'role:SuperAdmin': true},
-    count: {
-      'role:SuperAdmin': true,
-      'role:Employee': true,
-    },
+    // No direct client access whatsoever. Cloud functions use the master key
+    // for the narrow, server-controlled operations they implement.
+    find: {},
+    get: {},
+    count: {},
+    create: {},
+    update: {},
+    delete: {},
     protectedFields: {
-      '*': ['email'],
-      authenticated: [],
+      // Stripped for unauthenticated callers…
+      '*': [
+        'email',
+        'username',
+        'emailVerified',
+        'authData',
+        'phoneNumber',
+        'firstName',
+        'lastName',
+      ],
+      // …and for authenticated ones. A signed-in user learns nothing about
+      // another account from this class; their own data arrives via a DTO.
+      authenticated: [
+        'email',
+        'username',
+        'emailVerified',
+        'authData',
+        'phoneNumber',
+      ],
     },
   },
+  // Default object ACL: readable and writable only by Admin. Never public.
   ACL: {
-    'role:SuperAdmin': {read: true, write: true},
-    'role:Employee': {read: true},
+    [roleKey(AppRole.ADMIN)]: {read: true, write: true},
   },
-  description: 'User account with authentication credentials',
+  description: 'User identity. Direct client access is denied; use cloud functions.',
 })
 export default class User extends Parse.User {
   constructor() {
@@ -39,54 +64,31 @@ export default class User extends Parse.User {
 
   @ParseField({
     type: 'String',
-    description: 'Unique username for login',
+    description: 'Unique login identifier (Admin accounts only)',
   })
   username!: string;
 
   @ParseField({
     type: 'String',
-    description: 'User email address',
+    description: 'Account email address',
   })
   email!: string;
 
   @ParseField({
     type: 'String',
-    description: 'User first name',
+    description: 'Given name',
   })
   firstName!: string;
 
   @ParseField({
     type: 'String',
-    description: 'User last name',
+    description: 'Family name',
   })
   lastName!: string;
 
   @ParseField({
     type: 'String',
-    description: 'User phone number',
+    description: 'Contact phone number',
   })
   phoneNumber!: string;
-
-  static map(
-    user?: User,
-    assignedRole?: AuthRole | AuthRole[] | any[],
-    sessionToken?: string
-  ) {
-    if (!user) {
-      return undefined;
-    }
-
-    return {
-      id: user.id,
-      email: user.get('email'),
-      username: user.get('username'),
-      firstName: user.get('firstName'),
-      lastName: user.get('lastName'),
-      phoneNumber: user.get('phoneNumber'),
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      sessionToken: sessionToken,
-      role: assignedRole || [],
-    };
-  }
 }
