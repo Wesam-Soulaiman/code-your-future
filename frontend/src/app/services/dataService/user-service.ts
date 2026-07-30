@@ -1,7 +1,8 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { finalize, Observable } from 'rxjs';
 import { CurrentUser, LoginResponse } from '../../models/User';
+import { HANDLES_OWN_ERRORS } from '../../utils/auth-error';
 import { SharedVarsService } from '../shared-vars';
 import { SessionService } from '../session.service';
 
@@ -26,9 +27,16 @@ export class AuthApiService {
   private sessionService = inject(SessionService);
   private baseURL = this.sharedVarService.baseURL;
 
-  /** Admin password login. The only response that carries a session token. */
+  /**
+   * Admin password login. The only response that carries a session token.
+   *
+   * Opts out of the interceptor's global error toast: the auth page renders an
+   * inline, translated message instead, so no raw backend string is shown.
+   */
   login(data: { username: string; password: string }): Observable<LoginResponse> {
-    return this.httpClient.post<LoginResponse>(`${this.baseURL}/users/loginUser`, data);
+    return this.httpClient.post<LoginResponse>(`${this.baseURL}/users/loginUser`, data, {
+      context: new HttpContext().set(HANDLES_OWN_ERRORS, true),
+    });
   }
 
   /** Restore the session. Returns the safe DTO — no session token. */

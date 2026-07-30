@@ -1,84 +1,156 @@
-<div class="relative h-dvh overflow-hidden">
-  <!-- Image side - diagonal clip, hidden on small screens -->
-  <div class="hidden lg:block absolute inset-0 diagonal-image">
-    @for (img of images; track img; let i = $index) {
-      <img
-        [src]="img"
-        alt=""
-        class="absolute inset-0 w-full h-full object-cover"
-        [style.opacity]="activeIndex() === i ? 1 : 0"
-        [style.transition]="'opacity 1.5s ease-in-out'"
-      />
-    }
-  </div>
+<cyf-auth-layout>
+  <!-- ── Sign-in panel ──────────────────────────────────────────────────── -->
+  <div class="cyf-card cyf-card-padded cyf-card-raised">
+    <div class="cyf-auth-intro">
+      <cyf-brand-mark size="lg" [showName]="false" />
+      <h1 class="cyf-page-title">{{ 'auth.admin.title' | translate }}</h1>
+      <p class="cyf-body-sm">{{ 'auth.admin.subtitle' | translate }}</p>
+    </div>
 
-  <!-- Form side -->
-  <div
-    class="relative z-10 h-full flex flex-col justify-center items-center px-6 lg:ms-auto lg:w-1/2"
-  >
-    <div class="w-full max-w-sm flex flex-col gap-6">
-      <div class="text-center">
-        <h1 class="text-2xl font-bold">{{ 'app.name' | translate }}</h1>
-        <p class="mt-2 text-sm opacity-70">{{ 'auth.adminSignIn' | translate }}</p>
-      </div>
+    <form class="cyf-auth-form" (ngSubmit)="login()" novalidate>
+      <!-- Form-level status. Rendered above the fields so it is the first thing
+           encountered after the heading, both visually and in the tab order. -->
+      @if (errorKey()) {
+        <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+          {{ errorKey()! | translate }}
+        </cyf-alert>
+      } @else if (missingFields()) {
+        <cyf-alert variant="warning" [prefix]="'a11y.noticePrefix' | translate">
+          {{ 'auth.errors.missingFields' | translate }}
+        </cyf-alert>
+      }
 
-      <form class="flex flex-col gap-4" (ngSubmit)="login()">
-        <div class="flex flex-col gap-2">
-          <label for="username">{{ 'auth.username' | translate }}</label>
+      <div class="cyf-field">
+        <label class="cyf-label cyf-field-label" for="admin-username">
+          {{ 'auth.username' | translate }}
+        </label>
+        <div class="cyf-field-control">
           <input
-            id="username"
+            id="admin-username"
             name="username"
             type="text"
-            pInputText
-            class="w-full"
-            [placeholder]="'auth.username' | translate"
+            class="cyf-input"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            required
+            [attr.aria-invalid]="errorKey() || missingFields() ? 'true' : null"
+            [attr.aria-describedby]="'admin-username-help'"
+            [disabled]="loading()"
             [ngModel]="username()"
-            (ngModelChange)="username.set($event)"
-            required
+            (ngModelChange)="username.set($event); onFieldInput()"
           />
         </div>
+        <span id="admin-username-help" class="cyf-helper cyf-field-message">
+          {{ 'auth.admin.usernameHelp' | translate }}
+        </span>
+      </div>
 
-        <div class="flex flex-col gap-2">
-          <label for="password">{{ 'auth.password' | translate }}</label>
+      <div class="cyf-field">
+        <label class="cyf-label cyf-field-label" for="admin-password">
+          {{ 'auth.password' | translate }}
+        </label>
+        <div class="cyf-field-control">
           <input
-            id="password"
+            id="admin-password"
             name="password"
-            type="password"
-            pInputText
-            class="w-full"
-            [placeholder]="'auth.password' | translate"
-            [ngModel]="password()"
-            (ngModelChange)="password.set($event)"
+            class="cyf-input cyf-input-with-affix"
+            [type]="passwordVisible() ? 'text' : 'password'"
+            autocomplete="current-password"
             required
+            [attr.aria-invalid]="errorKey() || missingFields() ? 'true' : null"
+            [disabled]="loading()"
+            [ngModel]="password()"
+            (ngModelChange)="password.set($event); onFieldInput()"
           />
+          <!-- The toggle is a real button so it is reachable by keyboard. Its
+               accessible name changes with state, and aria-pressed reports the
+               current state to screen readers. -->
+          <button
+            type="button"
+            class="cyf-input-affix"
+            [attr.aria-label]="
+              (passwordVisible() ? 'auth.hidePassword' : 'auth.showPassword') | translate
+            "
+            [attr.aria-pressed]="passwordVisible()"
+            aria-controls="admin-password"
+            [disabled]="loading()"
+            (click)="togglePasswordVisibility()"
+          >
+            <i
+              class="fa-solid"
+              [class.fa-eye]="!passwordVisible()"
+              [class.fa-eye-slash]="passwordVisible()"
+              aria-hidden="true"
+            ></i>
+          </button>
         </div>
+        <span class="cyf-field-message"></span>
+      </div>
 
+      <div class="cyf-btn cyf-btn-block cyf-auth-submit">
         <p-button
           type="submit"
+          [label]="(loading() ? 'auth.signingIn' : 'auth.signIn') | translate"
           [loading]="loading()"
-          [label]="'auth.signIn' | translate"
-          styleClass="w-full"
           [disabled]="loading()"
+          styleClass="w-full"
         />
-      </form>
-
-      <!--
-        Student authentication is NOT available yet. This is an informational
-        notice only: there is deliberately no Student email/password form and no
-        non-functional Google button. Google OAuth arrives in Checkpoint 3.
-      -->
-      <p class="text-center text-xs opacity-60" data-testid="student-signin-notice">
-        {{ 'auth.studentSignInUnavailable' | translate }}
-      </p>
-
-      <div class="text-center text-primary">
-        @if (langService.currentLang() !== 'en') {
-          <span class="cursor-pointer" (click)="changeLang('en')">English</span>
-        }
-        @if (langService.currentLang() !== 'ar') {
-          <span class="cursor-pointer" (click)="changeLang('ar')">العربية</span>
-        }
       </div>
+
+      <!-- Progress is announced politely so it does not interrupt the error
+           region above. Visually hidden — the button already shows a spinner. -->
+      <span class="cyf-sr-only" role="status" aria-live="polite">
+        @if (loading()) {
+          {{ 'auth.signingIn' | translate }}
+        }
+      </span>
+    </form>
+
+    <div class="cyf-auth-footer">
+      <p class="cyf-body-sm">
+        {{ 'auth.admin.studentPrompt' | translate }}
+        <a routerLink="/auth/student" class="cyf-link">
+          {{ 'auth.admin.studentLink' | translate }}
+        </a>
+      </p>
     </div>
   </div>
-</div>
+
+  <!-- ── Informational aside (desktop only, decorative) ─────────────────── -->
+  <div asidePanel>
+    <p class="cyf-meta cyf-aside-eyebrow">{{ 'app.name' | translate }}</p>
+    <h2 class="cyf-section-title cyf-aside-title">{{ 'auth.aside.adminTitle' | translate }}</h2>
+    <p class="cyf-body-sm cyf-aside-lead">{{ 'auth.aside.adminLead' | translate }}</p>
+
+    <ul class="cyf-auth-points">
+      <li class="cyf-auth-point">
+        <span class="cyf-auth-point-icon"><i class="fa-solid fa-layer-group"></i></span>
+        <span>
+          <span class="cyf-label">{{ 'auth.aside.batchesTitle' | translate }}</span>
+          <span class="cyf-body-sm cyf-aside-point-text">
+            {{ 'auth.aside.batchesText' | translate }}
+          </span>
+        </span>
+      </li>
+      <li class="cyf-auth-point">
+        <span class="cyf-auth-point-icon"><i class="fa-solid fa-shield-halved"></i></span>
+        <span>
+          <span class="cyf-label">{{ 'auth.aside.secureTitle' | translate }}</span>
+          <span class="cyf-body-sm cyf-aside-point-text">
+            {{ 'auth.aside.secureText' | translate }}
+          </span>
+        </span>
+      </li>
+      <li class="cyf-auth-point">
+        <span class="cyf-auth-point-icon"><i class="fa-solid fa-language"></i></span>
+        <span>
+          <span class="cyf-label">{{ 'auth.aside.bilingualTitle' | translate }}</span>
+          <span class="cyf-body-sm cyf-aside-point-text">
+            {{ 'auth.aside.bilingualText' | translate }}
+          </span>
+        </span>
+      </li>
+    </ul>
+  </div>
+</cyf-auth-layout>

@@ -1,4 +1,5 @@
 import { HttpErrorResponse, HttpInterceptorFn, HttpResponse } from '@angular/common/http';
+import { HANDLES_OWN_ERRORS } from '../utils/auth-error';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, map, throwError } from 'rxjs';
@@ -49,13 +50,18 @@ export const httpInterceptor: HttpInterceptorFn = (req, next) => {
       return event;
     }),
     catchError((error: HttpErrorResponse) => {
-      const message = error.error?.error || error.statusText || 'An unexpected error occurred';
-      toastService.error(message);
+      // Callers that render their own translated message (the auth pages) opt
+      // out of the global toast, so a raw server string is never surfaced and
+      // the same failure is not reported twice.
+      if (!req.context.get(HANDLES_OWN_ERRORS)) {
+        const message = error.error?.error || error.statusText || 'An unexpected error occurred';
+        toastService.error(message);
+      }
 
       // Handle session expired
       if ([142, 209].includes(error.error?.code)) {
         localStorage.removeItem('sessionToken');
-        router.navigate(['/auth']);
+        router.navigate(['/auth/admin']);
       }
 
       return throwError(() => error);

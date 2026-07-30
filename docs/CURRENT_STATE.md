@@ -22,9 +22,9 @@ with hard-coded state, not application code.
 | Single pnpm version | `pnpm -v` → `10.33.0` in all three directories |
 | Backend type-check | `npx tsc --noEmit` → exit 0, zero diagnostics |
 | Backend compile | `pnpm run compile` → exit 0 (now cleans `build/` first) |
-| **Backend tests** | `pnpm run test` → **184 pass, 0 fail**, exits cleanly with no force-exit |
-| Frontend production build | `pnpm run build` → exit 0, initial bundle 654.87 kB |
-| **Frontend tests** | `pnpm run test` → **85 pass, 0 fail** (8 spec files) |
+| **Backend tests** | `pnpm run test` → **210 pass, 0 fail**, exits cleanly with no force-exit |
+| Frontend production build | `pnpm run build` → exit 0, initial bundle 674.37 kB |
+| **Frontend tests** | `pnpm run test` → **167 pass, 0 fail** (11 spec files) |
 | sharp | real WebP encode after install (44 bytes) |
 
 ### Runtime — observed against a clean isolated database
@@ -63,6 +63,14 @@ with hard-coded state, not application code.
 | **CORS — no wildcard** | no response in any configuration contains `Access-Control-Allow-Origin: *` |
 | **CORS — production, unset** | error logged at startup; every origin receives `https://cors-disallowed.invalid` → blocked |
 | **CORS — no Origin header** | request succeeds (server-to-server unaffected) |
+| **⟨CP2A⟩ Auth pages render** | `/auth/admin` and `/auth/student` inspected in a real headless Chrome at 1440 / 1024 / 768 / 390 / 360 px in **both** English and Arabic — 20 combinations |
+| **⟨CP2A⟩ Horizontal overflow** | **zero** in all 20 combinations (`scrollWidth - clientWidth === 0`) |
+| **⟨CP2A⟩ Document lang/dir** | `lang=en`/`dir=ltr` and `lang=ar`/`dir=rtl` correct in all 20 |
+| **⟨CP2A⟩ Heading structure** | exactly one `h1` on every page in all 20 |
+| **⟨CP2A⟩ Google button** | `disabled === true` on every Student render; no click handler, no HTTP request, no session write |
+| **⟨CP2A⟩ Real Admin login** | typed into the redesigned form and submitted → `#/dashboard`, `roles: ["Admin"]`; cached user object holds only `id, username, roles` |
+| **⟨CP2A⟩ Admin shell** | inspected signed-in at 1440 EN, 1440 AR, 390 EN — nav is exactly `["Dashboard"]` / `["لوحة التحكم"]`, zero overflow |
+| **⟨CP2A⟩ Guest guard** | signed-in Admin navigating to `/auth/admin` lands on `#/dashboard` |
 
 ## 2. Partially working
 
@@ -78,6 +86,8 @@ with hard-coded state, not application code.
 | MongoDB validators | `applyMongoValidators` runs; almost no field constraints are declared, so validators are effectively empty. |
 | `data-table` component | Retained and functional, but unused — no list page exists. |
 | Web Push | `sw-push.js` and the `web-push` dependency exist; `vapidPublicKey` empty, no push function. |
+| Dashboard page | Intentionally empty — a placeholder with no fake statistics, charts, or product data. Content arrives with the Admin workspace checkpoints. |
+| Student auth page | **Presentation only.** No service, no HTTP, no navigation, no session write; the Google button is `disabled`. Google OAuth is Checkpoint 3. |
 | CORS | **Resolved in the closeout.** Fails closed on every path — see [TEMPLATE_ARCHITECTURE.md §11a](TEMPLATE_ARCHITECTURE.md). Production still requires `CORS_ORIGINS` to be set before any browser client can reach the API. |
 
 ## 3. Failing
@@ -227,6 +237,40 @@ never-matching `/functions/login` exemption · the hardcoded `ChangeMe!2024` def
 **Not modified:** `backend/.env`, `backend/dashboard.json`, `docs/prototypes/*`, all three
 lockfiles, `.gitignore`, `.gitlab-ci.yml`, `docs/PRODUCT_REQUIREMENTS.md`,
 `frontend/package.json`, root `package.json`.
+
+## 7b. Checkpoint 2A — UI/UX foundation ⟨implemented⟩
+
+**Design system.** Three additive stylesheet layers — `src/styles/tokens.css` (semantic tokens
+derived from PrimeNG, light + dark), `src/styles/typography.css` (type scale, language-aware font
+stacks, reduced-motion reset), `src/styles/layout.css` (layout, form, alert, focus, and a11y
+primitives, all in CSS logical properties). Imported at the top of `styles.css`; **nothing was
+removed from it**.
+
+**Primitives.** `cyf-brand-mark`, `cyf-auth-layout`, `cyf-language-switch`, `cyf-alert`, plus
+CSS-only card/field/input/button/link patterns.
+
+**Auth routes.** `/auth` → `/auth/admin`; `/auth/admin`; `/auth/student`; `/auth/**` → `/auth/admin`.
+`guestGuard` on the parent **and** both children keeps a signed-in Admin off the auth pages without
+a flash. All redirect targets are fixed internal paths.
+
+**Admin auth page.** Redesigned on the token system with a password visibility toggle, translated
+inline error states (invalid credentials / not permitted / rate limited / backend unavailable /
+unexpected), duplicate-submit prevention, Enter submission, `autocomplete` hints, reserved message
+space so validation causes no layout shift, and a link to Student sign-in. **Login, session
+restoration, guards, logout, and rate limiting are unchanged from Checkpoint 1.**
+
+**Student auth page.** UI only. No service, no HTTP call, no navigation, no session write, and no
+click handler; the Google button is `disabled`. Carries the approved invitation copy verbatim in
+both languages, a privacy note, and a link to Admin sign-in. **No email, username, password,
+signup, reset, invitation-token field, or Apple button.**
+
+**Preserved template capabilities — not currently used, deliberately retained:** FullCalendar
+theming, Timeline theming, Editor theming, ProgressBar / Avatar / Divider / scrollbar overrides,
+`.app-card` / `.app-card-nested` and the `--app-*` surface variables, the `data-table` component
+suite, `base-dialog`, `image-uploader`, `image-cropper-dialog`, `LiveQueryService`, `ExportService`,
+`PageTitleService`, the pipes, the `appIfRole` directive, and every dependency in
+`frontend/package.json`. A regression test (`backend/test/templatePreservation.test.ts`) fails if any
+of the stylesheet sections is removed.
 
 ## 8. Product features not implemented
 

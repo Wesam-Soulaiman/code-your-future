@@ -27,6 +27,7 @@ import { SessionService } from '../../services/session.service';
 import { DividerModule } from 'primeng/divider';
 import { SearchInputComponent } from '../shared/data-table/search-input.component';
 import { AppRole } from '../../config/user-roles';
+import { BrandMarkComponent } from '../shared/brand-mark.component';
 
 interface NavItem {
   id: string;
@@ -51,6 +52,7 @@ interface NavItem {
     SearchInputComponent,
     DividerModule,
     PopoverModule,
+    BrandMarkComponent,
   ],
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.css',

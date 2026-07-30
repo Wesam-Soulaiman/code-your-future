@@ -10,5 +10,6 @@ export const authGuard: CanActivateFn = () => {
     return true;
   }
 
-  return router.createUrlTree(['/auth']);
+  // Fixed internal target — never derived from user input.
+  return router.createUrlTree(['/auth/admin']);
 };

@@ -31,6 +31,13 @@ Claude Code.
 - **Angular 21** with signals, OnPush change detection, lazy-loaded routes
 - **PrimeNG 21** component library + Tailwind CSS 4
 - **Reusable data-table** — pagination, search, table/grid views, preview panel, Excel export
+- **Design system** — semantic tokens (`src/styles/tokens.css`), typography with language-aware
+  font stacks (`src/styles/typography.css`), and layout/UI primitives in CSS logical properties
+  (`src/styles/layout.css`), layered additively on the existing PrimeNG theme
+- **Auth experience** — `/auth/admin` (working) and `/auth/student` (presentation only; Google
+  OAuth is **not** implemented yet)
+- **Accessibility baseline** — landmarks, one `h1` per page, real labels, visible focus,
+  44px targets, status never by colour alone, reduced-motion support
 - **Multi-language** — English + Arabic with exact key parity and RTL/LTR auto-switching,
   initialised at bootstrap so unauthenticated screens render correctly
 - **Dark/light theme** — persisted to localStorage

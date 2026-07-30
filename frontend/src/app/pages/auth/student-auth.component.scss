@@ -1,0 +1,89 @@
+/* Student auth page — scoped styles.
+   Shares the design-system layers with the Admin page; only page-specific
+   composition lives here. */
+
+:host {
+  display: block;
+}
+
+.cyf-auth-intro {
+  margin-block-end: var(--cyf-space-6);
+
+  cyf-brand-mark {
+    display: block;
+    margin-block-end: var(--cyf-space-4);
+  }
+
+  h1 {
+    margin: 0 0 var(--cyf-space-2);
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+cyf-alert {
+  display: block;
+  margin-block-end: var(--cyf-space-5);
+}
+
+.cyf-google-btn {
+  /* The Google mark keeps its brand colour only while the control is enabled;
+     a disabled control must read as disabled, so the icon desaturates with it. */
+  .cyf-google-icon {
+    display: grid;
+    place-items: center;
+    font-size: var(--cyf-text-base);
+  }
+
+  &:disabled .cyf-google-icon {
+    opacity: var(--cyf-disabled-opacity);
+  }
+}
+
+.cyf-google-note {
+  margin: var(--cyf-space-2) 0 0;
+  text-align: center;
+}
+
+.cyf-student-notice {
+  margin-block-start: var(--cyf-space-6);
+  padding: var(--cyf-space-4);
+
+  p {
+    margin: 0;
+  }
+}
+
+.cyf-privacy-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cyf-space-2);
+  margin: var(--cyf-space-4) 0 0;
+
+  i {
+    margin-block-start: 0.15em;
+  }
+}
+
+/* Informational aside ------------------------------------------------------ */
+
+.cyf-aside-eyebrow {
+  margin: 0 0 var(--cyf-space-2);
+  text-transform: uppercase;
+}
+
+.cyf-aside-title {
+  margin: 0 0 var(--cyf-space-3);
+}
+
+.cyf-aside-lead {
+  margin: 0 0 var(--cyf-space-8);
+  max-inline-size: 34rem;
+}
+
+.cyf-aside-point-text {
+  display: block;
+  margin-block-start: var(--cyf-space-1);
+}

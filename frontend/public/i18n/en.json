@@ -4,13 +4,66 @@
     "shortName": "CYF"
   },
   "auth": {
-    "adminSignIn": "Admin sign in",
     "username": "Username",
     "password": "Password",
     "signIn": "Sign in",
-    "fillAllFields": "Please fill in all fields",
-    "studentSignInUnavailable": "Student sign-in with Google is coming in the next checkpoint.",
-    "studentInvitationNotice": "You can sign in and complete your profile now. An invitation is required only to join a batch."
+    "signingIn": "Signing in...",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "studentInvitationNotice": "You can sign in and complete your profile now. An invitation is required only to join a batch.",
+    "admin": {
+      "title": "Admin sign in",
+      "subtitle": "Sign in to manage batches, resources and tasks.",
+      "usernameHelp": "Use the administrator account provided to you.",
+      "studentPrompt": "Are you a student?",
+      "studentLink": "Go to student sign in"
+    },
+    "student": {
+      "title": "Student sign in",
+      "subtitle": "Sign in with Google to build and share your work.",
+      "continueWithGoogle": "Continue with Google",
+      "comingNext": "Student sign-in with Google is not available yet. It will be enabled in the next checkpoint.",
+      "googleUnavailableHint": "This button is disabled until Google sign-in is enabled.",
+      "privacy": "We only use your Google account to verify who you are. We never post on your behalf.",
+      "adminPrompt": "Are you an administrator?",
+      "adminLink": "Go to admin sign in"
+    },
+    "aside": {
+      "adminTitle": "Run your batches with confidence",
+      "adminLead": "A calm, focused workspace for the people who run Code Your Future.",
+      "batchesTitle": "Batch-centred",
+      "batchesText": "Everything is organised around the batch you are running.",
+      "secureTitle": "Secure by default",
+      "secureText": "Private by design, with access limited to what each role needs.",
+      "bilingualTitle": "English and Arabic",
+      "bilingualText": "Full right-to-left support throughout the product.",
+      "studentTitle": "Show what you can build",
+      "studentLead": "Your profile and your work, in one place you control.",
+      "profileTitle": "Your profile",
+      "profileText": "Sign in and complete your profile whenever you are ready.",
+      "inviteTitle": "Joining a batch",
+      "inviteText": "An invitation is needed only when you join a batch.",
+      "privacyTitle": "Your privacy",
+      "privacyText": "Your contact details are never shown publicly."
+    },
+    "errors": {
+      "missingFields": "Enter your username and password to continue.",
+      "invalidCredentials": "The username or password is incorrect.",
+      "notPermitted": "This account cannot sign in with a password.",
+      "rateLimited": "Too many sign-in attempts. Please wait a moment and try again.",
+      "unavailable": "We cannot reach the server right now. Please check your connection and try again.",
+      "unexpected": "Something went wrong. Please try again."
+    }
+  },
+  "a11y": {
+    "skipToContent": "Skip to main content",
+    "languageSwitch": "Language",
+    "switchToEnglish": "Switch to English",
+    "switchToArabic": "Switch to Arabic",
+    "errorPrefix": "Error:",
+    "noticePrefix": "Note:",
+    "mainNavigation": "Main navigation",
+    "userMenu": "Account"
   },
   "nav": {
     "home": "Home",

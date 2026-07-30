@@ -2,88 +2,109 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  OnDestroy,
-  OnInit,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
-import { InputTextModule } from 'primeng/inputtext';
 import { finalize } from 'rxjs';
 
-import { TranslateService } from '@ngx-translate/core';
-import { ChangeLangService } from '../../services/change-lang.service';
-import { SessionService } from '../../services/session.service';
-import { SwitchThemeService } from '../../services/switch-theme.service';
-import { ToastService } from '../../services/toast.service';
-import { AuthApiService } from '../../services/dataService/user-service';
+import { AlertComponent } from '../../components/shared/alert.component';
+import { AuthLayoutComponent } from '../../components/layout/auth-layout.component';
+import { BrandMarkComponent } from '../../components/shared/brand-mark.component';
 import { LoginResponse } from '../../models/User';
+import { AuthApiService } from '../../services/dataService/user-service';
+import { SessionService } from '../../services/session.service';
+import { AuthErrorKey, mapAuthError } from '../../utils/auth-error';
 
+/**
+ * Admin sign-in.
+ *
+ * Security behaviour is unchanged from Checkpoint 1 — same endpoint, same
+ * session handling, same guards. This checkpoint replaces the presentation and
+ * adds the states the previous page lacked:
+ *
+ *  - a translated inline error panel instead of a toast built from raw server
+ *    text (invalid credentials / not permitted / rate limited / unavailable);
+ *  - an accessible password visibility toggle;
+ *  - re-entrancy protection so Enter cannot submit twice;
+ *  - `autocomplete` hints and proper label association.
+ */
 @Component({
   selector: 'app-auth',
-  imports: [TranslateModule, ButtonModule, InputTextModule, FormsModule],
+  imports: [
+    TranslateModule,
+    FormsModule,
+    RouterLink,
+    ButtonModule,
+    AuthLayoutComponent,
+    BrandMarkComponent,
+    AlertComponent,
+  ],
   templateUrl: './auth.component.html',
   styleUrl: './auth.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AuthComponent implements OnInit, OnDestroy {
+export class AuthComponent {
   private authApi = inject(AuthApiService);
   private sessionService = inject(SessionService);
-  private toastService = inject(ToastService);
   private router = inject(Router);
-  protected langService = inject(ChangeLangService);
-  protected themeService = inject(SwitchThemeService);
-  private translate = inject(TranslateService);
-  isDarkMode = signal(this.themeService.getCurrentTheme() === 'dark');
 
-  // The template referenced six login*.webp files that were never shipped (each
-  // returned 404). Left empty until real brand imagery is supplied.
-  readonly images: readonly string[] = [];
-  activeIndex = signal(0);
-  private intervalId?: ReturnType<typeof setInterval>;
+  protected loading = signal(false);
+  protected username = signal('');
+  protected password = signal('');
+  protected passwordVisible = signal(false);
 
-  loading = signal(false);
-  username = signal('');
-  password = signal('');
+  /** Translation key for the current failure, or null when there is none. */
+  protected errorKey = signal<AuthErrorKey | null>(null);
 
-  ngOnInit(): void {
-    if (this.images.length > 1) {
-      this.intervalId = setInterval(() => {
-        this.activeIndex.set((this.activeIndex() + 1) % this.images.length);
-      }, 3000);
-    }
+  /** Set when the user submits an incomplete form. */
+  protected missingFields = signal(false);
+
+  protected togglePasswordVisibility(): void {
+    this.passwordVisible.update((visible) => !visible);
   }
 
-  ngOnDestroy(): void {
-    clearInterval(this.intervalId);
+  /** Clear a stale failure as soon as the user edits either field. */
+  protected onFieldInput(): void {
+    if (this.errorKey()) this.errorKey.set(null);
+    if (this.missingFields()) this.missingFields.set(false);
   }
 
-  changeLang(lang: string): void {
-    this.langService.changeLang(lang as 'en' | 'ar');
-  }
+  protected login(): void {
+    // Re-entrancy guard: the submit button is disabled while loading, but a
+    // second Enter keypress can still reach the form handler.
+    if (this.loading()) return;
 
-  login(): void {
-    if (!this.username().trim() || !this.password().trim()) {
-      this.toastService.warn(this.translate.instant('auth.fillAllFields'));
+    const username = this.username().trim();
+    const password = this.password();
+
+    if (!username || !password) {
+      this.missingFields.set(true);
+      this.errorKey.set(null);
       return;
     }
 
+    this.missingFields.set(false);
+    this.errorKey.set(null);
     this.loading.set(true);
 
     this.authApi
-      .login({
-        username: this.username(),
-        password: this.password(),
-      })
+      .login({ username, password })
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
         next: (res: LoginResponse) => {
-          if (!res.sessionToken) return;
-
+          if (!res.sessionToken) {
+            this.errorKey.set('auth.errors.unexpected');
+            return;
+          }
           this.sessionService.saveSession(res, res.sessionToken);
           this.router.navigate(['/']);
+        },
+        error: (error: unknown) => {
+          // Only a mapped translation key ever reaches the template.
+          this.errorKey.set(mapAuthError(error));
         },
       });
   }

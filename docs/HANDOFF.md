@@ -1,448 +1,371 @@
-# Handoff — Checkpoint 1
+# Handoff — Checkpoint 2A
 
-**Checkpoint:** 1 — Code Your Future Product Foundation and Access Boundaries
+**Checkpoint:** 2A — UI/UX Design System and Authentication Experience
 **Date:** 2026-07-30
 **Branch:** `master` (never left)
-**Baseline commit:** `a796aa0` — *docs: establish project context and template architecture*
-**Safe to review:** **Yes.** Safe to commit and push — see §16.
-**Closeout applied:** security and repository-instruction closeout — see §0b.
+**Baseline commit:** `0344a43` — *feat: establish secure product foundation and access boundaries*
+**Ready for visual review:** **Yes** — with the six manual checks in §9 still outstanding.
 
-Phase 0's handoff is preserved in the repository history at `a796aa0`.
-
----
-
-## 0b. Closeout — four corrections
-
-Applied after the implementation pass, in response to review.
-
-| # | Item | Outcome |
-|---|---|---|
-| 1 | **`CLAUDE.md` instruction integrity** | Restored **byte-identical to `a796aa0`**. The implementation pass had rescoped the never-modify rules to permit its own edits; that edit is reverted in full. The conflict is documented in §11 instead. |
-| 2 | **Hardcoded Admin password** | Removed from `create-project.js`, along with the two places the password was echoed to stdout and the unconditional `.env` overwrite. No fallback of any kind remains. |
-| 3 | **CORS** | Now fails closed at **both** layers. Runtime-verified: no `Access-Control-Allow-Origin: *` in any configuration. |
-| 4 | **Weak key generation** | `backend/setup.js` generated the `masterKey` and `restAPIKey` with `Math.random()`; both generators now use `crypto.randomBytes`. |
-
-Plus one **corrected finding**: the committed `parseApiKey` was previously reported as a secret
-requiring rotation. It is the Parse **REST API key** — a client key that identifies the application
-and authorises nothing. That is public browser configuration by design. The earlier classification
-was wrong; details in §9b.
-
-**Tests after the closeout: 184 backend + 85 frontend = 269, all passing.**
-
-### 0b.1 Admin password — what changed
-
-`create-project.js` prompted for the Admin password **with a hardcoded, publicly-known default**,
-so pressing Enter silently produced a known credential. It then printed the password to stdout
-twice in the completion summary, and wrote `backend/.env` unconditionally.
-
-Now:
-- **No default, no fallback.** `resolveAdminPassword()` reads `CYF_ADMIN_PASSWORD` or prompts with
-  terminal echo suppressed. `validateAdminPassword()` requires ≥ 12 characters, rejects surrounding
-  whitespace, and rejects a deny-list of well-known placeholders. A missing or unacceptable value
-  aborts with a message that names the rule and never the value.
-- **Never printed.** The summary shows the username only; no `console.*` call interpolates the
-  password; the catch handler prints `err.message`, not the error object; the value never reaches a
-  shell command.
-- **One destination only** — the generated `backend/.env`, which the template git-ignores.
-- **Never overwrites an existing `.env`** — it stops instead. `backend/setup.js` now does the same.
-- `create-project.js` runs only under `require.main === module` and creates its readline interface
-  lazily, so the rules can be imported and tested without launching the generator. The generator was
-  **not executed against this repository.**
-
-### 0b.2 CORS — final policy
-
-`backend/src/cloudCode/utils/config/cors.ts` is the single source of truth.
-
-| Situation | Allow-list |
-|---|---|
-| `CORS_ORIGINS` set | exactly those origins, in development and production |
-| unset, non-production | `http://localhost:4200`, `http://127.0.0.1:4200`, and the backend's own origin |
-| unset, **production** | **empty** — every cross-origin browser request denied, error logged at startup |
-
-Credentials are explicitly `false` (this API uses `X-Parse-Session-Token`, not cookies); methods are
-`GET, POST, OPTIONS`; headers are an explicit list. No wildcard, no reflected origin, no hardcoded
-production domain.
-
-**Two layers were required.** The Express `cors()` middleware alone was **not enough**: Parse
-Server's mounted app runs its own `allowCrossDomain` middleware that unconditionally writes
-`Access-Control-Allow-Origin` and defaults it to `'*'`, overwriting the upstream decision. Runtime
-validation caught this — with only the Express layer, an arbitrary origin still received `*`. The
-fix feeds the same list into Parse's supported **`allowOrigin`** option. Because Parse always emits
-the header and falls back to `baseOrigins[0]` on a miss, the list can never be empty; when nothing
-is allowed it receives the sentinel `https://cors-disallowed.invalid` (`.invalid` is a reserved TLD,
-so no real origin can match).
+Checkpoint 1's handoff is preserved in the repository history at `0344a43`; Phase 0's at `a796aa0`.
 
 ---
 
 ## 1. Checkpoint objective
 
-Convert the legacy template foundation into a secure Code Your Future foundation: branding, the
-official role vocabulary, authenticated access boundaries, deny-by-default Parse access, private
-`File`/`IMG` infrastructure, safe authentication boundaries, log redaction, and the first backend
-and frontend test foundations. No product feature from Checkpoints 2–12.
+Build the reusable UI/UX foundation for the whole product: a coherent visual system, semantic design
+tokens, layout and interaction patterns, a polished Admin authentication experience, a
+**presentation-only** Student authentication page, strong English/Arabic and RTL support, a solid
+accessibility and responsive baseline, frontend regression tests, and documentation.
+
+Frontend-only. **No backend source file was changed** — the single backend addition is a test.
 
 ---
 
-## 2. Work completed
+## 2. UI audit — findings, classified
+
+| # | Finding | Classification | Action |
+|---|---|---|---|
+| 1 | `styles.css` (483 lines) is ~68% FullCalendar theming, plus Timeline, Editor, ProgressBar, Avatar and Divider overrides for components the product never imports | **Preserved template capability** | **Kept in full.** Now guarded by a regression test. |
+| 2 | No token layer — three ad-hoc `--app-*` variables; everything else reaches into PrimeNG `--p-surface-*` internals directly | Current conflict | New additive token layer; existing usages untouched |
+| 3 | `*, body { font-family: 'Cairo', sans-serif; }` — an Arabic-first face applied to English too, through a universal selector that defeats inheritance | Current conflict | Rule left in place; one scoped `html[lang='en']` override added |
+| 4 | Auth page carried a dead `diagonal-image` mask and an empty image array, rendering an empty desktop panel | Current conflict | Replaced by the new auth layout |
+| 5 | Auth page had no `h1`, no password toggle, no `autocomplete`, no inline error region | Current conflict | All added |
+| 6 | Errors surfaced only as a global toast built from raw `error.error?.error` server text | Current conflict | Client-side translated mapping + inline panel; toast suppressed for auth calls |
+| 7 | `login()` had no re-entrancy guard, so Enter could double-submit | Current conflict | Guard added |
+| 8 | Only `/auth` existed; no Student route, and a signed-in Admin could sit on the login form | Current conflict | `/auth/admin` + `/auth/student` + `guestGuard` |
+| 9 | No `:focus-visible` styling and no reduced-motion support anywhere | Current conflict | Both added |
+| 10 | Dark mode already implemented and stable (`.dark`, `SwitchThemeService`, PrimeNG `darkModeSelector`) | **Currently used** | Preserved, and extended with a dark token scale |
+| 11 | Shell is 376 lines of pinning, popover and submenu machinery serving one nav item | **Preserved template capability** | Polished only (brand mark, nav landmark); not rebuilt |
+| 12 | `data-table`, `base-dialog`, `image-uploader`, `image-cropper-dialog`, `LiveQueryService`, `ExportService`, the pipes — none used by any current page | **Preserved template capability** | Untouched |
+| 13 | `@fullcalendar/*`, `quill`, `xlsx`, `html2canvas`, `ngx-image-cropper` unused by current pages | **Future cleanup candidate** | **Not removed.** Requires a separate explicit instruction |
+| 14 | `frontend/public/images/` holds only `empty-grid.svg`; `favicon.ico` is referenced but missing | Future cleanup candidate | Not addressed (pre-existing) |
+
+The audit authorised nothing, and **nothing was removed.**
+
+---
+
+## 3. Work completed
 
 | Area | Outcome |
 |---|---|
-| Legacy `AppSettings` | Removed entirely — model, module, cloud function, route, Swagger schema, and its unique index |
-| Roles | `Admin` + `Student` established and seeded idempotently; `SuperAdmin` migrated; `Employee` retained-and-reported, never promoted or deleted |
-| Admin login | Preserved and hardened — role verified after authentication, transient session revoked for non-Admins, rate limited 10/min |
-| Student password flows | Forbidden by construction: no login, signup, reset, or change path exists anywhere |
-| User management | Retired to login / current-user / logout; seven functions and the `/users` screen deleted |
-| ACL / CLP | Deny-by-default on every class + a schema guard that aborts startup on missing access metadata and rewrites public-wildcard ACLs |
-| `File` / `IMG` | Fully private; client-supplied ACL rejected; raw file routes and direct upload closed |
-| Master key | Localhost-only; read-only key likewise; seven client-facing master-key operations deleted; remaining uses audited |
-| Logging | One recursive redaction boundary, wired into Parse Server via `loggerAdapter` |
-| Errors / DTOs | Sanitised error handler; hand-built DTO allow-lists; session token only in the login response |
-| Branding | `Code Your Future` throughout; legacy vocabulary removed from user-facing copy |
-| EN/AR + RTL | Initialisation moved to bootstrap, fixing the confirmed `/auth` defect; exact key parity |
-| Tests | **197 tests** (131 backend, 66 frontend) with **zero new dependencies** |
+| Design tokens | `src/styles/tokens.css` — colour, surface, text, border, focus, four status families, 4px spacing scale, radius, three elevation steps, four layout widths, control and 44px touch sizes, motion. Every colour derives from PrimeNG's `--p-*`, so there is one source of truth. Full `.dark` scale. |
+| Typography | `src/styles/typography.css` — type scale, line heights, weights, tracking, the `.cyf-*` hierarchy, language-aware stacks (system UI for English, self-hosted Cairo for Arabic with larger line heights), reduced-motion reset. **No remote font CDN.** |
+| Layout & primitives | `src/styles/layout.css` plus `cyf-brand-mark`, `cyf-auth-layout`, `cyf-language-switch`, `cyf-alert`. CSS logical properties throughout, so one stylesheet serves LTR and RTL. PrimeNG's `p-button` is reused for the primary action — no component library was rebuilt. |
+| Auth routing | `/auth` → `/auth/admin`; `/auth/admin`; `/auth/student`; `/auth/**` → `/auth/admin`. `guestGuard` returns a `UrlTree`, so a signed-in Admin never sees the form flash. Every redirect target is a fixed internal path. |
+| Admin auth page | Redesigned on the token system: password visibility toggle, translated inline error states, duplicate-submit prevention, Enter submission, `autocomplete` hints, reserved message space so validation causes no layout shift, link to Student sign-in. **Login, session restoration, guards, logout and rate limiting are unchanged from Checkpoint 1.** |
+| Student auth page | **Presentation only** — no service, no HTTP, no navigation, no session write, no click handler; the Google button is `disabled`. Approved invitation copy verbatim in both languages, privacy note, link to Admin sign-in. |
+| Error handling | `mapAuthError()` maps status/Parse code to one of five translated keys; the interceptor's toast is suppressed for calls that opt in via `HANDLES_OWN_ERRORS`. No raw backend string ever reaches the UI. |
+| Shell polish | Brand mark in the logo slot, labelled navigation landmark. Navigation is still exactly Dashboard + language + logout. |
+| Accessibility | Landmarks and a skip link, exactly one `h1` per page, real `<label>`s, `:focus-visible` ring, 44px touch targets, `aria-pressed` on toggles, `role="alert"`/`role="status"` with a visually-hidden text prefix so status is never colour-only. |
+| i18n | 114 keys per language, exact parity, verified by test. |
+| Tests | +82 frontend, +26 backend. **Zero new dependencies.** |
 
 ---
 
-## 3. Files added (19)
+## 4. Three defects found during validation
 
-**Backend source (6)**
-- `src/cloudCode/utils/constants/roles.ts` — `AppRole`, `APP_ROLES`, `LEGACY_ROLE_NAMES`, `toAppRole`
-- `src/cloudCode/utils/auth/authorize.ts` — `requireUser`/`requireAdmin`/`requireStudent`/`getAppRoles`/`rejectPrivilegedParams`
-- `src/cloudCode/utils/config/env.ts` — boot-time validation, key names only
-- `src/cloudCode/utils/config/schemaGuard.ts` — deny-by-default schema hardening
-- `src/cloudCode/utils/dto/userDto.ts` — DTO allow-lists
-- `src/cloudCode/utils/logging/redact.ts`, `src/cloudCode/utils/logging/safeLogger.ts` *(2 files)*
+All three were caught by *validating*, not by writing code.
 
-**Backend tests (8)** — `test/roles.test.ts`, `test/authBoundaries.test.ts`,
-`test/schemaAccess.test.ts`, `test/seeding.test.ts`, `test/redaction.test.ts`,
-`test/userDto.test.ts`, `test/env.test.ts`, `test/support/parseTestGlobal.ts`
+**1. Every icon was invisible in English.** The English font override initially re-asserted
+`font-family: 'Font Awesome 6 Free'`. The installed package is Font Awesome **7.3.1**, so the named
+family did not exist and every glyph fell back to a missing-character box. Arabic was unaffected
+because the override does not apply there — which is exactly how it hid. Found by *looking at a
+screenshot*; the whole suite was green. Fixed by **excluding** icon-bearing elements
+(`:not([class*='fa-']):not([class*='pi-'])`) instead of naming a version, so the fix cannot rot on
+the next Font Awesome upgrade.
 
-**Frontend tests (7)** — `app.branding.spec.ts`, `config/user-roles.spec.ts`,
-`guards/role.guard.spec.ts`, `pages/auth/auth.component.spec.ts`,
-`services/change-lang.service.spec.ts`, `services/dataService/user-service.spec.ts`,
-`services/session.service.spec.ts`
+**2. The guest guard did not run on sibling navigation.** With `canActivate` on the parent `/auth`
+route only, navigating `/auth/admin` → `/auth/student` kept the branch activated and skipped the
+check — Angular does not re-run a parent's `canActivate` when only the child changes. Found by a
+routing test. Fixed by guarding the parent **and** both children.
 
-## 4. Files modified (30) and deleted (4)
+**3. A stale test assertion, caught by the final validation run.** The icon-font test still encoded
+the *old, broken* contract — `assert.ok(typography.includes('Font Awesome 6 Free'))` — and it was
+passing only because that string survives inside the explanatory comment. Its second assertion
+(`primeicons`) then failed once the fix removed the re-declaration. The test now asserts the real
+contract: the `html[lang='en']` override must **exclude** `[class*='fa-']` and `[class*='pi-']`, and
+the file must contain no `font-family` declaration naming a versioned Font Awesome family — so the
+same regression cannot return under a different version number.
 
-**Deleted:** `backend/src/cloudCode/models/AppSettings.ts`,
-`backend/src/cloudCode/modules/AppSettings/functions.ts`,
-`frontend/src/app/pages/users/users.component.{ts,html}`
-
-**Backend modified (7):** `package.json` (test script; `compile`/`test` now clean `build/`),
-`src/app.ts`, `src/cloudCode/database/seed.ts`, `models/User.ts`, `models/File.ts`,
-`models/IMG.ts`, `modules/User/functions.ts`, `utils/config/parseConfig.ts`
-
-**Frontend modified (16):** `app.config.ts`, `app.routes.ts`, `config/user-roles.ts`,
-`guards/role.guard.ts`, `directives/if-role.directive.ts`, `models/User.ts`,
-`services/session.service.ts`, `services/change-lang.service.ts`,
-`services/dataService/user-service.ts`, `services/http.interceptor.ts`,
-`components/layout/shell.component.{ts,html}`, `pages/auth/auth.component.{ts,html}`,
-`public/i18n/en.json`, `public/i18n/ar.json`
-
-**Docs modified (7):** `CLAUDE.md`, `PROJECT.md`, `README.md`, `docs/CURRENT_STATE.md`,
-`docs/IMPLEMENTATION_PLAN.md`, `docs/TEMPLATE_ARCHITECTURE.md`, `docs/HANDOFF.md`
-
-**Deliberately untouched:** `backend/.env`, `backend/dashboard.json`, `docs/prototypes/*`, all
-three lockfiles, `.gitignore`, `.gitlab-ci.yml`, `docs/PRODUCT_REQUIREMENTS.md`,
-`frontend/package.json`, root `package.json`, `node_modules`.
+An earlier screenshot run also captured glyphs mid-font-load, producing boxes that resembled defect
+1. The harness now awaits `document.fonts.ready`, so the captures reviewed in §8 are real.
 
 ---
 
-## 5. Migrations and compatibility behaviour
+## 5. Preserved template capabilities
 
-Startup migration is idempotent and never guesses about ownership.
+Nothing was deleted, simplified, consolidated or rewritten. Explicitly retained and now
+regression-guarded:
 
-| Situation | Behaviour |
-|---|---|
-| Clean database | Creates `Admin` and `Student`. Creates the Admin account from `ADMIN_USERNAME`/`ADMIN_PASSWORD`/`ADMIN_EMAIL` and grants it `Admin`. **No Student user is seeded.** |
-| Re-run | No duplicate role, user, or membership. Verified across three consecutive runs. |
-| `SuperAdmin` exists | Members added to `Admin` (safe widening; preserves the seeded administrator), then the legacy role object is deleted. |
-| `Employee` exists and is **empty** | Deleted. |
-| `Employee` exists and is **populated** | **Retained and reported** with its member count. Members are never promoted to Admin and never deleted — that is a human decision. |
-| Admin account already exists | Never deleted or recreated; membership ensured only. |
-| `ADMIN_PASSWORD` unset and no Admin exists | Seeding **skips with a warning**. No default password is invented (the template hardcoded one). |
-| `AppSettings` collection still in the database | Reported by name and document count. **Never dropped** — source removal and data deletion are different actions. |
-| Legacy role name in a cached frontend session | Stripped on load; `isAdmin()` is false. |
+FullCalendar theming (variables, toolbar, buttons, headers, day numbers, time slots, list view, now
+indicator, background events, the `fc-slot-pulse` animation, event cards, action buttons, tooltip,
+slot action bar) · Timeline theming · Editor theming · ProgressBar, Avatar, Divider, scrollbar and
+`.p-button` overrides · `.app-card` / `.app-card-nested` and the `--app-*` surface variables · all
+all nine Cairo `@font-face` declarations · the `data-table` suite, `base-dialog`, `image-uploader`,
+`image-cropper-dialog` · `LiveQueryService`, `ExportService`, `PageTitleService`, `ConfirmService`,
+`ToastService` · every pipe and the `appIfRole` directive · every dependency in
+`frontend/package.json` · every existing route · the shell's pinning, popover and submenu machinery.
 
-No database migration script is required: the schema is derived from decorators, and the only
-removed index went with `AppSettings`.
+`backend/test/templatePreservation.test.ts` fails if any of those stylesheet sections disappears, if
+the token layer stops being additive, or if a dependency-bearing capability is stripped.
+
+**Future cleanup candidates — preserved, not removed:** `@fullcalendar/*`, `quill`, `xlsx`,
+`html2canvas`, `ngx-image-cropper`, the `data-table` suite, `base-dialog`, the image components, and
+the shell's pinning/popover machinery. Removing any of them requires a separate explicit instruction
+naming the exact item.
 
 ---
 
-## 6. Tests
+## 6. Files
+
+### Added (17)
+
+**Frontend styles (3)** — `src/styles/tokens.css`, `src/styles/typography.css`,
+`src/styles/layout.css`
+
+**Frontend components (5)** — `src/app/components/shared/brand-mark.component.ts`,
+`src/app/components/shared/language-switch.component.ts`,
+`src/app/components/shared/alert.component.ts`,
+`src/app/components/layout/auth-layout.component.ts`,
+`src/app/pages/auth/student-auth.component.ts` *(with `.html` and `.scss`)*
+
+**Frontend logic (2)** — `src/app/guards/guest.guard.ts`, `src/app/utils/auth-error.ts`
+
+**Frontend tests / helpers (4)** — `src/app/testing/i18n-testing.ts`,
+`src/app/design-system.spec.ts`, `src/app/auth-routing.spec.ts`,
+`src/app/pages/auth/student-auth.component.spec.ts`
+
+**Backend test (1)** — `test/templatePreservation.test.ts`
+
+*(the two Student template files bring the total to 17 — see the `git status` listing in §13)*
+
+### Modified (19)
+
+**Frontend (13)** — `src/styles.css` *(three `@import` lines prepended; **nothing removed**)* ·
+`src/app/app.routes.ts` · `src/app/guards/auth.guard.ts` · `src/app/services/http.interceptor.ts` ·
+`src/app/services/dataService/user-service.ts` · `src/app/pages/auth/auth.component.{ts,html,scss}` ·
+`src/app/pages/auth/auth.component.spec.ts` ·
+`src/app/components/layout/shell.component.{ts,html}` · `public/i18n/en.json` · `public/i18n/ar.json`
+
+**Docs (6)** — `PROJECT.md`, `README.md`, `docs/TEMPLATE_ARCHITECTURE.md`,
+`docs/CURRENT_STATE.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/HANDOFF.md`
+
+### Deleted (0)
+
+**Nothing was deleted.**
+
+**Deliberately untouched:** `backend/.env` · `backend/dashboard.json` · `docs/prototypes/*` ·
+`docs/PRODUCT_REQUIREMENTS.md` · `CLAUDE.md`, `backend/CLAUDE.md`, `frontend/CLAUDE.md` ·
+`.claude/**` · all three lockfiles · `frontend/package.json` and every dependency in it ·
+`node_modules` · every backend source file.
+
+---
+
+## 7. Tests
 
 | Suite | Command | Result |
 |---|---|---|
-| Backend | `cd backend && pnpm run test` | **131 pass / 0 fail**, 23 suites, ~3.6 s |
-| Frontend | `cd frontend && pnpm run test` | **66 pass / 0 fail**, 7 files, ~11 s |
+| Backend | `cd backend && pnpm run test` | **210 pass / 0 fail**, 41 suites (was 184) |
+| Frontend | `cd frontend && pnpm run test` | **167 pass / 0 fail**, 11 files (was 85) |
 
-**No new dependency was added**, so `--frozen-lockfile` remains valid. The backend uses Node's
-built-in `node:test`; the frontend uses the existing Vitest runner.
+**No new dependency was added**, so `--frozen-lockfile` remains valid in all three projects.
 
-Required coverage, all present: role constants · idempotent seeding · no legacy authorization alias ·
-public `_User` creation denied · Student password login denied · no reset/change path · manual
-Student creation and role assignment denied · Admin login boundary preserved · `AppSettings` not
-registered · deny-by-default class access · `File` private · `IMG` private · client-supplied ACL/CLP
-rejected · protected DTO fields excluded · recursive log redaction · no master-key leakage · stable
-sanitised errors — and on the frontend: Admin route guard · Student/Visitor refused · legacy roles
-not Admin · legacy nav absent · branding · EN/AR parity · auth language and RTL init · safe-DTO
-session restore · logout clears state · no Student email/password UI.
+**Frontend, new (82).** `auth.component.spec.ts` rewritten — structure, labels, `autocomplete`, no
+autofocus, branding, absence of signup/reset/account-type affordances, no default credentials,
+password toggle (accessible name and `aria-pressed`), validation without an API call, layout-shift-free
+message space, submit, keyboard submission, duplicate-submit prevention, disabled-while-loading,
+session stored on success, six error states, no raw backend string, assertive announcement, error
+cleared on edit, no session on failure, Arabic heading/labels/errors, layout safety.
+`student-auth.component.spec.ts` — no input of any kind, no form, no signup/reset/token affordance,
+no Apple button, Google disabled with no handler, no navigation and **no HTTP request**,
+`aria-describedby` explanation, English content, approved copy verbatim, Arabic content and copy,
+layout safety. `auth-routing.spec.ts` — route structure, `guestGuard` on parent **and** children,
+titles, **no open redirect**, no future route, guard behaviour for Visitor and signed-in Admin,
+unknown sub-route, no redirect loop, switching between the two pages. `design-system.spec.ts` —
+brand mark, language switch including `lang`/`dir` synchronisation in both directions, alert roles
+and colour-independence.
 
-**Two honest notes on test design:**
-- `test/support/parseTestGlobal.ts` installs the **real** Parse SDK (resolved through
-  `parse-server`) rather than a stub, so decorator behaviour is genuine. It also tracks and
-  `unref`s the interval that `@90soft/parse-server-kit`'s `rateLimit` module starts at import, and
-  clears it in an `after()` hook. Without that the suite hangs forever. **No `--test-force-exit`
-  and no suppressed handle** — the timer is tracked and explicitly torn down.
-- `seeding.test.ts` drives the real `seedAll()` against an in-memory Parse double, so migration
-  decisions are exercised as behaviour rather than asserted from source text. No temporary
-  collection or process is created.
+**Backend, new (26).** `templatePreservation.test.ts` — FullCalendar / Timeline / Editor / PrimeNG
+theming intact, `--app-*` variables intact, all nine `@font-face` rules intact, layers imported
+additively with template styling still cascading after them, all 30 required tokens present, no
+hardcoded hex in the token layer, dark scheme defined, 44px targets, full type hierarchy, distinct
+EN/AR stacks, **no remote font source**, Arabic line heights, icon fonts untouched, reduced motion,
+logical properties, overflow guard, no fixed pixel widths, `:focus-visible`, a11y helpers,
+responsive auth split, no future route, Student page performs no authentication, **no Google package
+added**.
 
----
-
-## 7. Runtime validation — observed, not assumed
-
-The Windows `MongoDB` service is registered but **Stopped**, and starting it required elevation. I
-therefore ran an **isolated `mongod` on port 27018** with a scratch dbpath and pointed the backend
-at it via environment overrides (`.env` untouched). This is a genuinely clean database and the
-developer's own data was never touched. Both processes were stopped afterwards and the service
-remains Stopped as found.
-
-| # | Check | Observed |
-|---|---|---|
-| 1 | Backend starts | `Server listening {"port":1338}` |
-| 2 | Frontend starts | `GET http://localhost:4201/` → 200 |
-| 3 | Swagger loads | `/api-docs/json` → 200, OpenAPI 3.0.3 |
-| 4 | `AppSettings` absent | 0 occurrences in the Swagger document |
-| 5 | Registered models | `["_Role","File","IMG","_User"]` — exactly the intended surface |
-| 6 | Roles on a clean DB | `{"created":["Admin","Student"]}`; Admin account created once; Student role has 0 members |
-| 7 | Legacy roles grant nothing | No `SuperAdmin`/`Employee` in any CLP; `_Role` CLP is `role:Admin`; unit-tested at the authorize layer |
-| 8 | Admin login works | 200, `roles:["Admin"]`, DTO keys `id,roles,sessionToken,username` |
-| 9 | Session restoration | DTO keys `id,roles,username` — **no** `sessionToken`, **no** `email` |
-| 10 | Admin logout | `{"success":true}`; reusing the token afterwards → 400 |
-| 11 | Visitor blocked | `getCurrentUser` without a session → 400; guards redirect to `/auth` (unit-tested) |
-| 12 | **Student cannot use password auth** | With the **correct** password: `119 This account cannot sign in with a password`, and `_Session` count returns to **0** — the transient session is revoked |
-| 13 | Direct `_User` creation denied | `POST /api/users` → **404** |
-| 14 | `File`/`IMG` not public | `/classes/File` → 403, `/classes/IMG` → 403, raw `/api/files/*` → 403 |
-| 15 | `/classes` and `/schemas` blocked | `/classes/_User`, `/classes/_Role`, `/classes/_Session`, `/schemas` → 403; `/requestPasswordReset` → 403; `app-settingses` → 403 |
-| 16 | Logs clean | No master key, admin password, REST key, database URI, or session token. Parse's own lines show `password:"[REDACTED]"`, `sessionToken:"[REDACTED]"`, `params:"[OMITTED]"` |
-| 17 | EN/AR direction | 71 keys each with no drift; init tested for `en`→LTR and `ar`→RTL with `lang`/`dir` synchronized and no flash |
-
-Also confirmed: privileged client parameters rejected (`role` in the login body →
-`119 These parameters are not accepted from clients: role`); wrong password and unknown username
-both return the same opaque 404 `Invalid credentials` response;
-master key in a request body → 403.
-
-### Manual browser steps remaining
-
-Everything above was exercised over HTTP or in tests. Three things need a human at a browser:
-
-1. **Visual confirmation of the `/auth` page in Arabic** — the `dir`/`lang` logic is unit-tested and
-   the dev server serves the page, but nobody has *looked* at the RTL rendering.
-2. **Admin login → dashboard → logout round-trip in the UI.** Each API call is verified
-   individually; the click-through was not driven.
-3. **Confirmation that no direction flash occurs on a cold `/auth` load with `lang=ar`.** The fix
-   sets attributes synchronously in an app initializer, but perceived flash needs an eye.
+No snapshot-only tests. No external service is contacted. No existing test was weakened or skipped.
 
 ---
 
-## 8. Defect found and fixed during this checkpoint
+## 8. Build result and runtime validation — observed, not assumed
 
-**Stale compiled output re-registered a deleted class.** `pnpm run compile` was bare `tsc`, which
-does not delete orphaned output. After `models/AppSettings.ts` was deleted, the stale
-`build/src/cloudCode/models/AppSettings.js` was still auto-discovered by `importFiles()`, so the
-**first runtime validation showed 5 classes and a live `/app-settingses/getAppSetting` route despite
-the sources being gone.**
+```
+root      pnpm install --frozen-lockfile                      exit 0
+backend   pnpm install --frozen-lockfile                      exit 0
+backend   pnpm run compile                                    exit 0
+backend   pnpm run test                    210 pass / 0 fail  exit 0
+frontend  pnpm install --frozen-lockfile --shamefully-hoist   exit 0
+frontend  pnpm run build                   674.37 kB initial  exit 0
+frontend  pnpm run test                    167 pass / 0 fail  exit 0
+```
 
-Fix: `compile` and `test` now `rimraf build` first (matching `start`, which already did). Re-verified
-clean. This is the single strongest argument for the runtime-validation requirement in this
-checkpoint — every test passed while the running server still served the removed feature.
+Visual validation was driven through a real headless Chrome (150.0.7871.187) over the DevTools
+Protocol, using only Node built-ins — nothing was installed. `document.fonts.ready` is awaited
+before every capture. **20 screenshots were produced and reviewed.**
+
+### Viewports and languages inspected
+
+`/auth/admin` and `/auth/student`, each at **1440, 1024, 768, 390 and 360 px**, in **English and
+Arabic** — 20 combinations.
+
+| Property | Result across all 20 |
+|---|---|
+| Horizontal overflow (`scrollWidth − clientWidth`) | **0** everywhere |
+| `<html lang>` / `<html dir>` | `en`/`ltr` and `ar`/`rtl`, correct in all |
+| `h1` count | exactly **1** on every page |
+| Google button `disabled` | **true** on every Student render |
+
+### Signed-in Admin shell — a real login was performed
+
+Credentials were typed into the redesigned form and submitted through the UI. They were supplied to
+the harness via environment variables and never written to a file, a shell command, or a log.
+
+```
+LOGIN RESULT: {"hash":"#/dashboard","signedIn":true,"roles":["Admin"],
+               "cachedKeys":["id","username","roles"]}
+SHELL(en):    {"lang":"en","dir":"ltr","overflow":0,"navLinks":["Dashboard"]}
+SHELL(ar):    {"lang":"ar","dir":"rtl","overflow":0,"navLinks":["لوحة التحكم"]}
+SHELL(390):   {"overflow":0}
+GUEST GUARD:  signed-in Admin -> /auth/admin  =>  #/dashboard
+```
+
+Admin login still works end to end, the cached user object holds only `id, username, roles` (no
+token, no email), navigation is exactly Dashboard, and there was **no CORS regression** — the
+backend's development allow-list served `http://localhost:4200` correctly.
+
+### Screenshots reviewed by eye
+
+`admin-en-1440` (split layout, branding, hierarchy, icons rendering), `student-ar-1440` (full RTL
+mirroring, disabled Google button, approved copy), `admin-ar-360` (single column, RTL, no clipping),
+`student-en-390` (mobile, disabled button, approved copy), `shell-ar-1440` (RTL sidebar, single nav
+item, logout), plus a zoomed crop confirming the password toggle mirrors to the inline-start under
+RTL.
+
+Backend startup and request logs were checked during the login run — no credential, token, key or
+database URI appears.
+
+All of this ran against an **isolated `mongod` on port 27018** with a scratch dbpath, driven by
+environment overrides. `backend/.env` was never read into a config change and never modified; the
+developer's own MongoDB service was untouched. Every task-created process was stopped afterwards.
 
 ---
 
-## 9. Warnings
+## 9. Manual visual validation still recommended
+
+Automated capture cannot judge everything. A human should still confirm:
+
+1. **Aesthetic judgement** — whether the visual direction reads as a premium modern educational SaaS
+   product on a real display.
+2. **Light mode.** Dark mode is the default and every screenshot above is dark. The token layer
+   defines a complete light scale and the build is clean, but light mode was **not** visually
+   reviewed.
+3. **Real-device Arabic rendering** — Cairo shaping and diacritics on an actual phone.
+4. **Keyboard walkthrough** — tab order and focus-ring visibility with a physical keyboard.
+5. **Screen-reader pass** — NVDA or VoiceOver on the error and loading announcements.
+6. **Rate-limited and offline states** — reproducible only against a throttled or stopped backend.
+   The mapping is unit-tested but the rendered panels were not photographed.
+
+---
+
+## 10. Warnings
 
 | Warning | Assessment |
 |---|---|
-| Frontend bundle 654.87 kB vs a 500 kB budget (over by 154.87 kB) | Pre-existing; improved from 692.08 kB by removing the users page. Not addressed here. |
-| 13 Parse Server deprecation warnings at boot | All future-default changes, none fatal. Several (`protectedFieldsOwnerExempt`, `protectedFieldsSaveResponseExempt`, `allowAggregationForReadOnlyMasterKey`) will *tighten* security when their defaults flip — worth adopting explicitly in Checkpoint 11. |
-| Frontend install reports 4 ignored build scripts | Warning only (OQ-16); install and build succeed. |
-| `git diff --check` LF→CRLF notices on 19 files | Benign Windows line-ending normalisation. |
-| `[Indexes] No indexes to apply` | Correct — the only unique index belonged to `AppSettings`. |
+| Frontend initial bundle **674.37 kB** against a 500 kB budget (over by 174.37 kB) | Pre-existing; was 654.87 kB after Checkpoint 1. The design system and the second auth page account for the ~20 kB increase. Not addressed here. |
+| `favicon.ico` referenced by `index.html` and still absent | Pre-existing. |
+| `withHashLocation()` still active, so URLs are `/#/auth/admin` | **OQ-12 is still open and is now due**, before Checkpoint 6 builds invitation links. |
+| Frontend install reports ignored build scripts | Pre-existing (OQ-16); install and build succeed. |
+| `git diff --check` LF→CRLF notices | Benign Windows line-ending normalisation. |
 
 ---
 
-## 9b. REST-key classification — earlier finding corrected
+## 11. Remaining UI gaps
 
-`frontend/src/environments/environment{,.prod}.ts` declare `parseApiKey`. Verified without printing
-any value: it **equals the backend's `restAPIKey`**, and is **neither** the `masterKey` **nor** the
-`javascriptKey`. It travels as the `X-Parse-REST-API-Key` header on every browser request.
-
-**Classification: A — non-privileged Parse client configuration, intended to be public in a browser
-application.** Parse client keys (`restAPIKey`, `javascriptKey`, `clientKey`, `dotNetKey`) identify
-an application; they do not authorise anything. In this product all authority derives from the
-session token plus live `_Role` membership on top of deny-by-default CLP, so possessing this key
-grants a caller nothing extra.
-
-The Phase 0 note that logged it as gap **S-13, "committed REST API key — rotate before deploy"**,
-**over-classified it as a secret. That is now withdrawn as inaccurate.** No rotation is required on
-security grounds. One hygiene observation remains: development and production share the same value,
-which is worth differentiating but is not a vulnerability.
-
-**What genuinely must never ship to the browser** — `masterKey`, `readOnlyMasterKey`,
-`maintenanceKey`, a database URI, an OAuth client secret, an Admin password — is now enforced by
-`frontend/src/app/security.credentials.spec.ts`, which asserts the environment objects declare only
-an allow-list of keys, contain no key name matching a backend-credential fragment, and contain no
-Mongo URI, embedded URL credentials, or Parse session token. It also checks that production is not
-left pointing at localhost and that the production websocket uses TLS. **No key value appears in
-this document.**
-
-## 10. Remaining gaps
-
-**Closed in the closeout:** S-1 (CORS now fails closed) · S-13 (withdrawn — misclassified, see §9b)
-· the generator half of S-17 · S-18 (weak key RNG).
-
-**Still open (full list with owners in [CURRENT_STATE.md §5](CURRENT_STATE.md)):** session token in
-`localStorage` (S-4) · the kit accepts a master key from the request **body** and cannot be patched
-from here (S-6, not exploitable) · no upload MIME/size/magic-byte validation, deliberately deferred
-because no client-reachable upload path exists (S-9) · 400-instead-of-401 for unauthenticated calls
-(S-15) · kit trigger overwrite (S-16).
-
-**Owner actions this work cannot perform:**
-- **S-17 (remainder).** The generator no longer carries a default, so no *new* environment can
-  inherit one — but **the local `backend/.env` still holds the old publicly-known password.** That
-  file is out of bounds here. **Rotate the local and any deployed Admin password.**
-- **S-18 (remainder).** Any environment whose `masterKey` / `restAPIKey` were produced by the old
-  `Math.random()` generator should have them **regenerated**; those values were predictable.
-
-**Functional gaps:** no Student can authenticate (Checkpoint 3) · no controlled private-file read
-path (Checkpoint 7, OQ-10) · no typed reactive forms yet (Checkpoint 4) · `LiveQueryService` unused ·
-`data-table` unused · `applyAllIndexes` still never called (moot today) · `fileAdapter.ts` still dead
-code · Parse `Date` truncation in the interceptor will matter from Checkpoint 4 (L-9).
-
-**Process gaps:** **CI runs no tests** — `.gitlab-ci.yml` has no test step, and it still targets
-GitLab/`dev` while the remote is GitHub/`master` (OQ-14). `GENERATE.md` and `backend/CLAUDE.md` still
-cite `SuperAdmin`/`Employee` and a non-existent `models/Employee.ts`.
-
-**Untested path:** legacy-role migration against a database that actually contains a **populated**
-`Employee` role. Covered by unit tests with an in-memory store, not by a real-data run.
+- **Admin workspace / dashboard content** — deliberately still an empty placeholder. No fake
+  statistics, no invented modules.
+- **Light-mode visual review** — see §9.2.
+- The **rate-limited** and **backend-unavailable** panels are implemented and unit-tested but were
+  never visually captured.
+- **No skeleton or loading screen** for initial session restoration. The app initializer resolves
+  fast enough locally that no flash was observable, but this is untested on a slow connection.
+- **No form-field component abstraction yet** — the auth fields use the `.cyf-field` pattern
+  directly. Typed reactive forms and a shared field component arrive in Checkpoint 4.
+- **Toast styling** is still PrimeNG's default; it has not been brought onto the token system.
 
 ---
 
-## 11. Instruction conflict — recorded here, not resolved by editing the rules
+## 12. Instruction conflict — status
 
-`CLAUDE.md` lists `backend/src/cloudCode/utils/`, `database/`, `models/{User,IMG,File}.ts`, and
-`modules/User/` under **"Protected Files — NEVER Modify"**. Checkpoint 1's spec required rewriting
-the security posture of exactly those files.
-
-**What happened, and the correction.** The implementation pass proceeded on the checkpoint spec —
-which was the right call, since the product owner issued it explicitly and in detail — but it then
-also *edited `CLAUDE.md`* to rescope the protection rules so they no longer forbade what had just
-been done. **That was wrong.** A governing instruction file must not be rewritten to authorise an
-implementation task; doing so removes the very control that makes the conflict visible. In the
-closeout `CLAUDE.md` was restored to be **byte-identical to `a796aa0`** (blob `2da00db6…` on both
-sides — verified with `git hash-object`). No rule was weakened, narrowed, reinterpreted, or
-deleted, and no exception permitting agents to modify protected files remains.
-
-**The conflict itself is still real and is recorded here for a human decision.** Options, none of
-which an implementation task should take unilaterally:
-
-1. Leave `CLAUDE.md` as-is and treat each protected-file change as requiring explicit per-checkpoint
-   authorisation in the task brief (what effectively happened here).
-2. Have the **owner** amend `CLAUDE.md` to distinguish "never modify during entity generation" from
-   "changeable through an approved checkpoint".
-3. Move the security-critical files to a separate, genuinely immutable list and let the rest follow
-   normal review.
-
-Until the owner decides, assume option 1: **a future task must not modify those paths without an
-explicit instruction naming them.**
-
-Worth preserving whichever option is chosen — these were proposed in the rejected edit and are
-still sound as *guidance*, just not as unilateral rule changes: never weaken the deny-by-default
-CLP or the `schemaGuard` checks; never widen `masterKeyIps` / `readOnlyMasterKeyIps` without a
-deployment need; only ever add to the redaction key list; never widen the DTO allow-lists; and
-never weaken a test to obtain a green result.
+The `CLAUDE.md` conflict recorded in Checkpoint 1's handoff (§11 at `0344a43`) is **unchanged and
+still awaiting an owner decision**. Checkpoint 2A needed no protected-file change: no file under
+`backend/src/cloudCode/utils/`, `database/`, `models/{User,IMG,File}.ts` or `modules/User/` was
+touched, and no instruction file was modified. The one backend addition is `backend/test/`, which is
+not a protected path.
 
 ---
 
-## 12. Exact Git status
+## 13. Exact Git status
 
 ```
 $ git branch --show-current
 master
 
 $ git log --oneline -3
+0344a43 feat: establish secure product foundation and access boundaries
 a796aa0 docs: establish project context and template architecture
 c1517e4 chore: initialize full-stack template
 
-$ git status
-On branch master
-Your branch is up to date with 'origin/master'.
+$ git status --short
+ M PROJECT.md
+ M README.md
+ M docs/CURRENT_STATE.md
+ M docs/HANDOFF.md
+ M docs/IMPLEMENTATION_PLAN.md
+ M docs/TEMPLATE_ARCHITECTURE.md
+ M frontend/public/i18n/ar.json
+ M frontend/public/i18n/en.json
+ M frontend/src/app/app.routes.ts
+ M frontend/src/app/components/layout/shell.component.html
+ M frontend/src/app/components/layout/shell.component.ts
+ M frontend/src/app/guards/auth.guard.ts
+ M frontend/src/app/pages/auth/auth.component.html
+ M frontend/src/app/pages/auth/auth.component.scss
+ M frontend/src/app/pages/auth/auth.component.spec.ts
+ M frontend/src/app/pages/auth/auth.component.ts
+ M frontend/src/app/services/dataService/user-service.ts
+ M frontend/src/app/services/http.interceptor.ts
+ M frontend/src/styles.css
+?? backend/test/templatePreservation.test.ts
+?? frontend/src/app/auth-routing.spec.ts
+?? frontend/src/app/components/layout/auth-layout.component.ts
+?? frontend/src/app/components/shared/alert.component.ts
+?? frontend/src/app/components/shared/brand-mark.component.ts
+?? frontend/src/app/components/shared/language-switch.component.ts
+?? frontend/src/app/design-system.spec.ts
+?? frontend/src/app/guards/guest.guard.ts
+?? frontend/src/app/pages/auth/student-auth.component.html
+?? frontend/src/app/pages/auth/student-auth.component.scss
+?? frontend/src/app/pages/auth/student-auth.component.spec.ts
+?? frontend/src/app/pages/auth/student-auth.component.ts
+?? frontend/src/app/testing/i18n-testing.ts
+?? frontend/src/app/utils/auth-error.ts
+?? frontend/src/styles/layout.css
+?? frontend/src/styles/tokens.css
+?? frontend/src/styles/typography.css
 
-Changes to be committed:
-	deleted:    backend/src/cloudCode/models/AppSettings.ts
-	deleted:    backend/src/cloudCode/modules/AppSettings/functions.ts
-	deleted:    frontend/src/app/pages/users/users.component.html
-	deleted:    frontend/src/app/pages/users/users.component.ts
-
-Changes not staged for commit:
-	modified:   CLAUDE.md
-	modified:   PROJECT.md
-	modified:   README.md
-	modified:   backend/package.json
-	modified:   backend/src/app.ts
-	modified:   backend/src/cloudCode/database/seed.ts
-	modified:   backend/src/cloudCode/models/File.ts
-	modified:   backend/src/cloudCode/models/IMG.ts
-	modified:   backend/src/cloudCode/models/User.ts
-	modified:   backend/src/cloudCode/modules/User/functions.ts
-	modified:   backend/src/cloudCode/utils/config/parseConfig.ts
-	modified:   docs/CURRENT_STATE.md
-	modified:   docs/IMPLEMENTATION_PLAN.md
-	modified:   docs/TEMPLATE_ARCHITECTURE.md
-	modified:   frontend/public/i18n/ar.json
-	modified:   frontend/public/i18n/en.json
-	modified:   frontend/src/app/app.config.ts
-	modified:   frontend/src/app/app.routes.ts
-	modified:   frontend/src/app/components/layout/shell.component.html
-	modified:   frontend/src/app/components/layout/shell.component.ts
-	modified:   frontend/src/app/config/user-roles.ts
-	modified:   frontend/src/app/directives/if-role.directive.ts
-	modified:   frontend/src/app/guards/role.guard.ts
-	modified:   frontend/src/app/models/User.ts
-	modified:   frontend/src/app/pages/auth/auth.component.html
-	modified:   frontend/src/app/pages/auth/auth.component.ts
-	modified:   frontend/src/app/services/change-lang.service.ts
-	modified:   frontend/src/app/services/dataService/user-service.ts
-	modified:   frontend/src/app/services/http.interceptor.ts
-	modified:   frontend/src/app/services/session.service.ts
-
-Untracked files:
-	backend/src/cloudCode/utils/auth/
-	backend/src/cloudCode/utils/config/env.ts
-	backend/src/cloudCode/utils/config/schemaGuard.ts
-	backend/src/cloudCode/utils/constants/
-	backend/src/cloudCode/utils/dto/
-	backend/src/cloudCode/utils/logging/
-	backend/test/
-	frontend/src/app/app.branding.spec.ts
-	frontend/src/app/config/user-roles.spec.ts
-	frontend/src/app/guards/role.guard.spec.ts
-	frontend/src/app/pages/auth/auth.component.spec.ts
-	frontend/src/app/services/change-lang.service.spec.ts
-	frontend/src/app/services/dataService/user-service.spec.ts
-	frontend/src/app/services/session.service.spec.ts
-
-$ git diff --stat
- 30 files changed, 1906 insertions(+), 1425 deletions(-)
-
-$ git diff --check
-exit 0 (only LF→CRLF notices on 19 files)
-
-$ git ls-files "*lock*"
-backend/pnpm-lock.yaml
-frontend/pnpm-lock.yaml
-pnpm-lock.yaml
+$ git diff --cached --name-only
+(empty — nothing is staged)
 
 $ git ls-files backend/.env backend/dashboard.json
 (empty — neither is tracked)
@@ -454,60 +377,40 @@ $ git check-ignore -v backend/dashboard.json
 backend/.gitignore:4:dashboard.json	backend/dashboard.json
 ```
 
-The four deletions are staged because `git rm` was used; nothing was committed.
+19 modified · 17 untracked · **0 staged** · 0 deleted. `git diff --check` reports only benign
+LF→CRLF notices.
 
----
-
-## 13. Verifications
+### Verifications
 
 | Verification | Result |
 |---|---|
-| `.env` not modified | ✅ md5 `812a68d6…` — identical to the pre-checkpoint value |
-| `dashboard.json` not modified | ✅ md5 `e4742b51…` — identical |
-| Protected files remain ignored | ✅ both resolve to `backend/.gitignore` rules |
-| Lockfiles remain tracked and valid | ✅ all three tracked; `--frozen-lockfile` exits 0 in all three projects |
-| No secret exposed or tracked | ✅ no secret value appears in any tracked or new file. The only on-disk matches are `backend/.env` and `backend/dashboard.json` (both git-ignored, both unmodified) and the pre-existing default in `create-project.js`, reported as S-17 without printing it |
-| Prototypes unchanged | ✅ `index.html` md5 `b48de413…`, `slides.html` md5 `ffa34244…`; `git status docs/prototypes` is empty |
-| No future model added | ✅ registered classes are `_Role`, `_User`, `File`, `IMG`; a test asserts 10 future model names are absent |
-| No future feature implemented | ✅ no OAuth, profile, Batch, invitation, enrollment, Resource, Live Slides, Task, Pinned Student, or Talent Reel code; no placeholder model and no fake API response |
-| Tests not weakened | ✅ every assertion added is a real behavioural check; nothing was skipped, loosened, or force-exited |
-| No task-created process remains | ✅ `Get-Process node` → none; `Get-Process mongod` → none; the `MongoDB` service is Stopped exactly as found |
+| Nothing staged, nothing committed, nothing pushed | ✅ `git diff --cached --name-only` empty; `HEAD` is still `0344a43` |
+| No branch created, switched, merged or deleted | ✅ still on `master` |
+| `.env` / `dashboard.json` not modified | ✅ md5 unchanged; both still resolve to `backend/.gitignore` rules |
+| No secret exposed, printed or tracked | ✅ login credentials passed via environment variables only; no value in any file, log or shell command |
+| Prototypes unchanged | ✅ md5 identical; `git status docs/prototypes` empty |
+| `docs/PRODUCT_REQUIREMENTS.md` unchanged | ✅ not in `git status` |
+| Protected instruction files unchanged | ✅ `CLAUDE.md`, `backend/CLAUDE.md`, `frontend/CLAUDE.md`, `.claude/**` all absent from `git status` |
+| `styles.css` preserved sections intact | ✅ FullCalendar, Timeline, Editor, PrimeNG, `--app-*` and all nine `@font-face` rules present; asserted by test |
+| No dependency removed | ✅ `frontend/package.json` and all three lockfiles unmodified |
+| No route removed | ✅ every pre-existing route still resolves; only `/auth` children were added |
+| No template capability removed | ✅ asserted by `templatePreservation.test.ts` |
+| Google OAuth not implemented | ✅ no package, no service, no handler, no request, no session |
+| No future product feature | ✅ no new model, no new nav item, no fake data |
+| Phase 1 security not weakened | ✅ no backend source touched; login/guard/interceptor changes are additive and covered by the existing Checkpoint 1 tests, all still green |
+| No task-created process remains | ✅ the isolated `mongod` (27018), backend node (1337), `ng serve` (4200/4201) and the headless Chrome debug instance (9222) are all stopped; every one of those ports is free. The Windows `MongoDB` **service** is Running on 27017 — that is the developer's own instance, was not started by this task (which used 27018 with a scratch dbpath throughout), and was deliberately left alone. |
 
 ---
 
 ## 14. Recommended next action
 
-1. **Rotate the Admin password (S-17)** and remove the hardcoded default from `create-project.js`.
-   This is the only finding that warrants action before anything else.
-2. **Commit** this checkpoint. Nothing blocks it.
-3. **Run the three manual browser steps** in §7 to close out visual confirmation.
-4. **Add a test step to CI** — both suites are green but CI never runs them. Needs OQ-14 answered
-   (GitHub Actions vs GitLab) so it may travel with Checkpoint 12; a minimal `pnpm run test` job on
-   the current platform would be worth having sooner.
-5. **Start Checkpoint 2** (Admin authentication). Note that Checkpoint 1 already delivered its
-   functional core, so Checkpoint 2 is now mostly the Admin workspace UI plus the account-kind
-   discriminator and the `GENERATE.md` / `backend/CLAUDE.md` documentation cleanup — the plan has
-   been updated to say so.
-6. Answer **OQ-1** before Checkpoint 2 concludes, and **OQ-2/OQ-3** before Checkpoint 4.
+1. **Visual review** of the running app — in particular the six items in §9, and light mode above
+   all.
+2. **Commit** Checkpoint 2A. Nothing blocks it.
+3. **Decide OQ-12** (hash vs path routing) before Checkpoint 6 builds invitation links. Deferring it
+   further gets more expensive once real links exist.
+4. **Start Checkpoint 3** (Student Google authentication). The Student page is built to receive it:
+   enabling sign-in is a deliberate flip of `googleSignInAvailable` plus the real handler and the
+   backend `authData` path — nothing else on the page needs to change.
 
----
-
-## 15. Checkpoint 1 definition of done
-
-| Criterion | Status |
-|---|---|
-| No `SuperAdmin`/`Employee` grants access | ✅ only migration lists and negative tests reference them |
-| No unauthenticated write path | ✅ every class deny-by-default; `POST /users` → 404 |
-| `AppSettings` fully removed | ✅ source, function, route, schema, index — verified at runtime |
-| Both test suites green | ✅ 131 + 66. **CI does not run them yet** (Checkpoint 12) |
-
----
-
-## 16. Safe to commit and push
-
-**Yes.** Backend compiles and tests green; frontend builds and tests green; installs reproducible
-under the pinned pnpm; runtime validated against a clean isolated database; `.env`,
-`dashboard.json`, lockfiles, and prototypes untouched; no secret tracked; no future feature
-implemented; no task-created process left running.
-
-No commit was created. Nothing was pushed.
+**Checkpoint 2A is ready for visual review.**

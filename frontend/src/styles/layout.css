@@ -1,0 +1,478 @@
+/* =============================================================================
+   Code Your Future — Layout & UI primitives
+   =============================================================================
+
+   Additive utility layer built on the tokens. Everything uses CSS logical
+   properties (`margin-inline`, `padding-inline`, `inset-inline`, `text-align:
+   start`) so a single stylesheet serves both LTR and RTL — no duplicated RTL
+   stylesheet anywhere.
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   Page scaffolding
+   ----------------------------------------------------------------------------- */
+.cyf-page {
+  background-color: var(--cyf-bg);
+  color: var(--cyf-text);
+  min-height: 100dvh;
+}
+
+/* Responsive gutters. 1rem at 360px keeps content clear of rounded screens. */
+.cyf-container {
+  inline-size: 100%;
+  margin-inline: auto;
+  padding-inline: var(--cyf-space-4);
+}
+@media (min-width: 768px) {
+  .cyf-container {
+    padding-inline: var(--cyf-space-6);
+  }
+}
+@media (min-width: 1280px) {
+  .cyf-container {
+    padding-inline: var(--cyf-space-8);
+  }
+}
+
+.cyf-container-narrow { max-inline-size: var(--cyf-width-narrow); }
+.cyf-container-content { max-inline-size: var(--cyf-width-content); }
+.cyf-container-wide { max-inline-size: var(--cyf-width-wide); }
+
+.cyf-stack-sm > * + * { margin-block-start: var(--cyf-space-2); }
+.cyf-stack > * + * { margin-block-start: var(--cyf-space-4); }
+.cyf-stack-lg > * + * { margin-block-start: var(--cyf-space-6); }
+.cyf-section + .cyf-section { margin-block-start: var(--cyf-space-8); }
+
+.cyf-page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cyf-space-3);
+  margin-block-end: var(--cyf-space-6);
+}
+
+/* -----------------------------------------------------------------------------
+   Surfaces
+   ----------------------------------------------------------------------------- */
+.cyf-card {
+  background-color: var(--cyf-surface);
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-lg);
+  box-shadow: var(--cyf-shadow-sm);
+}
+.cyf-card-padded { padding: var(--cyf-space-6); }
+.cyf-card-raised { box-shadow: var(--cyf-shadow-md); }
+.cyf-surface-subtle {
+  background-color: var(--cyf-surface-subtle);
+  border-radius: var(--cyf-radius-md);
+}
+
+/* -----------------------------------------------------------------------------
+   Auth layout
+   -----------------------------------------------------------------------------
+   Mobile: a single centred column.
+   >= 1024px: a balanced split — form on the inline-start side, a quiet
+   informational panel on the inline-end side. The split is expressed with
+   logical properties so RTL mirrors automatically.
+   ----------------------------------------------------------------------------- */
+.cyf-auth {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background-color: var(--cyf-bg);
+}
+
+.cyf-auth-body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+@media (min-width: 1024px) {
+  .cyf-auth-body {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.cyf-auth-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--cyf-space-6) var(--cyf-space-4) var(--cyf-space-10);
+}
+@media (min-width: 768px) {
+  .cyf-auth-main { padding: var(--cyf-space-10) var(--cyf-space-8); }
+}
+
+/* The panel is sized in `ch`-independent rem and capped, so long Arabic strings
+   wrap rather than forcing the page wider. */
+.cyf-auth-panel {
+  inline-size: 100%;
+  max-inline-size: var(--cyf-width-form);
+}
+
+.cyf-auth-aside {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--cyf-space-6);
+  padding: var(--cyf-space-12) var(--cyf-space-10);
+  background-color: var(--cyf-surface-subtle);
+  border-inline-start: 1px solid var(--cyf-border);
+}
+@media (min-width: 1024px) {
+  .cyf-auth-aside { display: flex; }
+}
+
+.cyf-auth-aside-inner {
+  inline-size: 100%;
+  max-inline-size: 30rem;
+  margin-inline: auto;
+}
+
+.cyf-auth-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cyf-space-3);
+  padding: var(--cyf-space-4);
+}
+@media (min-width: 768px) {
+  .cyf-auth-header { padding: var(--cyf-space-5) var(--cyf-space-8); }
+}
+
+.cyf-auth-footer {
+  margin-block-start: var(--cyf-space-6);
+  padding-block-start: var(--cyf-space-5);
+  border-block-start: 1px solid var(--cyf-border);
+  text-align: center;
+}
+
+/* A short list of reassurance points beside the form. Markers are decorative
+   and hidden from assistive technology in markup. */
+.cyf-auth-points {
+  display: grid;
+  gap: var(--cyf-space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cyf-auth-point {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cyf-space-3);
+}
+.cyf-auth-point-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border-radius: var(--cyf-radius-md);
+  background-color: var(--cyf-primary-subtle);
+  color: var(--cyf-primary);
+  font-size: var(--cyf-text-sm);
+}
+
+/* -----------------------------------------------------------------------------
+   Brand
+   ----------------------------------------------------------------------------- */
+.cyf-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-3);
+  color: var(--cyf-text);
+  text-decoration: none;
+}
+.cyf-brand-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+  border-radius: var(--cyf-radius-md);
+  background-color: var(--cyf-primary);
+  color: var(--cyf-text-on-primary);
+  font-size: var(--cyf-text-xs);
+  font-weight: var(--cyf-weight-bold);
+  letter-spacing: var(--cyf-tracking-wide);
+}
+.cyf-brand-mark-lg {
+  inline-size: 2.75rem;
+  block-size: 2.75rem;
+  font-size: var(--cyf-text-sm);
+}
+.cyf-brand-name {
+  font-size: var(--cyf-text-base);
+  font-weight: var(--cyf-weight-semibold);
+  letter-spacing: var(--cyf-tracking-tight);
+  white-space: nowrap;
+}
+
+/* -----------------------------------------------------------------------------
+   Form fields
+   ----------------------------------------------------------------------------- */
+.cyf-field { display: block; }
+.cyf-field + .cyf-field { margin-block-start: var(--cyf-space-5); }
+.cyf-field-label {
+  display: block;
+  margin-block-end: var(--cyf-space-2);
+}
+.cyf-field-control { position: relative; }
+
+/* Reserve a line so a validation message appearing does not shift the layout. */
+.cyf-field-message {
+  display: block;
+  min-block-size: 1.25rem;
+  margin-block-start: var(--cyf-space-1);
+}
+
+.cyf-input {
+  inline-size: 100%;
+  block-size: var(--cyf-control-height);
+  padding-inline: var(--cyf-space-3);
+  font-size: var(--cyf-text-base);
+  color: var(--cyf-text);
+  background-color: var(--cyf-surface);
+  border: 1px solid var(--cyf-border-strong);
+  border-radius: var(--cyf-radius-md);
+  transition: border-color var(--cyf-transition) var(--cyf-ease),
+    box-shadow var(--cyf-transition) var(--cyf-ease);
+}
+.cyf-input::placeholder { color: var(--cyf-text-muted); }
+.cyf-input:hover:not(:disabled) { border-color: var(--cyf-primary-border); }
+.cyf-input:focus-visible,
+.cyf-input:focus {
+  outline: none;
+  border-color: var(--cyf-primary);
+  box-shadow: 0 0 0 3px var(--cyf-primary-subtle);
+}
+.cyf-input[aria-invalid='true'] {
+  border-color: var(--cyf-error);
+}
+.cyf-input[aria-invalid='true']:focus {
+  box-shadow: 0 0 0 3px var(--cyf-error-subtle);
+}
+.cyf-input:disabled {
+  background-color: var(--cyf-disabled-bg);
+  color: var(--cyf-disabled-text);
+  border-color: var(--cyf-disabled-border);
+  cursor: not-allowed;
+}
+
+/* Room for the trailing visibility toggle. Logical padding mirrors under RTL. */
+.cyf-input-with-affix { padding-inline-end: var(--cyf-touch-target); }
+
+.cyf-input-affix {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: grid;
+  place-items: center;
+  inline-size: var(--cyf-touch-target);
+  min-block-size: var(--cyf-touch-target);
+  color: var(--cyf-text-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--cyf-radius-md);
+  cursor: pointer;
+  transition: color var(--cyf-transition) var(--cyf-ease);
+}
+.cyf-input-affix:hover { color: var(--cyf-text); }
+
+/* -----------------------------------------------------------------------------
+   Alerts / status messages
+   -----------------------------------------------------------------------------
+   Every variant carries an icon slot in markup, so status is never conveyed by
+   colour alone.
+   ----------------------------------------------------------------------------- */
+.cyf-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cyf-space-3);
+  padding: var(--cyf-space-3) var(--cyf-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--cyf-radius-md);
+  font-size: var(--cyf-text-sm);
+  line-height: var(--cyf-leading-snug);
+  text-align: start;
+}
+.cyf-alert-icon { flex: 0 0 auto; margin-block-start: 0.1em; }
+.cyf-alert-error {
+  background-color: var(--cyf-error-subtle);
+  border-color: var(--cyf-error-border);
+  color: var(--cyf-error);
+}
+.cyf-alert-warning {
+  background-color: var(--cyf-warning-subtle);
+  border-color: var(--cyf-warning-border);
+  color: var(--cyf-warning);
+}
+.cyf-alert-info {
+  background-color: var(--cyf-info-subtle);
+  border-color: var(--cyf-info-border);
+  color: var(--cyf-info);
+}
+.cyf-alert-success {
+  background-color: var(--cyf-success-subtle);
+  border-color: var(--cyf-success-border);
+  color: var(--cyf-success);
+}
+
+/* -----------------------------------------------------------------------------
+   Buttons & links
+   ----------------------------------------------------------------------------- */
+.cyf-btn-block .p-button { inline-size: 100%; }
+.cyf-btn .p-button,
+.cyf-btn-block .p-button {
+  min-block-size: var(--cyf-control-height);
+  border-radius: var(--cyf-radius-md);
+}
+
+/* Neutral bordered action — used for the disabled Google button and similar. */
+.cyf-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cyf-space-3);
+  inline-size: 100%;
+  min-block-size: var(--cyf-control-height);
+  padding-inline: var(--cyf-space-4);
+  font-size: var(--cyf-text-sm);
+  font-weight: var(--cyf-weight-semibold);
+  color: var(--cyf-text);
+  background-color: var(--cyf-surface);
+  border: 1px solid var(--cyf-border-strong);
+  border-radius: var(--cyf-radius-md);
+  cursor: pointer;
+  transition: background-color var(--cyf-transition) var(--cyf-ease),
+    border-color var(--cyf-transition) var(--cyf-ease);
+}
+.cyf-btn-outline:hover:not(:disabled) {
+  background-color: var(--cyf-surface-subtle);
+  border-color: var(--cyf-border-strong);
+}
+.cyf-btn-outline:disabled,
+.cyf-btn-outline[aria-disabled='true'] {
+  background-color: var(--cyf-disabled-bg);
+  color: var(--cyf-disabled-text);
+  border-color: var(--cyf-disabled-border);
+  cursor: not-allowed;
+}
+
+.cyf-link {
+  color: var(--cyf-primary);
+  font-weight: var(--cyf-weight-medium);
+  text-decoration: none;
+  border-radius: var(--cyf-radius-sm);
+}
+.cyf-link:hover { text-decoration: underline; }
+
+/* Language switch — a segmented pair of buttons. */
+.cyf-lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-1);
+  padding: 0.1875rem;
+  background-color: var(--cyf-surface-subtle);
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-full);
+}
+.cyf-lang-option {
+  min-inline-size: 2.75rem;
+  min-block-size: 2rem;
+  padding-inline: var(--cyf-space-3);
+  font-size: var(--cyf-text-xs);
+  font-weight: var(--cyf-weight-semibold);
+  color: var(--cyf-text-secondary);
+  background: none;
+  border: 0;
+  border-radius: var(--cyf-radius-full);
+  cursor: pointer;
+  transition: background-color var(--cyf-transition) var(--cyf-ease),
+    color var(--cyf-transition) var(--cyf-ease);
+}
+.cyf-lang-option:hover { color: var(--cyf-text); }
+.cyf-lang-option[aria-pressed='true'] {
+  color: var(--cyf-text-on-primary);
+  background-color: var(--cyf-primary);
+}
+
+/* -----------------------------------------------------------------------------
+   Focus — one visible, consistent ring for every interactive element.
+   `:focus-visible` keeps it off for mouse users but always on for keyboards.
+   ----------------------------------------------------------------------------- */
+.cyf-page :focus-visible,
+.cyf-auth :focus-visible,
+.cyf-focusable:focus-visible,
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: var(--cyf-focus-ring-width) solid var(--cyf-focus-ring);
+  outline-offset: var(--cyf-focus-ring-offset);
+  border-radius: var(--cyf-radius-sm);
+}
+
+/* -----------------------------------------------------------------------------
+   Accessibility helpers
+   ----------------------------------------------------------------------------- */
+.cyf-sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Skip link — visible only once focused. */
+.cyf-skip-link {
+  position: absolute;
+  inset-inline-start: var(--cyf-space-4);
+  inset-block-start: -100%;
+  z-index: 100;
+  padding: var(--cyf-space-2) var(--cyf-space-4);
+  color: var(--cyf-text-on-primary);
+  background-color: var(--cyf-primary);
+  border-radius: var(--cyf-radius-md);
+  transition: inset-block-start var(--cyf-transition) var(--cyf-ease);
+}
+.cyf-skip-link:focus {
+  inset-block-start: var(--cyf-space-4);
+}
+
+/* -----------------------------------------------------------------------------
+   Loading
+   ----------------------------------------------------------------------------- */
+.cyf-page-loading {
+  display: grid;
+  place-items: center;
+  min-block-size: 100dvh;
+  gap: var(--cyf-space-4);
+  background-color: var(--cyf-bg);
+}
+.cyf-spinner {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  border: 2px solid currentColor;
+  border-block-start-color: transparent;
+  border-radius: var(--cyf-radius-full);
+  animation: cyf-spin 700ms linear infinite;
+}
+@keyframes cyf-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* -----------------------------------------------------------------------------
+   Global overflow guard — a horizontal scrollbar is never acceptable.
+   ----------------------------------------------------------------------------- */
+html,
+body {
+  overflow-x: hidden;
+  max-inline-size: 100%;
+}

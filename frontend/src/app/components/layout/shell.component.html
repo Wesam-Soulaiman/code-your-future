@@ -35,16 +35,12 @@
     [class.translate-x-0]="!isMobile() || mobileMenuOpen()"
   >
     <!-- Logo -->
-    <div class="flex items-center justify-center h-16 px-4">
-      @if (!sidebarCollapsed() || isMobile()) {
-        <span class="text-lg font-bold">{{ 'app.name' | translate }}</span>
-      } @else {
-        <span class="text-lg font-bold">{{ 'app.shortName' | translate }}</span>
-      }
+    <div class="flex items-center h-16 px-4">
+      <cyf-brand-mark [showName]="!sidebarCollapsed() || isMobile()" />
     </div>
 
     <!-- Nav Items -->
-    <nav class="flex-1 ps-2 space-y-1 overflow-y-auto">
+    <nav class="flex-1 ps-2 space-y-1 overflow-y-auto" [attr.aria-label]="'a11y.mainNavigation' | translate">
       <!-- Pinned Items Section -->
       @if (pinnedItems().length > 0) {
         <div class="mb-0 flex gap-1 flex-col">

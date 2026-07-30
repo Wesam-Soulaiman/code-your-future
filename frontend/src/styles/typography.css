@@ -1,0 +1,228 @@
+/* =============================================================================
+   Code Your Future — Typography
+   =============================================================================
+
+   Additive. Establishes a type scale and a language-aware font stack.
+
+   PRESERVED-TEMPLATE NOTE / documented conflict:
+   `styles.css` contains `*, body { font-family: 'Cairo', sans-serif; }`. Cairo is
+   an Arabic-first face and is the right default for Arabic, so that rule is left
+   in place unchanged. For English it produces a slightly heavy, less "product
+   UI" texture, so the smallest possible scoped override is added below —
+   `html[lang='en'] *` — which only takes effect when the document language is
+   English. Arabic, Font Awesome, and PrimeNG icon fonts are unaffected, and no
+   existing declaration was removed.
+
+   Fonts are self-hosted from `public/Cairo/` (already shipped in the template).
+   No remote font CDN is introduced, so nothing here becomes a runtime network
+   dependency.
+   ============================================================================= */
+
+:root {
+  /* Font stacks -------------------------------------------------------------- */
+  --cyf-font-en:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, 'Noto Sans', sans-serif;
+  --cyf-font-ar:
+    'Cairo', 'Segoe UI', 'Noto Naskh Arabic', 'Geeza Pro', 'Traditional Arabic',
+    sans-serif;
+  --cyf-font-mono:
+    ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Type scale --------------------------------------------------------------- */
+  --cyf-text-2xs: 0.75rem;   /* 12px — metadata only, never body copy */
+  --cyf-text-xs: 0.8125rem;  /* 13px — helper text, captions           */
+  --cyf-text-sm: 0.875rem;   /* 14px — small body, labels              */
+  --cyf-text-base: 1rem;     /* 16px — body                            */
+  --cyf-text-lg: 1.125rem;   /* 18px — lead paragraph, card title      */
+  --cyf-text-xl: 1.25rem;    /* 20px — section title                   */
+  --cyf-text-2xl: 1.5rem;    /* 24px — page title (mobile)             */
+  --cyf-text-3xl: 1.875rem;  /* 30px — page title                      */
+  --cyf-text-4xl: 2.25rem;   /* 36px — display                         */
+
+  /* Line heights ------------------------------------------------------------- */
+  --cyf-leading-tight: 1.25;
+  --cyf-leading-snug: 1.4;
+  --cyf-leading-normal: 1.6;
+  --cyf-leading-relaxed: 1.75;
+
+  /* Weights ------------------------------------------------------------------ */
+  --cyf-weight-regular: 400;
+  --cyf-weight-medium: 500;
+  --cyf-weight-semibold: 600;
+  --cyf-weight-bold: 700;
+
+  /* Tracking ----------------------------------------------------------------- */
+  --cyf-tracking-tight: -0.015em;
+  --cyf-tracking-normal: 0;
+  --cyf-tracking-wide: 0.02em;
+}
+
+/* -----------------------------------------------------------------------------
+   Language-aware stacks. Arabic keeps Cairo (the template default); English gets
+   a system UI stack. Scoped by document language only — see the note above.
+   ----------------------------------------------------------------------------- */
+/*
+   Icon elements are EXCLUDED rather than re-declared.
+
+   An earlier revision re-asserted `font-family: 'Font Awesome 6 Free'` after the
+   override. That silently broke every icon in English: the installed package is
+   Font Awesome 7, so the named family did not exist and each glyph fell back to
+   a missing-character box. Arabic was unaffected because the override does not
+   apply there — which is exactly how the bug hid.
+
+   Excluding icon-bearing elements with `:not()` lets Font Awesome's and
+   PrimeNG's own `font-family` rules apply untouched, whatever version is
+   installed. Nothing here needs updating when those packages are upgraded.
+*/
+html[lang='en'] *:not([class*='fa-']):not([class*='pi-']),
+html[lang='en'] body {
+  font-family: var(--cyf-font-en);
+}
+
+html[lang='ar'] body {
+  font-family: var(--cyf-font-ar);
+}
+
+/* Arabic needs a little more vertical room to stay legible. */
+html[lang='ar'] {
+  --cyf-leading-tight: 1.4;
+  --cyf-leading-snug: 1.55;
+  --cyf-leading-normal: 1.8;
+  --cyf-leading-relaxed: 1.9;
+}
+
+/* -----------------------------------------------------------------------------
+   Base document
+   ----------------------------------------------------------------------------- */
+body {
+  color: var(--cyf-text);
+  font-size: var(--cyf-text-base);
+  line-height: var(--cyf-leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* -----------------------------------------------------------------------------
+   Type scale classes
+   ----------------------------------------------------------------------------- */
+.cyf-display {
+  font-size: var(--cyf-text-3xl);
+  line-height: var(--cyf-leading-tight);
+  font-weight: var(--cyf-weight-bold);
+  letter-spacing: var(--cyf-tracking-tight);
+  color: var(--cyf-text);
+}
+@media (min-width: 768px) {
+  .cyf-display {
+    font-size: var(--cyf-text-4xl);
+  }
+}
+
+.cyf-page-title {
+  font-size: var(--cyf-text-2xl);
+  line-height: var(--cyf-leading-tight);
+  font-weight: var(--cyf-weight-semibold);
+  letter-spacing: var(--cyf-tracking-tight);
+  color: var(--cyf-text);
+}
+@media (min-width: 768px) {
+  .cyf-page-title {
+    font-size: var(--cyf-text-3xl);
+  }
+}
+
+.cyf-section-title {
+  font-size: var(--cyf-text-xl);
+  line-height: var(--cyf-leading-snug);
+  font-weight: var(--cyf-weight-semibold);
+  color: var(--cyf-text);
+}
+
+.cyf-card-title {
+  font-size: var(--cyf-text-lg);
+  line-height: var(--cyf-leading-snug);
+  font-weight: var(--cyf-weight-semibold);
+  color: var(--cyf-text);
+}
+
+.cyf-body {
+  font-size: var(--cyf-text-base);
+  line-height: var(--cyf-leading-normal);
+  font-weight: var(--cyf-weight-regular);
+  color: var(--cyf-text);
+}
+
+.cyf-body-sm {
+  font-size: var(--cyf-text-sm);
+  line-height: var(--cyf-leading-normal);
+  color: var(--cyf-text-secondary);
+}
+
+.cyf-lead {
+  font-size: var(--cyf-text-lg);
+  line-height: var(--cyf-leading-relaxed);
+  color: var(--cyf-text-secondary);
+}
+
+.cyf-label {
+  display: inline-block;
+  font-size: var(--cyf-text-sm);
+  line-height: var(--cyf-leading-snug);
+  font-weight: var(--cyf-weight-medium);
+  color: var(--cyf-text);
+}
+
+.cyf-helper {
+  font-size: var(--cyf-text-xs);
+  line-height: var(--cyf-leading-snug);
+  color: var(--cyf-text-muted);
+}
+
+.cyf-meta {
+  font-size: var(--cyf-text-2xs);
+  line-height: var(--cyf-leading-snug);
+  color: var(--cyf-text-muted);
+  letter-spacing: var(--cyf-tracking-wide);
+}
+
+.cyf-error-text {
+  font-size: var(--cyf-text-sm);
+  line-height: var(--cyf-leading-snug);
+  font-weight: var(--cyf-weight-medium);
+  color: var(--cyf-error);
+}
+
+.cyf-nav-text {
+  font-size: var(--cyf-text-sm);
+  line-height: var(--cyf-leading-snug);
+  font-weight: var(--cyf-weight-medium);
+}
+
+/* Button text is set on the PrimeNG button so both native and p-button match. */
+.cyf-button-text,
+.cyf-btn .p-button-label {
+  font-size: var(--cyf-text-sm);
+  font-weight: var(--cyf-weight-semibold);
+  letter-spacing: var(--cyf-tracking-normal);
+}
+
+/* -----------------------------------------------------------------------------
+   Reduced motion — neutralise every token-driven transition in one place.
+   ----------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --cyf-transition-fast: 0ms;
+    --cyf-transition: 0ms;
+    --cyf-transition-slow: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

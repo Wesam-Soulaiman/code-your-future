@@ -1,0 +1,93 @@
+<cyf-auth-layout>
+  <!-- ── Student sign-in panel ──────────────────────────────────────────── -->
+  <div class="cyf-card cyf-card-padded cyf-card-raised">
+    <div class="cyf-auth-intro">
+      <cyf-brand-mark size="lg" [showName]="false" />
+      <h1 class="cyf-page-title">{{ 'auth.student.title' | translate }}</h1>
+      <p class="cyf-body-sm">{{ 'auth.student.subtitle' | translate }}</p>
+    </div>
+
+    <!-- Explains the disabled control below. Placed before it so the reason is
+         encountered first, in both reading and tab order. -->
+    <cyf-alert variant="info" [prefix]="'a11y.noticePrefix' | translate">
+      {{ 'auth.student.comingNext' | translate }}
+    </cyf-alert>
+
+    <!--
+      Google sign-in — VISUAL ONLY.
+      No (click) handler, no service, no navigation. `disabled` makes it inert
+      for pointer, keyboard, and programmatic activation alike.
+    -->
+    <button
+      type="button"
+      class="cyf-btn-outline cyf-google-btn"
+      disabled
+      [attr.aria-describedby]="'student-google-note'"
+    >
+      <span class="cyf-google-icon" aria-hidden="true">
+        <i class="fa-brands fa-google"></i>
+      </span>
+      <span>{{ 'auth.student.continueWithGoogle' | translate }}</span>
+    </button>
+
+    <p id="student-google-note" class="cyf-helper cyf-google-note">
+      {{ 'auth.student.googleUnavailableHint' | translate }}
+    </p>
+
+    <!-- Approved invitation copy — verbatim from the product requirements. -->
+    <div class="cyf-surface-subtle cyf-student-notice">
+      <p class="cyf-body-sm">{{ 'auth.studentInvitationNotice' | translate }}</p>
+    </div>
+
+    <p class="cyf-helper cyf-privacy-note">
+      <i class="fa-solid fa-lock" aria-hidden="true"></i>
+      {{ 'auth.student.privacy' | translate }}
+    </p>
+
+    <div class="cyf-auth-footer">
+      <p class="cyf-body-sm">
+        {{ 'auth.student.adminPrompt' | translate }}
+        <a routerLink="/auth/admin" class="cyf-link">
+          {{ 'auth.student.adminLink' | translate }}
+        </a>
+      </p>
+    </div>
+  </div>
+
+  <!-- ── Informational aside (desktop only, decorative) ─────────────────── -->
+  <div asidePanel>
+    <p class="cyf-meta cyf-aside-eyebrow">{{ 'app.name' | translate }}</p>
+    <h2 class="cyf-section-title cyf-aside-title">{{ 'auth.aside.studentTitle' | translate }}</h2>
+    <p class="cyf-body-sm cyf-aside-lead">{{ 'auth.aside.studentLead' | translate }}</p>
+
+    <ul class="cyf-auth-points">
+      <li class="cyf-auth-point">
+        <span class="cyf-auth-point-icon"><i class="fa-solid fa-user-check"></i></span>
+        <span>
+          <span class="cyf-label">{{ 'auth.aside.profileTitle' | translate }}</span>
+          <span class="cyf-body-sm cyf-aside-point-text">
+            {{ 'auth.aside.profileText' | translate }}
+          </span>
+        </span>
+      </li>
+      <li class="cyf-auth-point">
+        <span class="cyf-auth-point-icon"><i class="fa-solid fa-envelope-open-text"></i></span>
+        <span>
+          <span class="cyf-label">{{ 'auth.aside.inviteTitle' | translate }}</span>
+          <span class="cyf-body-sm cyf-aside-point-text">
+            {{ 'auth.aside.inviteText' | translate }}
+          </span>
+        </span>
+      </li>
+      <li class="cyf-auth-point">
+        <span class="cyf-auth-point-icon"><i class="fa-solid fa-shield-halved"></i></span>
+        <span>
+          <span class="cyf-label">{{ 'auth.aside.privacyTitle' | translate }}</span>
+          <span class="cyf-body-sm cyf-aside-point-text">
+            {{ 'auth.aside.privacyText' | translate }}
+          </span>
+        </span>
+      </li>
+    </ul>
+  </div>
+</cyf-auth-layout>

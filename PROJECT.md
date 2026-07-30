@@ -5,8 +5,9 @@
 Batch-based training platform. Parse Server 9.x backend + Angular 21 frontend.
 
 Authoritative product behaviour lives in [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md).
-This file describes **what is implemented right now** — currently the product
-foundation and access boundaries delivered by Checkpoint 1.
+This file describes **what is implemented right now** — the secure product
+foundation from Checkpoint 1 plus the UI/UX design system and authentication
+experience from Checkpoint 2A.
 
 ---
 
@@ -94,11 +95,24 @@ all return 403 (or 404 where the route does not resolve).
 
 ## Pages & Navigation
 
-### Auth Page (`/auth`)
-- Admin username + password sign-in.
-- A translated notice that Student sign-in is not yet available. **No Student
-  email/password form, no signup link, no non-functional OAuth button.**
-- Language toggle (English / Arabic).
+### Admin sign-in (`/auth/admin`)
+- Username + password, on the Code Your Future design system.
+- Accessible password visibility toggle.
+- Translated inline states: invalid credentials, account not permitted to use a password,
+  rate limited, backend unavailable, unexpected. **No raw backend error is ever shown.**
+- Duplicate-submit prevention and Enter-key submission.
+- Language switch and a link to Student sign-in.
+
+### Student sign-in (`/auth/student`) — presentation only
+- Student heading, value proposition, and a **disabled** Google button.
+- The approved invitation copy, verbatim in both languages.
+- Privacy note and a link to Admin sign-in.
+- **No email, username, password, signup, reset, or invitation-token field.**
+- Google OAuth is **not implemented** — the button has no click handler, issues no
+  request, and creates no session. It is enabled in Checkpoint 3.
+
+### `/auth`
+- Redirects to `/auth/admin`. Any unknown `/auth/**` sub-route resolves there too.
 
 ### Dashboard (`/dashboard`)
 - Landing page after login. Placeholder pending the Admin workspace.
@@ -108,6 +122,9 @@ all return 403 (or 404 where the route does not resolve).
 | Item | Route | Icon | Roles |
 |---|---|---|---|
 | Dashboard | `/dashboard` | `fa-solid fa-gauge` | any authenticated user |
+
+No other navigation exists. Students, Batches, Resources, Live Slides, Tasks, Pinned Students,
+Talent Reels, and user management are **not** present.
 
 The template's `/users` management screen was removed in Checkpoint 1: Code Your
 Future has no manual user-administration requirement.
@@ -144,6 +161,14 @@ Future has no manual user-administration requirement.
   data; masks by key name regardless of casing; summarises Parse objects and
   buffers instead of printing them.
 
+### Design system
+- Semantic design tokens (colour, surface, text, border, focus, status, spacing, radius, shadow,
+  layout widths, control and touch sizes, motion) layered on the existing PrimeNG theme.
+- A typography hierarchy with a system UI stack for English and self-hosted Cairo for Arabic.
+- Layout and UI primitives built with CSS logical properties, so one stylesheet serves LTR and RTL.
+- Accessibility baseline: landmarks, one `h1` per page, real labels, visible focus, 44px targets,
+  status never by colour alone, reduced-motion support.
+
 ### Multi-Language
 - English and Arabic with exact key parity, verified by a test.
 - Language, `dir`, and `lang` initialise during bootstrap — before routing — so
@@ -163,8 +188,8 @@ Currently unused — no list page exists.
 
 | Suite | Command | Count |
 |---|---|---|
-| Backend | `cd backend && pnpm run test` (`node:test`) | 131 |
-| Frontend | `cd frontend && pnpm run test` (Vitest) | 66 |
+| Backend | `cd backend && pnpm run test` (`node:test`) | 210 |
+| Frontend | `cd frontend && pnpm run test` (Vitest) | 167 |
 
 No new dependency was added for either suite.
 
@@ -186,7 +211,14 @@ No new dependency was added for either suite.
 
 ## Last Updated
 
-Checkpoint 1 — product foundation and access boundaries: `AppSettings` removed,
-`Admin`/`Student` roles established, user management retired, deny-by-default
-CLP/ACL, private `File`/`IMG`, master-key boundaries, log redaction, safe DTOs,
-branding, EN/AR initialisation fix, and the first backend and frontend test suites.
+Checkpoint 2A — UI/UX design system and authentication experience: semantic design
+tokens, typography with language-aware stacks, layout and UI primitives, a
+redesigned Admin auth page with translated error states, a **presentation-only**
+Student auth page (Google OAuth not implemented), `/auth/admin` + `/auth/student`
+routing with a guest guard, an accessibility baseline, and 82 new frontend tests.
+All existing template capabilities were preserved.
+
+Preceded by Checkpoint 1 — product foundation and access boundaries: `AppSettings`
+removed, `Admin`/`Student` roles established, user management retired,
+deny-by-default CLP/ACL, private `File`/`IMG`, master-key boundaries, log
+redaction, safe DTOs, branding, and the EN/AR initialisation fix.

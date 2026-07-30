@@ -1,9 +1,60 @@
-.diagonal-image {
-  mask-image: linear-gradient(115deg, #000 35%, rgba(0, 0, 0, 0.5) 50%, rgba(0, 0, 0, 0.2) 60%, transparent 70%);
-  -webkit-mask-image: linear-gradient(115deg, #000 35%, rgba(0, 0, 0, 0.5) 50%, rgba(0, 0, 0, 0.2) 60%, transparent 70%);
+/* Auth page — scoped styles.
+   Structure and tokens live in the global design-system layers; only the small
+   amount of page-specific composition lives here. */
+
+:host {
+  display: block;
 }
 
-:host-context([dir='rtl']) .diagonal-image {
-  mask-image: linear-gradient(245deg, #000 35%, rgba(0, 0, 0, 0.5) 50%, rgba(0, 0, 0, 0.2) 60%, transparent 70%);
-  -webkit-mask-image: linear-gradient(245deg, #000 35%, rgba(0, 0, 0, 0.5) 50%, rgba(0, 0, 0, 0.2) 60%, transparent 70%);
+.cyf-auth-intro {
+  margin-block-end: var(--cyf-space-6);
+
+  cyf-brand-mark {
+    display: block;
+    margin-block-end: var(--cyf-space-4);
+  }
+
+  h1 {
+    margin: 0 0 var(--cyf-space-2);
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.cyf-auth-form {
+  display: block;
+}
+
+.cyf-auth-submit {
+  margin-block-start: var(--cyf-space-2);
+}
+
+/* Space the form-level alert from the first field without shifting the layout
+   when it is absent. */
+cyf-alert {
+  display: block;
+  margin-block-end: var(--cyf-space-5);
+}
+
+/* Informational aside ------------------------------------------------------ */
+
+.cyf-aside-eyebrow {
+  margin: 0 0 var(--cyf-space-2);
+  text-transform: uppercase;
+}
+
+.cyf-aside-title {
+  margin: 0 0 var(--cyf-space-3);
+}
+
+.cyf-aside-lead {
+  margin: 0 0 var(--cyf-space-8);
+  max-inline-size: 34rem;
+}
+
+.cyf-aside-point-text {
+  display: block;
+  margin-block-start: var(--cyf-space-1);
 }

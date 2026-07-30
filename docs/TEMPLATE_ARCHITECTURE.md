@@ -638,15 +638,30 @@ template is `<router-outlet/>` + `<p-toast/>`, `OnPush`.
 - `providePrimeNG({theme: {preset: MyPreset, options: {darkModeSelector: '.dark'}}})`
 - `provideTranslateService({loader: provideTranslateHttpLoader({prefix:'./i18n/', suffix:'.json'}), fallbackLang:'en', lang:'en'})`
 
-### Routing and guards — `app.routes.ts` ⟨CP1⟩
+### Routing and guards — `app.routes.ts` ⟨CP2A⟩
 ```
-/auth                        AuthComponent (public, lazy)
-''      canActivate:[authGuard]  ShellComponent (lazy)
-  ''        → redirect to dashboard
-  dashboard                  DashboardComponent (lazy)
-**        → redirect to ''
+/auth              canActivate:[guestGuard]
+  ''                 → redirect to admin
+  /auth/admin        canActivate:[guestGuard]  AuthComponent (lazy)
+  /auth/student      canActivate:[guestGuard]  StudentAuthComponent (lazy)  — UI only
+  **                 → redirect to admin
+''                 canActivate:[authGuard]     ShellComponent (lazy)
+  ''                 → redirect to dashboard
+  dashboard                                    DashboardComponent (lazy)
+**                 → redirect to ''
 ```
-`/users` was removed with the user-management screen. Every route is lazy (`loadComponent`).
+Every route is lazy and carries a meaningful `title`. `/users` was removed in Checkpoint 1.
+
+`guestGuard` sends an authenticated user to `/` by returning a `UrlTree`, so the router resolves the
+redirect **before** the auth component is created — no sign-in form flashes for a signed-in Admin.
+
+> **Why the guard is on the parent *and* both children.** Angular does not re-run a parent route's
+> `canActivate` when only the child changes. With the guard on the parent alone, a sibling
+> navigation (`/auth/admin` → `/auth/student`) kept the branch activated and skipped the check
+> entirely. Found by a routing test, not by inspection.
+
+Every redirect target is a fixed internal path — none is read from a query parameter or any other
+user input, so none can become an open redirect (asserted by test).
 
 `authGuard` redirects to `/auth` when no token. ⟨CP1⟩ `roleGuard(...roles)` is now **role-set
 aware** — it checks `sessionService.hasAnyRole()` across the whole role list instead of comparing
@@ -686,6 +701,13 @@ yields `null` rather than throwing. `userRole()` (first-role-only) was removed.
 - **RxJS 7.8** for HTTP only.
 - **Typed reactive forms:** still none. `AuthComponent` uses `FormsModule` with `signal()`-backed
   bindings. Typed `FormGroup` usage begins with Complete Profile (Checkpoint 4).
+- ⟨CP2A⟩ **Auth error handling.** `utils/auth-error.ts` maps a failed login to a translation key
+  (`invalidCredentials` / `notPermitted` / `rateLimited` / `unavailable` / `unexpected`) entirely on
+  the client, so no backend string is ever rendered. Unknown-username and wrong-password both map to
+  `invalidCredentials`, matching the backend's opaque response so the UI cannot enumerate accounts.
+  The login request sets the `HANDLES_OWN_ERRORS` `HttpContextToken`, which suppresses the
+  interceptor's global toast so the page shows one inline, translated panel instead of a raw
+  server string.
 - **PrimeNG 21** + `@primeuix/themes` Aura preset, customised in `app/theme.ts` from a single
   `PRIMARY_BASE = '#6096bb'` via `utils/palette-generator.ts` (320 lines).
 - **Tailwind CSS 4** via `@tailwindcss/postcss` (`.postcssrc.json`), entry `src/styles.css` (482 lines).
@@ -946,6 +968,72 @@ All three are fixed:
 
 `create-project.js` only runs under `require.main === module`, and its readline interface is
 created lazily, so the credential rules can be imported and tested without launching the generator.
+
+## 16b. UI/UX design system ⟨CP2A⟩
+
+### Direction
+Premium, calm, professional educational SaaS. Restrained radii, three elevation steps, one accent
+family, no gradients or glassmorphism, no decorative filler. The prototypes informed composition
+only; the product requirements governed content.
+
+### Layers — strictly additive
+Three new stylesheets are imported at the top of `styles.css`. **Nothing was removed from it.**
+
+| File | Contains |
+|---|---|
+| `src/styles/tokens.css` | semantic tokens for colour, surface, text, border, focus, status, disabled, spacing, radius, shadow, layout widths, control/touch sizes, motion — all derived from PrimeNG `--p-*`, plus a `.dark` scale |
+| `src/styles/typography.css` | type scale (`--cyf-text-*`), line heights, weights, tracking, the `.cyf-*` type classes, language-aware font stacks, and the `prefers-reduced-motion` reset |
+| `src/styles/layout.css` | page/container/auth scaffolding, surfaces, form fields, alerts, buttons, language switch, focus ring, `.cyf-sr-only`, skip link, spinner, and the global overflow guard |
+
+Rule for new code: use `--cyf-*` tokens; do not reach for `--p-surface-###` directly. Existing
+template styles that already use `--p-*` were left untouched.
+
+### Typography
+Hierarchy: `.cyf-display`, `.cyf-page-title`, `.cyf-section-title`, `.cyf-card-title`, `.cyf-body`,
+`.cyf-body-sm`, `.cyf-lead`, `.cyf-label`, `.cyf-helper`, `.cyf-meta`, `.cyf-error-text`,
+`.cyf-nav-text`, `.cyf-button-text`.
+
+English uses a system UI stack; Arabic keeps **Cairo**, which is already self-hosted in
+`public/Cairo/` — **no remote font CDN is introduced**, so nothing becomes a runtime network
+dependency. Arabic also gets larger line heights.
+
+> **Documented conflict and the minimal adjustment.** `styles.css` contains
+> `*, body { font-family: 'Cairo', sans-serif; }`. Cairo is an Arabic-first face and remains the
+> right default for Arabic, so **that rule was left exactly as it is**. For English a single scoped
+> override applies — `html[lang='en'] *:not([class*='fa-']):not([class*='pi-'])`. Icon-bearing
+> elements are *excluded* rather than re-declared, so Font Awesome's and PrimeNG's own
+> `font-family` rules apply whatever version is installed.
+>
+> An earlier revision instead re-asserted `font-family: 'Font Awesome 6 Free'` after the override.
+> That broke **every icon in English**: the installed package is Font Awesome **7.3.1**, the named
+> family did not exist, and each glyph fell back to a missing-character box. Arabic was unaffected,
+> which is precisely how the bug hid. Caught by visual inspection, not by any test — see
+> [HANDOFF.md](HANDOFF.md).
+
+### Layout
+`.cyf-container` with responsive gutters (1rem → 1.5rem → 2rem) and width caps
+(`--cyf-width-form|narrow|content|wide`). Auth uses a single centred column, switching to a balanced
+two-column split at 1024px. Everything is expressed with **CSS logical properties**
+(`margin-inline`, `padding-inline`, `inset-inline`, `border-inline`, `text-align: start`), so one
+stylesheet serves LTR and RTL — there is no duplicated RTL stylesheet. `html, body` carry
+`overflow-x: hidden` as a global overflow guard.
+
+### Primitives
+Deliberately few: `cyf-brand-mark`, `cyf-auth-layout` (header + main + decorative aside + skip
+link), `cyf-language-switch`, `cyf-alert`. Plus CSS-only patterns (`.cyf-card`, `.cyf-field`,
+`.cyf-input`, `.cyf-btn-outline`, `.cyf-link`, `.cyf-sr-only`). PrimeNG's `p-button` is used for the
+primary action rather than re-implemented. No component library was built and no existing template
+component was removed.
+
+### Accessibility baseline
+One `h1` per page (verified at runtime across all 20 viewport/language combinations) · `<header>` /
+`<main>` / `<aside>` landmarks · skip link · real `<label for>` on every field (no placeholder-only
+labelling) · `autocomplete="username"` / `current-password` · accessible password toggle
+(`<button type="button">` with `aria-pressed` and a state-dependent `aria-label`) · `role="alert"` +
+`aria-live="assertive"` for errors, `role="status"` + `polite` for notices · status never by colour
+alone (icon + visually hidden "Error:" / "Note:" prefix) · `:focus-visible` ring on every
+interactive element · 44px minimum control and touch target · decorative aside `aria-hidden` · no
+autofocus · reduced-motion honoured.
 
 ## 17. Known limitations of the template
 

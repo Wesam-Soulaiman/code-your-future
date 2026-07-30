@@ -1,5 +1,22 @@
 @import 'tailwindcss';
 
+/* =============================================================================
+   Code Your Future design system (Checkpoint 2A) — ADDITIVE LAYERS
+   =============================================================================
+   These three files add semantic tokens, a type scale, and layout/UI primitives
+   on top of the existing PrimeNG theme. They introduce no competing theme
+   architecture and remove nothing.
+
+   Everything below this block is PRESERVED TEMPLATE STYLING — including the
+   FullCalendar, Timeline, Editor, ProgressBar, Avatar and Divider theming. Those
+   components are not currently imported by Code Your Future, but the theming is
+   deliberately retained as future-use template capability and must not be
+   removed without an explicit instruction.
+   ============================================================================= */
+@import './styles/tokens.css';
+@import './styles/typography.css';
+@import './styles/layout.css';
+
 /* =============================================
    Fonts — Cairo (variable + static fallbacks)
    ============================================= */

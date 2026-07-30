@@ -169,6 +169,46 @@ none is required, and a generic settings store is now prohibited.
 
 ---
 
+## Checkpoint 2A — UI/UX design system and authentication experience ✅ COMPLETE
+
+Frontend-only. No backend source changed; the backend suite was run purely as a regression check.
+
+**Delivered:** semantic design tokens, a typography system with language-aware stacks, layout and UI
+primitives, a redesigned Admin auth page, a Student auth page that is **presentation only**, an
+`/auth/admin` + `/auth/student` route structure with a guest guard, an accessibility baseline, and
+frontend regression tests. Details in [TEMPLATE_ARCHITECTURE.md §16b](TEMPLATE_ARCHITECTURE.md) and
+[CURRENT_STATE.md §7b](CURRENT_STATE.md).
+
+**Explicitly not implemented:** Google OAuth. The Student Google button is `disabled`, has no click
+handler, issues no request, and creates no session.
+
+**Template Preservation Rule honoured:** nothing was deleted. FullCalendar, Timeline, and Editor
+theming and every other unused template capability remain, guarded by
+`backend/test/templatePreservation.test.ts`.
+
+**Tests:** 210 backend (26 new, all repository-integrity checks) + 167 frontend (82 new).
+**Runtime:** 20 viewport × language combinations inspected in a real browser, plus a genuine Admin
+login and the signed-in shell at three sizes.
+
+**Two defects found and fixed during the checkpoint** — both caught by validation rather than by
+writing code:
+1. Re-asserting `'Font Awesome 6 Free'` in the English font override broke **every icon in English**
+   (the installed package is Font Awesome 7). Found by looking at a screenshot; fixed by excluding
+   icon elements with `:not()` instead of naming a version.
+2. `guestGuard` on the parent `/auth` route alone did not run on sibling navigation, because Angular
+   does not re-run a parent's `canActivate` when only the child changes. Found by a routing test;
+   fixed by also guarding both children.
+
+**Definition of done — met:** design system in place and additive · Admin auth redesigned with all
+required states · Student auth UI-only and provably inert · routes safe with no open redirect · EN/AR
+parity at 114 keys · zero horizontal overflow at every tested viewport · a11y baseline in place ·
+both suites green.
+
+**Remaining for a later checkpoint:** the Admin workspace/dashboard content, and the manual review
+items listed in [HANDOFF.md](HANDOFF.md).
+
+---
+
 ## Checkpoint 2 — Admin authentication
 
 **Prerequisites:** Checkpoint 1.

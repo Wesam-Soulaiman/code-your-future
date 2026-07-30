@@ -1,0 +1,199 @@
+/* =============================================================================
+   Code Your Future — Semantic Design Tokens
+   =============================================================================
+
+   ONE token system, layered on top of the existing PrimeNG theme. This file is
+   purely additive: it derives every value from PrimeNG's `--p-*` variables so
+   there is a single source of truth for colour, and it introduces no competing
+   theme architecture.
+
+   Rules for consumers:
+     - Use `--cyf-*` tokens in application markup and component styles.
+     - Do NOT reach for `--p-surface-###` / `--p-primary-###` directly in new
+       components; those are the theme's internals and are wired up here.
+     - Existing template styles that already use `--p-*` are left untouched.
+
+   Both colour schemes are supported. Dark mode was already implemented and
+   stable before this checkpoint (`.dark` on <html>, wired to PrimeNG's
+   `darkModeSelector`), so both scales are defined here.
+   ============================================================================= */
+
+:root {
+  /* ---------------------------------------------------------------------------
+     Brand / primary
+     --------------------------------------------------------------------------- */
+  --cyf-primary: var(--p-primary-color);
+  --cyf-primary-hover: var(--p-primary-hover-color);
+  --cyf-primary-active: var(--p-primary-active-color);
+  --cyf-primary-contrast: var(--p-primary-contrast-color);
+  /* Tinted background for selected/highlighted states and quiet emphasis. */
+  --cyf-primary-subtle: color-mix(in srgb, var(--p-primary-color) 10%, transparent);
+  --cyf-primary-subtle-strong: color-mix(in srgb, var(--p-primary-color) 18%, transparent);
+  --cyf-primary-border: color-mix(in srgb, var(--p-primary-color) 32%, transparent);
+
+  /* Accent — deliberately the same family as primary. Code Your Future is a calm
+     product; a second competing hue would fight the brand. Kept as its own token
+     so an accent can be introduced later in one place. */
+  --cyf-accent: var(--p-primary-color);
+  --cyf-accent-subtle: var(--cyf-primary-subtle);
+
+  /* ---------------------------------------------------------------------------
+     Surfaces
+     --------------------------------------------------------------------------- */
+  --cyf-bg: var(--p-surface-50);
+  --cyf-surface: var(--p-surface-0);
+  --cyf-surface-raised: var(--p-surface-0);
+  --cyf-surface-subtle: var(--p-surface-100);
+  --cyf-surface-sunken: var(--p-surface-100);
+  --cyf-overlay-scrim: color-mix(in srgb, var(--p-surface-900) 45%, transparent);
+
+  /* ---------------------------------------------------------------------------
+     Text
+     --------------------------------------------------------------------------- */
+  --cyf-text: var(--p-surface-900);
+  --cyf-text-secondary: var(--p-surface-600);
+  --cyf-text-muted: var(--p-surface-500);
+  --cyf-text-inverse: var(--p-surface-0);
+  --cyf-text-on-primary: var(--p-primary-contrast-color);
+
+  /* ---------------------------------------------------------------------------
+     Borders & focus
+     --------------------------------------------------------------------------- */
+  --cyf-border: var(--p-surface-200);
+  --cyf-border-strong: var(--p-surface-300);
+  --cyf-focus-ring: var(--p-primary-color);
+  --cyf-focus-ring-width: 2px;
+  --cyf-focus-ring-offset: 2px;
+
+  /* ---------------------------------------------------------------------------
+     Status — each pairs a foreground, a subtle background and a border so a
+     status is never communicated by colour alone (an icon + text always
+     accompany these in markup).
+     --------------------------------------------------------------------------- */
+  --cyf-success: var(--p-green-700);
+  --cyf-success-subtle: color-mix(in srgb, var(--p-green-500) 12%, transparent);
+  --cyf-success-border: color-mix(in srgb, var(--p-green-500) 38%, transparent);
+
+  --cyf-warning: var(--p-amber-700);
+  --cyf-warning-subtle: color-mix(in srgb, var(--p-amber-500) 14%, transparent);
+  --cyf-warning-border: color-mix(in srgb, var(--p-amber-500) 42%, transparent);
+
+  --cyf-error: var(--p-red-700);
+  --cyf-error-subtle: color-mix(in srgb, var(--p-red-500) 10%, transparent);
+  --cyf-error-border: color-mix(in srgb, var(--p-red-500) 38%, transparent);
+
+  --cyf-info: var(--p-blue-700);
+  --cyf-info-subtle: color-mix(in srgb, var(--p-blue-500) 10%, transparent);
+  --cyf-info-border: color-mix(in srgb, var(--p-blue-500) 34%, transparent);
+
+  /* ---------------------------------------------------------------------------
+     Disabled
+     --------------------------------------------------------------------------- */
+  --cyf-disabled-bg: var(--p-surface-100);
+  --cyf-disabled-text: var(--p-surface-400);
+  --cyf-disabled-border: var(--p-surface-200);
+  --cyf-disabled-opacity: 0.62;
+
+  /* ---------------------------------------------------------------------------
+     Spacing scale (4px base)
+     --------------------------------------------------------------------------- */
+  --cyf-space-0: 0;
+  --cyf-space-1: 0.25rem;
+  --cyf-space-2: 0.5rem;
+  --cyf-space-3: 0.75rem;
+  --cyf-space-4: 1rem;
+  --cyf-space-5: 1.25rem;
+  --cyf-space-6: 1.5rem;
+  --cyf-space-8: 2rem;
+  --cyf-space-10: 2.5rem;
+  --cyf-space-12: 3rem;
+  --cyf-space-16: 4rem;
+
+  /* ---------------------------------------------------------------------------
+     Radius scale — restrained. Large pill radii on cards read as "template".
+     --------------------------------------------------------------------------- */
+  --cyf-radius-sm: 0.375rem;
+  --cyf-radius-md: 0.5rem;
+  --cyf-radius-lg: 0.75rem;
+  --cyf-radius-xl: 1rem;
+  --cyf-radius-full: 9999px;
+
+  /* ---------------------------------------------------------------------------
+     Elevation — three steps only. More shadows read as noise.
+     --------------------------------------------------------------------------- */
+  --cyf-shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --cyf-shadow-md:
+    0 1px 3px 0 rgb(15 23 42 / 0.08), 0 1px 2px -1px rgb(15 23 42 / 0.06);
+  --cyf-shadow-lg:
+    0 10px 24px -12px rgb(15 23 42 / 0.18), 0 4px 8px -6px rgb(15 23 42 / 0.10);
+
+  /* ---------------------------------------------------------------------------
+     Layout widths
+     --------------------------------------------------------------------------- */
+  --cyf-width-form: 26rem;      /* a single auth/settings form            */
+  --cyf-width-narrow: 42rem;    /* prose and focused single-column pages  */
+  --cyf-width-content: 72rem;   /* standard workspace content             */
+  --cyf-width-wide: 90rem;      /* full workspace / data-dense screens    */
+
+  /* ---------------------------------------------------------------------------
+     Controls & touch targets
+     --------------------------------------------------------------------------- */
+  --cyf-control-height-sm: 2rem;
+  --cyf-control-height: 2.75rem;   /* 44px — comfortable pointer + touch */
+  --cyf-control-height-lg: 3rem;
+  --cyf-touch-target: 2.75rem;     /* 44px minimum, per WCAG 2.5.8 target size */
+
+  /* ---------------------------------------------------------------------------
+     Motion — every duration is routed through these so `prefers-reduced-motion`
+     can neutralise them in one place (see typography.css).
+     --------------------------------------------------------------------------- */
+  --cyf-transition-fast: 120ms;
+  --cyf-transition: 180ms;
+  --cyf-transition-slow: 260ms;
+  --cyf-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* =============================================================================
+   Dark scheme
+   ============================================================================= */
+.dark {
+  --cyf-bg: var(--p-surface-950, var(--p-surface-900));
+  --cyf-surface: var(--p-surface-900);
+  --cyf-surface-raised: var(--p-surface-800);
+  --cyf-surface-subtle: var(--p-surface-800);
+  --cyf-surface-sunken: var(--p-surface-950, var(--p-surface-900));
+  --cyf-overlay-scrim: color-mix(in srgb, #000 62%, transparent);
+
+  --cyf-text: var(--p-surface-0);
+  --cyf-text-secondary: var(--p-surface-300);
+  --cyf-text-muted: var(--p-surface-400);
+  --cyf-text-inverse: var(--p-surface-900);
+
+  --cyf-border: var(--p-surface-700);
+  --cyf-border-strong: var(--p-surface-600);
+
+  /* Lighter status foregrounds so contrast holds on dark surfaces. */
+  --cyf-success: var(--p-green-400);
+  --cyf-success-subtle: color-mix(in srgb, var(--p-green-500) 18%, transparent);
+  --cyf-success-border: color-mix(in srgb, var(--p-green-400) 42%, transparent);
+
+  --cyf-warning: var(--p-amber-400);
+  --cyf-warning-subtle: color-mix(in srgb, var(--p-amber-500) 20%, transparent);
+  --cyf-warning-border: color-mix(in srgb, var(--p-amber-400) 46%, transparent);
+
+  --cyf-error: var(--p-red-400);
+  --cyf-error-subtle: color-mix(in srgb, var(--p-red-500) 18%, transparent);
+  --cyf-error-border: color-mix(in srgb, var(--p-red-400) 44%, transparent);
+
+  --cyf-info: var(--p-blue-400);
+  --cyf-info-subtle: color-mix(in srgb, var(--p-blue-500) 18%, transparent);
+  --cyf-info-border: color-mix(in srgb, var(--p-blue-400) 40%, transparent);
+
+  --cyf-disabled-bg: var(--p-surface-800);
+  --cyf-disabled-text: var(--p-surface-500);
+  --cyf-disabled-border: var(--p-surface-700);
+
+  --cyf-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.30);
+  --cyf-shadow-md: 0 1px 3px 0 rgb(0 0 0 / 0.42), 0 1px 2px -1px rgb(0 0 0 / 0.36);
+  --cyf-shadow-lg: 0 10px 24px -12px rgb(0 0 0 / 0.62), 0 4px 8px -6px rgb(0 0 0 / 0.45);
+}
