@@ -1,0 +1,60 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "clean-build:backend",
+      "type": "shell",
+      "command": "npx rimraf build && npx tsc",
+      "options": {
+        "cwd": "${workspaceFolder}/backend",
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/c"]
+        }
+      },
+      "group": "build",
+      "problemMatcher": "$tsc",
+      "presentation": {
+        "close": true
+      }
+    },
+    {
+      "label": "clean-watch:backend",
+      "type": "shell",
+      "command": "npx rimraf build && npx tsc --watch",
+      "options": {
+        "cwd": "${workspaceFolder}/backend",
+        "shell": {
+          "executable": "cmd.exe",
+          "args": ["/c"]
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": "$tsc-watch",
+      "presentation": {
+        "close": true
+      }
+    },
+    {
+      "label": "serve:frontend",
+      "type": "shell",
+      "command": "npx ng serve",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "angular",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Application bundle generation complete"
+        }
+      },
+      "presentation": {
+        "close": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "nav": {
+    "home": "الرئيسية",
+    "dashboard": "لوحة التحكم",
+    "settings": "الإعدادات",
+    "management": "الإدارة",
+    "users": "المستخدمين",
+    "roles": "الأدوار",
+    "permissions": "الصلاحيات",
+    "pinned": "المثبت"
+  },
+  "actions": {
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "profile": "الملف الشخصي",
+    "expand": "توسيع",
+    "collapse": "طي",
+    "lightMode": "الوضع الفاتح",
+    "darkMode": "الوضع الداكن",
+    "add": "إضافة",
+    "back": "رجوع",
+    "view": "عرض",
+    "viewMore": "عرض المزيد",
+    "edit": "تعديل",
+    "print": "طباعة",
+    "delete": "حذف",
+    "save": "حفظ",
+    "close": "إغلاق",
+    "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "refresh": "تحديث",
+    "columns": "الأعمدة",
+    "search": "بحث...",
+    "clearSelection": "إلغاء التحديد",
+    "export": "تصدير",
+    "pin": "تثبيت",
+    "unpin": "إلغاء التثبيت",
+    "copy": "نسخ",
+    "next": "التالي",
+    "viewDetails": "عرض التفاصيل"
+  },
+  "confirm": {
+    "title": "تأكيد",
+    "deleteTitle": "تأكيد الحذف",
+    "deleteMessage": "هل أنت متأكد أنك تريد حذف هذا العنصر؟",
+    "deleteItemMessage": "هل أنت متأكد أنك تريد حذف \"{{item}}\"؟",
+    "deleteMultipleMessage": "هل أنت متأكد أنك تريد حذف {{count}} عناصر؟"
+  },
+  "common": {
+    "welcome": "مرحباً",
+    "loading": "جاري التحميل...",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "noData": "لا توجد بيانات",
+    "noRecords": "لا توجد سجلات",
+    "noResults": "لا توجد نتائج",
+    "logo": "شعار",
+    "details": "تفاصيل",
+    "selected": "محدد",
+    "found": "موجود",
+    "total": "الإجمالي"
+  },
+  "table": {
+    "compact": "مضغوط",
+    "normal": "عادي",
+    "large": "كبير",
+    "gridView": "عرض شبكي",
+    "tableView": "عرض جدول",
+    "paginationTemplate": "{first} - {last} من {totalRecords}"
+  },
+  "users": {
+    "title": "المستخدمين",
+    "addUser": "إضافة مستخدم",
+    "username": "اسم المستخدم",
+    "email": "البريد الإلكتروني",
+    "name": "الاسم",
+    "firstName": "الاسم الأول",
+    "lastName": "الاسم الأخير",
+    "searchHint": "بحث باسم المستخدم أو البريد",
+    "phone": "الهاتف",
+    "joined": "تاريخ الانضمام",
+    "sendEmail": "إرسال بريد",
+    "copiedToClipboard": "تم النسخ"
+  },
+  "notifications": {
+    "title": "الإشعارات",
+    "markAllRead": "تعليم الكل كمقروء",
+    "empty": "لا توجد إشعارات"
+  },
+  "validation": {
+    "required": "هذا الحقل مطلوب"
+  },
+  "success": {
+    "saved": "تم الحفظ بنجاح",
+    "deleted": "تم الحذف بنجاح"
+  }
+}

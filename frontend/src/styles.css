@@ -1,0 +1,482 @@
+@import 'tailwindcss';
+
+/* =============================================
+   Fonts — Cairo (variable + static fallbacks)
+   ============================================= */
+
+@font-face {
+  font-family: 'Cairo';
+  src:
+    url('/Cairo/Cairo-Regular.woff2') format('woff2'),
+    url('/Cairo/Cairo-Regular.woff') format('woff'),
+    url('/Cairo/Cairo-Regular.ttf') format('truetype');
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cairo';
+  src: url('/Cairo/static/Cairo-ExtraLight.ttf') format('truetype');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Cairo';
+  src: url('/Cairo/static/Cairo-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Cairo';
+  src: url('/Cairo/static/Cairo-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Cairo';
+  src: url('/Cairo/static/Cairo-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Cairo';
+  src: url('/Cairo/static/Cairo-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Cairo';
+  src: url('/Cairo/static/Cairo-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Cairo';
+  src: url('/Cairo/static/Cairo-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Cairo';
+  src: url('/Cairo/static/Cairo-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+*,
+body {
+  font-family: 'Cairo', sans-serif;
+}
+
+/* =============================================
+   Surface Layering System
+   Use --app-bg / --app-card / --app-card-nested
+   instead of hardcoded --p-surface-XXX values.
+   ============================================= */
+
+:root {
+  --app-bg: var(--p-surface-50);
+  --app-card: var(--p-surface-100);
+  --app-card-nested: var(--p-surface-200);
+}
+
+.dark {
+  --app-bg: var(--p-surface-900);
+  --app-card: var(--p-surface-800);
+  --app-card-nested: var(--p-surface-700);
+}
+
+/* =============================================
+   App Card
+   ============================================= */
+
+.app-card {
+  background-color: var(--app-card);
+  border-radius: 0.75rem;
+}
+/* Light: elevation via shadow; Dark: color step is enough */
+:root:not(.dark) .app-card {
+  box-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.08),
+    0 1px 2px -1px rgba(0, 0, 0, 0.06);
+}
+
+.app-card-nested {
+  background-color: var(--app-card-nested);
+  border-radius: 0.5rem;
+}
+
+/* =============================================
+   Scrollbar
+   ============================================= */
+
+::-webkit-scrollbar {
+  width: 0.9rem;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--p-surface-400);
+  border-radius: 1rem;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--p-surface-500);
+  border-radius: 1rem;
+}
+
+/* =============================================
+   PrimeNG Global Overrides
+   ============================================= */
+
+/* Button height matches input fields */
+.p-button {
+  padding: 0.5rem 0.75rem;
+}
+
+/* Shell header icon buttons */
+.shell-header .p-button-icon-only {
+  border-radius: 0.75rem !important;
+}
+
+/* Empty state image */
+.dark .empty-img {
+  filter: invert(1);
+}
+
+/* Timeline connector line */
+.p-timeline-event-connector {
+  background-color: var(--app-card) !important;
+}
+
+/* Timeline layout — collapse unused opposite side */
+.p-timeline-vertical .p-timeline-event-opposite {
+  width: 0 !important;
+  padding: 0 !important;
+  flex: none !important;
+}
+.p-timeline-vertical .p-timeline-event-content {
+  padding-left: 0.5rem !important;
+}
+
+/* Divider */
+:root:not(.dark) .p-divider-horizontal::before {
+  border-top-color: var(--p-surface-400) !important;
+}
+:root:not(.dark) .p-divider-vertical::before {
+  border-left-color: var(--p-surface-400) !important;
+}
+
+/* Avatar label fallback */
+:root:not(.dark) .p-avatar:not(.p-avatar-image) {
+  background: var(--p-surface-300);
+  color: var(--p-surface-600);
+}
+.dark .p-avatar:not(.p-avatar-image) {
+  background: var(--p-surface-600);
+  color: var(--p-surface-200);
+}
+
+/* ProgressBar track */
+.p-progressbar {
+  background: var(--p-surface-200);
+}
+.dark .p-progressbar {
+  background: var(--p-surface-600);
+}
+
+/* Action progress — 4 color states (no dark variant needed) */
+.action-progress-low .p-progressbar-value {
+  background: var(--p-red-500);
+}
+.action-progress-mid .p-progressbar-value {
+  background: var(--p-orange-500);
+}
+.action-progress-high .p-progressbar-value {
+  background: var(--p-yellow-500);
+}
+.action-progress-done .p-progressbar-value {
+  background: var(--p-green-500);
+}
+
+/* Range slider */
+input[type='range'] {
+  accent-color: var(--p-primary-color);
+  cursor: pointer;
+}
+
+/* PrimeNG Editor border radius */
+.p-editor {
+  --p-editor-toolbar-border-radius: var(--p-border-radius-lg);
+  --p-editor-content-border-radius: var(--p-border-radius-lg);
+}
+
+/* =============================================
+   FullCalendar Theme
+   ============================================= */
+
+/* CSS variables */
+.fc {
+  --fc-border-color: var(--p-surface-200);
+  --fc-page-bg-color: var(--p-surface-0);
+  --fc-neutral-bg-color: var(--p-surface-50);
+  --fc-today-bg-color: color-mix(in srgb, var(--p-primary-color) 8%, transparent);
+  --fc-neutral-text-color: var(--p-surface-600);
+  --fc-list-event-hover-bg-color: var(--p-surface-100);
+}
+.dark .fc {
+  --fc-border-color: var(--p-surface-700);
+  --fc-page-bg-color: var(--p-surface-900);
+  --fc-neutral-bg-color: var(--p-surface-800);
+  --fc-today-bg-color: color-mix(in srgb, var(--p-primary-color) 12%, transparent);
+  --fc-neutral-text-color: var(--p-surface-400);
+  --fc-list-event-hover-bg-color: var(--p-surface-800);
+}
+
+/* Toolbar title */
+.fc .fc-toolbar-title {
+  color: var(--p-surface-900);
+}
+.dark .fc .fc-toolbar-title {
+  color: var(--p-surface-0);
+}
+
+/* Toolbar buttons */
+.fc .fc-button {
+  background: var(--p-surface-100) !important;
+  border-color: var(--p-surface-200) !important;
+  color: var(--p-surface-700) !important;
+  font-family: 'Cairo', sans-serif;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+.fc .fc-button:hover {
+  background: var(--p-surface-200) !important;
+  border-color: var(--p-surface-300) !important;
+  color: var(--p-surface-900) !important;
+}
+.fc .fc-button-active,
+.fc .fc-button:active {
+  background: var(--p-primary-color) !important;
+  border-color: var(--p-primary-color) !important;
+  color: var(--p-primary-contrast-color) !important;
+}
+
+.dark .fc .fc-button {
+  background: var(--p-surface-700) !important;
+  border-color: var(--p-surface-600) !important;
+  color: var(--p-surface-200) !important;
+}
+.dark .fc .fc-button:hover {
+  background: var(--p-surface-600) !important;
+  border-color: var(--p-surface-500) !important;
+  color: var(--p-surface-0) !important;
+}
+.dark .fc .fc-button-active,
+.dark .fc .fc-button:active {
+  background: var(--p-primary-color) !important;
+  border-color: var(--p-primary-color) !important;
+  color: var(--p-primary-contrast-color) !important;
+}
+
+/* Column headers */
+.fc .fc-col-header-cell {
+  background: var(--p-surface-50);
+  color: var(--p-surface-600);
+}
+.dark .fc .fc-col-header-cell {
+  background: var(--p-surface-800);
+  color: var(--p-surface-300);
+}
+.fc .fc-col-header-cell-cushion {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Day numbers */
+.fc .fc-daygrid-day-number {
+  color: var(--p-surface-700);
+  text-decoration: none;
+}
+.dark .fc .fc-daygrid-day-number {
+  color: var(--p-surface-300);
+}
+
+/* Time slot labels */
+.fc .fc-timegrid-slot-label-cushion {
+  color: var(--p-surface-500);
+}
+.dark .fc .fc-timegrid-slot-label-cushion {
+  color: var(--p-surface-400);
+}
+
+/* List view */
+.fc .fc-list-day-cushion {
+  background: var(--p-surface-50) !important;
+}
+.dark .fc .fc-list-day-cushion {
+  background: var(--p-surface-800) !important;
+}
+.fc .fc-list-day-cushion a {
+  color: var(--p-surface-700);
+  text-decoration: none;
+}
+.dark .fc .fc-list-day-cushion a {
+  color: var(--p-surface-200);
+}
+.fc .fc-list-event td {
+  border-color: var(--p-surface-200);
+}
+.dark .fc .fc-list-event td {
+  border-color: var(--p-surface-700);
+}
+
+/* Now indicator */
+.fc .fc-timegrid-now-indicator-line {
+  border-color: var(--p-primary-color);
+}
+
+/* Time slot sizing */
+.fc .fc-timegrid-slot {
+  height: 1.2em;
+}
+.fc .fc-timegrid-event {
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+/* Background events */
+.fc .fc-bg-event {
+  border: none !important;
+  cursor: pointer;
+}
+.fc .fc-bg-event:not(.fc-slot-selected) {
+  opacity: 0.5;
+}
+.dark .fc .fc-bg-event:not(.fc-slot-selected) {
+  opacity: 0.55;
+}
+
+/* Selected slot pulse */
+.fc .fc-bg-event.fc-slot-selected {
+  background-color: var(--p-primary-color) !important;
+  opacity: 0.4 !important;
+  border-left: 4px solid var(--p-primary-color) !important;
+  animation: fc-slot-pulse 1.5s ease-in-out infinite;
+}
+@keyframes fc-slot-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Drag feedback */
+.fc .fc-highlight {
+  background: var(--p-primary-color);
+  opacity: 0.2;
+}
+.fc .fc-event-mirror {
+  background: var(--p-primary-color) !important;
+  border: 2px solid var(--p-primary-color) !important;
+  border-radius: 4px;
+  opacity: 0.3;
+}
+
+/* Event card layout */
+.fc .fc-event-custom {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0.1rem;
+  overflow: hidden;
+}
+.fc .fc-event-row {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fc .fc-event-row-time {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8em;
+  font-weight: 600;
+  gap: 4px;
+}
+.fc .fc-event-row-detail {
+  font-size: 0.75em;
+  opacity: 0.9;
+}
+.fc .fc-event-employee {
+  font-weight: 700;
+}
+.fc .fc-event-notes {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+/* Event action buttons (shown on hover) */
+.fc .fc-event-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.fc .fc-event:hover .fc-event-actions {
+  opacity: 1;
+}
+.fc .fc-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 0.75em;
+  line-height: 1;
+  opacity: 0.8;
+  transition:
+    opacity 0.15s,
+    background-color 0.15s;
+}
+.fc .fc-action-btn:hover {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.25);
+}
+.fc .fc-delete-btn:hover {
+  background-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Event tooltip */
+.event-tooltip {
+  background-color: var(--p-surface-0);
+  color: var(--p-surface-900);
+}
+.dark .event-tooltip {
+  background-color: var(--p-surface-800);
+  color: var(--p-surface-100);
+}
+
+/* Slot action bar */
+.slot-action-bar {
+  background-color: var(--p-surface-50);
+}
+.dark .slot-action-bar {
+  background-color: var(--p-surface-800);
+}
+
+/* Thin scrollbar inside calendar */
+.fc .fc-scroller {
+  scrollbar-width: thin;
+}

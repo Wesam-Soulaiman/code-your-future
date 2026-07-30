@@ -1,0 +1,91 @@
+/* =============================================
+   Shell Layout
+   ============================================= */
+
+.shell-wrapper,
+.shell-sidebar {
+  background-color: var(--p-surface-0);
+}
+:host-context(.dark) .shell-wrapper,
+:host-context(.dark) .shell-sidebar {
+  background-color: var(--p-surface-950);
+}
+
+.shell-navbar {
+  background-color: transparent;
+}
+
+.shell-content {
+  background-color: var(--app-bg);
+}
+
+/* =============================================
+   Nav Items
+   ============================================= */
+
+.nav-item {
+  color: var(--p-text-color);
+}
+
+.nav-item:hover {
+  background-color: var(--p-surface-100);
+}
+:host-context(.dark) .nav-item:hover {
+  background-color: var(--p-surface-900);
+}
+
+.nav-item.active {
+  background-color: color-mix(in srgb, var(--p-primary-500), transparent 90%);
+  color: var(--p-primary-700);
+}
+:host-context(.dark) .nav-item.active {
+  background-color: color-mix(in srgb, var(--p-primary-500), transparent 90%);
+  color: var(--p-primary-400);
+}
+
+.nav-item-logout:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--p-red-500);
+}
+:host-context(.dark) .nav-item-logout:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--p-red-400);
+}
+
+.nav-item-child.active {
+  font-weight: 500;
+}
+
+/* =============================================
+   Submenu Animation
+   ============================================= */
+
+.submenu-container {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.25s ease-out,
+    opacity 0.2s ease-out;
+}
+
+.submenu-container > * {
+  overflow: hidden;
+}
+
+.submenu-container.submenu-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.submenu-container.submenu-closed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+/* =============================================
+   Collapsed Sidebar Popover
+   ============================================= */
+
+::ng-deep .nav-collapsed-popover {
+  margin-inline-start: 0.5rem;
+}

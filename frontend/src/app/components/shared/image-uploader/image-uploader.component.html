@@ -1,0 +1,29 @@
+@if (!dataImage()) {
+  <div
+    class="drop-area flex items-center justify-center flex-col gap-3"
+    (drop)="onFileDropped($event)"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+  >
+    <div class="text-center mx-1">
+      {{ "Drag and Drop a file here or click upload icon" | translate }}
+    </div>
+    <i
+      class="fa-solid fa-upload upload-icon"
+      style="font-size: 2rem"
+      (click)="uploadFile()"
+    ></i>
+  </div>
+} @else {
+  <div class="relative">
+    <img [src]="dataImage()" class="w-full mb-3 rounded-lg relative" />
+    @if (canDelete()) {
+      <p-button
+        class="absolute top-2 right-2"
+        icon="fa-solid fa-xmark"
+        severity="danger"
+        (onClick)="removeImage()"
+      ></p-button>
+    }
+  </div>
+}

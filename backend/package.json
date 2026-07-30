@@ -1,0 +1,47 @@
+{
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "20.8.2",
+    "@types/node-geocoder": "^4.2.6",
+    "@types/node-schedule": "^2.1.8",
+    "@types/nodemailer": "^7.0.11",
+    "@types/swagger-ui-express": "^4.1.8",
+    "concurrently": "^9.2.1",
+    "gts": "^5.2.0",
+    "kill-port": "^2.0.1",
+    "nodemon": "^3.1.11",
+    "tsc-watch": "^7.2.0",
+    "typescript": "~5.2.0"
+  },
+  "scripts": {
+    "setup": "node setup.js",
+    "compile": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rimraf build",
+    "start": "rimraf build && tsc && node --max-old-space-size=1024 ./build/src/app.js",
+    "dev": "nodemon --watch src --ext ts --exec \"npx kill-port 1337 && rimraf build && tsc && node --max-old-space-size=1024 ./build/src/app.js\" && npm run db",
+    "deploy": "node deploy.js",
+    "db": "parse-dashboard --config backend/dashboard.json"
+  },
+  "dependencies": {
+    "@90soft/parse-server-kit": "^2.5.0",
+    "@types/multer": "^2.1.0",
+    "@types/parse": "^3.0.9",
+    "@types/pdfkit": "^0.17.5",
+    "axios": "^1.6.7",
+    "blurhash": "^2.0.5",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.1",
+    "express": "^5.2.1",
+    "multer": "^2.1.1",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.2",
+    "parse-server": "^9.9.0",
+    "pdfkit": "^0.17.2",
+    "reflect-metadata": "^0.2.2",
+    "rimraf": "^5.0.5",
+    "sharp": "^0.33.2",
+    "swagger-ui-express": "^5.0.1",
+    "web-push": "^3.6.7"
+  }
+}

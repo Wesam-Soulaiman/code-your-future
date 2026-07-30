@@ -1,0 +1,19 @@
+{
+  "name": "code-your-future",
+  "version": "1.0.0",
+  "description": "Parse Server + Angular fullstack monorepo template with code generation tooling",
+  "private": true,
+  "scripts": {
+    "start": "concurrently -n backend,frontend -c blue,green \"pnpm run start:backend\" \"pnpm run start:frontend\"",
+    "dev": "concurrently -n backend,frontend -c blue,green \"pnpm run dev:backend\" \"pnpm run start:frontend\"",
+    "start:backend": "cd backend && pnpm run start",
+    "dev:backend": "cd backend && pnpm run dev",
+    "start:frontend": "cd frontend && pnpm run start",
+    "build:frontend": "cd frontend && pnpm run build",
+    "install:all": "cd backend && pnpm install && cd ../frontend && pnpm install --shamefully-hoist",
+    "setup": "cd backend && pnpm run setup"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

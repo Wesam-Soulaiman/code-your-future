@@ -1,0 +1,378 @@
+<p-confirmDialog #cd [style]="{ width: '400px' }">
+  <ng-template pTemplate="footer">
+    <div class="flex justify-between w-full">
+      <p-button
+        [label]="'actions.cancel' | translate"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="cd.onReject()"
+      />
+      <p-button
+        [label]="'actions.confirm' | translate"
+        severity="danger"
+        (onClick)="cd.onAccept()"
+      />
+    </div>
+  </ng-template>
+</p-confirmDialog>
+
+<div class="shell-wrapper h-screen">
+  <!-- Mobile Overlay -->
+  @if (isMobile() && mobileMenuOpen()) {
+    <div class="fixed inset-0 z-40 bg-black/50" (click)="closeMobileMenu()"></div>
+  }
+
+  <!-- Sidebar - Fixed Start -->
+  <aside
+    class="shell-sidebar fixed top-0 bottom-0 inset-s-0 flex flex-col transition-all duration-300 z-50"
+    [style.width]="sidebarWidth()"
+    [class.-translate-x-full]="
+      isMobile() && !mobileMenuOpen() && langService.currentDirection() === 'ltr'
+    "
+    [class.translate-x-full]="
+      isMobile() && !mobileMenuOpen() && langService.currentDirection() === 'rtl'
+    "
+    [class.translate-x-0]="!isMobile() || mobileMenuOpen()"
+  >
+    <!-- Logo -->
+    <div class="flex items-center justify-center h-16 px-4">
+      @if (!sidebarCollapsed() || isMobile()) {
+        <!-- Replace with your logo images -->
+        <span class="text-lg font-bold">App</span>
+      } @else {
+        <!-- Replace with your logo icon -->
+        <span class="text-lg font-bold">A</span>
+      }
+    </div>
+
+    <!-- Nav Items -->
+    <nav class="flex-1 ps-2 space-y-1 overflow-y-auto">
+      <!-- Pinned Items Section -->
+      @if (pinnedItems().length > 0) {
+        <div class="mb-0 flex gap-1 flex-col">
+          @for (item of pinnedItems(); track item.id) {
+            <a
+              [routerLink]="item.route"
+              routerLinkActive="active"
+              class="nav-item nav-item-pinned group flex items-center px-4 gap-3 py-1.5 rounded-3xl transition-colors"
+              [class.justify-center]="sidebarCollapsed() && !isMobile()"
+              [pTooltip]="sidebarCollapsed() && !isMobile() ? (item.labelKey | translate) : ''"
+              tooltipPosition="right"
+              (click)="closeMobileMenu()"
+            >
+              <i [class]="item.icon" class="text-sm"></i>
+              @if (!sidebarCollapsed() || isMobile()) {
+                <span class="text-sm flex-1">{{ item.labelKey | translate }}</span>
+                <i
+                  class="fa-solid fa-thumbtack text-xs opacity-0 group-hover:opacity-50 hover:opacity-100! cursor-pointer hover:text-red-500 transition-all"
+                  [pTooltip]="'actions.unpin' | translate"
+                  tooltipPosition="right"
+                  (click)="togglePin(item, $event)"
+                ></i>
+              }
+            </a>
+          }
+          <p-divider />
+        </div>
+      }
+
+      @for (item of navItems(); track item.id) {
+        @if (item.children) {
+          <!-- Parent item with submenu -->
+          <div>
+            <a
+              class="nav-item flex items-center px-4 gap-3 py-3 rounded-3xl transition-colors cursor-pointer"
+              [class.justify-center]="sidebarCollapsed() && !isMobile()"
+              (click)="!sidebarCollapsed() || isMobile() ? toggleMenu(item.id) : null"
+              (mouseenter)="
+                sidebarCollapsed() && !isMobile() ? showCollapsedPopover(item, $event) : null
+              "
+              (mouseleave)="sidebarCollapsed() && !isMobile() ? schedulePopoverClose() : null"
+            >
+              <i [class]="item.icon" class="text-lg"></i>
+              @if (!sidebarCollapsed() || isMobile()) {
+                <span class="font-medium flex-1">{{ item.labelKey | translate }}</span>
+                <i
+                  class="fa-solid fa-chevron-right text-xs transition-transform duration-200"
+                  [class.rotate-90]="isMenuExpanded(item.id)"
+                ></i>
+              }
+            </a>
+            <!-- Expanded: inline submenu -->
+            @if (!sidebarCollapsed() || isMobile()) {
+              <div
+                class="submenu-container ms-4"
+                [class.submenu-open]="isMenuExpanded(item.id)"
+                [class.submenu-closed]="!isMenuExpanded(item.id)"
+              >
+                <div class="pt-0">
+                  @for (child of item.children; track child.id) {
+                    <a
+                      [routerLink]="child.route"
+                      routerLinkActive="active"
+                      class="my-1 nav-item nav-item-child group flex items-center px-4 gap-3 py-1.5 rounded-3xl transition-colors"
+                      (click)="closeMobileMenu()"
+                    >
+                      <i [class]="child.icon" class="text-sm"></i>
+                      <span class="text-sm flex-1">{{ child.labelKey | translate }}</span>
+                      <i
+                        class="fa-solid fa-thumbtack text-xs transition-all cursor-pointer"
+                        [class.text-primary-500]="isPinned(child.id)"
+                        [class.opacity-0]="!isPinned(child.id)"
+                        [class.group-hover:opacity-50]="!isPinned(child.id)"
+                        [class.hover:!opacity-100]="true"
+                        [pTooltip]="
+                          (isPinned(child.id) ? 'actions.unpin' : 'actions.pin') | translate
+                        "
+                        tooltipPosition="right"
+                        (click)="togglePin(child, $event)"
+                      ></i>
+                    </a>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <!-- Regular item without submenu -->
+          <a
+            [routerLink]="item.route"
+            routerLinkActive="active"
+            class="nav-item flex items-center px-4 gap-3 py-2 rounded-3xl transition-colors"
+            [class.justify-center]="sidebarCollapsed() && !isMobile()"
+            [pTooltip]="sidebarCollapsed() && !isMobile() ? (item.labelKey | translate) : ''"
+            tooltipPosition="right"
+            (click)="closeMobileMenu()"
+          >
+            <i [class]="item.icon" class="text-lg"></i>
+            @if (!sidebarCollapsed() || isMobile()) {
+              <span class="font-medium">{{ item.labelKey | translate }}</span>
+            }
+          </a>
+        }
+      }
+    </nav>
+
+    <!-- Collapsed sidebar: shared popup submenu -->
+    <p-popover #collapsedPopover styleClass="nav-collapsed-popover">
+      @if (hoveredParent()) {
+        <div
+          class="py-1"
+          style="min-width: 12rem"
+          (mouseenter)="cancelPopoverClose()"
+          (mouseleave)="schedulePopoverClose()"
+        >
+          <div class="px-3 font-semibold text-surface-500 uppercase tracking-wide">
+            {{ hoveredParent()!.labelKey | translate }}
+          </div>
+          @for (child of hoveredParent()!.children; track child.id) {
+            <a
+              [routerLink]="child.route"
+              class="my-1 group flex items-center px-4 gap-3 py-1.5 rounded-3xl transition-colors"
+              [style.background-color]="isRouteActive(child.route) ? 'color-mix(in srgb, var(--p-primary-500), transparent 85%)' : hoveredChildId() === child.id ? 'var(--p-surface-700)' : null"
+              [style.color]="isRouteActive(child.route) ? 'var(--p-primary-400)' : null"
+              [style.font-weight]="isRouteActive(child.route) ? '500' : null"
+              (mouseenter)="hoveredChildId.set(child.id)"
+              (mouseleave)="hoveredChildId.set(null)"
+              (click)="collapsedPopover.hide()"
+            >
+              <i [class]="child.icon" class="text-sm"></i>
+              <span class="text-sm flex-1">{{ child.labelKey | translate }}</span>
+              <i
+                class="fa-solid fa-thumbtack text-xs transition-all cursor-pointer"
+                [class.text-primary-500]="isPinned(child.id)"
+                [class.opacity-0]="!isPinned(child.id)"
+                [class.group-hover:opacity-50]="!isPinned(child.id)"
+                [class.hover:!opacity-100]="true"
+                [pTooltip]="(isPinned(child.id) ? 'actions.unpin' : 'actions.pin') | translate"
+                tooltipPosition="right"
+                (click)="togglePin(child, $event)"
+              ></i>
+            </a>
+          }
+        </div>
+      }
+    </p-popover>
+
+    <!-- Logout Button -->
+    <div class="ps-2.5 pb-2">
+      <!-- @if (sessionService.userDisplayName()) {
+        <div class="font-medium truncate">{{ sessionService.userDisplayName() | titlecase }}</div>
+      } -->
+      <div class="text-xs text-surface-400 px-3 py-1"
+        [class.text-center]="sidebarCollapsed() && !isMobile()">
+        v{{ appVersion }}
+      </div>
+      <p-divider />
+      <a
+        class="nav-item nav-item-logout flex items-center px-3 gap-3 py-2 rounded-3xl transition-colors cursor-pointer"
+        [class.justify-center]="sidebarCollapsed() && !isMobile()"
+        [pTooltip]="sidebarCollapsed() && !isMobile() ? ('actions.logout' | translate) : ''"
+        tooltipPosition="right"
+        (click)="logout()"
+      >
+        <i class="fa-solid fa-right-from-bracket text-lg"></i>
+        @if (!sidebarCollapsed() || isMobile()) {
+          <span class="font-medium">{{ 'actions.logout' | translate }}</span>
+        }
+      </a>
+    </div>
+
+    <!-- Collapse Toggle (desktop only) -->
+    @if (!isMobile()) {
+      <div
+        class="p-3 flex"
+        [class.justify-center]="sidebarCollapsed()"
+        [class.justify-end]="!sidebarCollapsed()"
+      >
+        <p-button
+          [icon]="collapseIcon()"
+          [rounded]="true"
+          [text]="true"
+          severity="secondary"
+          (click)="toggleSidebar()"
+          [pTooltip]="(sidebarCollapsed() ? 'actions.expand' : 'actions.collapse') | translate"
+          tooltipPosition="right"
+        />
+      </div>
+    }
+  </aside>
+
+  <!-- Navbar - Fixed Top -->
+  <header
+    class="shell-navbar fixed top-0 inset-e-0 flex items-center justify-between h-16 px-4 md:px-6 transition-all duration-300 z-40"
+    [style.inset-inline-start]="isMobile() ? '0' : sidebarWidth()"
+  >
+    <!-- Start: Mobile menu button -->
+    <div class="flex items-center gap-3">
+      @if (isMobile()) {
+        <p-button
+          icon="fa-solid fa-bars"
+          [rounded]="true"
+          [text]="true"
+          severity="secondary"
+          (click)="toggleSidebar()"
+        />
+      }
+    </div>
+
+    <!-- End: Role + Lang toggle + Theme toggle + User menu -->
+    <div class="flex items-center gap-2">
+      <p-button
+        icon="fa-solid fa-language"
+        [rounded]="true"
+        [text]="true"
+        severity="secondary"
+        (click)="toggleLang()"
+        [pTooltip]="langService.currentLang() === 'en' ? 'عربي' : 'English'"
+        tooltipPosition="bottom"
+      />
+      <p-button
+        [icon]="themeIcon()"
+        [rounded]="true"
+        [text]="true"
+        severity="secondary"
+        (click)="toggleTheme()"
+        [pTooltip]="(isDarkMode() ? 'actions.lightMode' : 'actions.darkMode') | translate"
+        tooltipPosition="bottom"
+      />
+      <p-avatar
+        [label]="userInitials()"
+        shape="circle"
+        class="cursor-pointer ms-1.5"
+        (click)="userMenu.toggle($event)"
+        [size]="'large'"
+      />
+      <p-menu #userMenu [model]="userMenuItems" [popup]="true" appendTo="body" />
+    </div>
+  </header>
+
+  <!-- Content Area - Fixed with spacing -->
+  <main
+    class="shell-content fixed flex flex-col rounded-3xl transition-all duration-300 overflow-hidden"
+    [style.inset-inline-start]="isMobile() ? '0.5rem' : 'calc(' + sidebarWidth() + ' + 0.5rem)'"
+    [style.inset-inline-end.rem]="0.6"
+    [style.top]="navbarHeight()"
+    [style.bottom.rem]="0.6"
+  >
+    <!-- Sticky Header -->
+    @if (pageTitleService.showTitle() && pageTitleService.title()) {
+      <div class="shell-header shrink-0 px-4 pt-4">
+        <div class="flex items-center justify-between gap-4 h-8">
+          <div class="flex items-center gap-4">
+            @if (pageTitleService.showBack()) {
+              <p-button
+                [icon]="backIcon()"
+                [outlined]="true"
+                severity="secondary"
+                (click)="goBack()"
+                [size]="'small'"
+                [pTooltip]="'actions.back' | translate"
+                tooltipPosition="bottom"
+              />
+              <h1 class="text-xl font-semibold">
+                @if (pageTitleService.title().includes(' / ')) {
+                  <span
+                    class="cursor-pointer hover:text-primary-500 transition-colors"
+                    (click)="goBack()"
+                    >{{ pageTitleService.title().split(' / ')[0] }}</span
+                  >
+                  <span class="text-surface-400 mx-1">/</span>
+                  <span>{{ pageTitleService.title().split(' / ').slice(1).join(' / ') }}</span>
+                } @else {
+                  {{ pageTitleService.title() }}
+                }
+              </h1>
+            } @else {
+              <h1 class="text-xl font-semibold">{{ pageTitleService.title() }}</h1>
+            }
+            @if (pageTitleService.selectionCount() > 0) {
+              <p-button
+                size="small"
+                icon="fa-solid fa-xmark"
+                [label]="pageTitleService.selectionCount() + ' ' + ('common.selected' | translate)"
+                severity="secondary"
+                [outlined]="true"
+                (click)="pageTitleService.clearSelection()"
+                [pTooltip]="'actions.clearSelection' | translate"
+                tooltipPosition="bottom"
+              />
+            }
+          </div>
+          <div class="flex items-center gap-4">
+            @for (btn of pageTitleService.actionButtons(); track btn.icon) {
+              <p-button
+                [icon]="btn.icon"
+                [outlined]="true"
+                severity="secondary"
+                size="small"
+                (click)="btn.callback()"
+                [pTooltip]="btn.tooltip"
+                tooltipPosition="bottom"
+                [loading]="btn.loading ?? false"
+                [disabled]="btn.loading ?? false"
+              />
+            }
+            @if (pageTitleService.showSearch()) {
+              <app-search-input
+                [placeholder]="pageTitleService.searchPlaceholder()"
+                [loading]="pageTitleService.searchLoading()"
+                [initialValue]="pageTitleService.searchInitialValue()"
+                [resetKey]="pageTitleService.searchResetKey()"
+                (valueChange)="pageTitleService.onSearch($event)"
+              />
+            }
+          </div>
+        </div>
+        <div class="-mx-4">
+          <p-divider />
+        </div>
+      </div>
+    }
+
+    <!-- Scrollable Content -->
+    <div class="flex-1 overflow-auto p-4 pt-0">
+      <router-outlet />
+    </div>
+  </main>
+</div>

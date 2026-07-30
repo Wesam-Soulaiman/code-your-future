@@ -1,0 +1,116 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  NODE_VERSION: "20"
+  GIT_SSL_NO_VERIFY: "true"
+  GIT_DEPTH: "0"
+  # ── Set these in GitLab → Settings → CI/CD → Variables ──
+  # COMPOSE_DIR: "/root/composer/your-app"
+  # BACKEND_DEPLOY_DIR: "/root/composer/your-app/code"
+  # BACKEND_CONTAINER: "your-app_srv"
+  # FRONTEND_BUILD_NAME: "code-your-future-frontend"   ← must match angular.json project name
+  # FRONTEND_DEPLOY_DIR: "/root/projects/web/your-app"
+  # SSH_PRIVATE_KEY  (File type)
+  # STAGING_SERVER_IP
+  # STAGING_SERVER_USER
+
+# ──────────────────────────────────────
+# Build Backend — compile TypeScript
+# ──────────────────────────────────────
+build:backend:
+  stage: build
+  image: "node:${NODE_VERSION}-alpine"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+  before_script:
+    - npm install -g pnpm
+  script:
+    - cd backend
+    - pnpm install
+    - rm -rf build/src/cloudCode build/src/app.js
+    - npx tsc
+  artifacts:
+    paths:
+      - backend/build/src/
+      - backend/package.json
+    expire_in: 1 hour
+
+# ──────────────────────────────────────
+# Build Frontend — ng build production
+# ──────────────────────────────────────
+build:frontend:
+  stage: build
+  image: "node:${NODE_VERSION}-alpine"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+  before_script:
+    - npm install -g pnpm
+  script:
+    - cd frontend
+    - "echo Build number: $CI_PIPELINE_IID"
+    - "sed -i \"s|appVersion:.*|appVersion: '0.1.$CI_PIPELINE_IID',|\" src/environments/environment.prod.ts"
+    - "grep appVersion src/environments/environment.prod.ts"
+    - pnpm install --shamefully-hoist
+    - npx ng build --configuration=production
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 1 hour
+
+# ──────────────────────────────────────
+# Deploy Backend — sync build + restart
+# ──────────────────────────────────────
+deploy:backend:
+  stage: deploy
+  image: alpine:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+  dependencies:
+    - build:backend
+  before_script:
+    - apk add --no-cache openssh-client rsync
+    - mkdir -p ~/.ssh
+    - cp "$SSH_PRIVATE_KEY" ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H "$STAGING_SERVER_IP" >> ~/.ssh/known_hosts
+  script:
+    - >-
+      REMOTE_HASH=$(ssh ${STAGING_SERVER_USER}@${STAGING_SERVER_IP}
+      "md5sum ${COMPOSE_DIR}/package.json 2>/dev/null | cut -d' ' -f1 || echo none")
+    - LOCAL_HASH=$(md5sum backend/package.json | cut -d' ' -f1)
+    - echo "Remote hash:$REMOTE_HASH  Local hash:$LOCAL_HASH"
+    - ssh ${STAGING_SERVER_USER}@${STAGING_SERVER_IP} "mkdir -p ${BACKEND_DEPLOY_DIR}"
+    - rsync -avz --delete backend/build/src/ ${STAGING_SERVER_USER}@${STAGING_SERVER_IP}:${BACKEND_DEPLOY_DIR}/
+    - rsync -avz backend/package.json ${STAGING_SERVER_USER}@${STAGING_SERVER_IP}:${COMPOSE_DIR}/package.json
+    - >-
+      if [ "$REMOTE_HASH" != "$LOCAL_HASH" ]; then
+        echo ">> package.json changed — rebuilding Docker image...";
+        ssh ${STAGING_SERVER_USER}@${STAGING_SERVER_IP} "cd ${COMPOSE_DIR} && docker compose up --build -d";
+      else
+        echo ">> Restarting container only...";
+        ssh ${STAGING_SERVER_USER}@${STAGING_SERVER_IP} "docker restart ${BACKEND_CONTAINER}";
+      fi
+    - sleep 5
+    - ssh ${STAGING_SERVER_USER}@${STAGING_SERVER_IP} "docker ps --filter name=${BACKEND_CONTAINER}"
+
+# ──────────────────────────────────────
+# Deploy Frontend — sync dist to web dir
+# ──────────────────────────────────────
+deploy:frontend:
+  stage: deploy
+  image: alpine:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+  dependencies:
+    - build:frontend
+  before_script:
+    - apk add --no-cache openssh-client rsync
+    - mkdir -p ~/.ssh
+    - cp "$SSH_PRIVATE_KEY" ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/id_rsa
+    - ssh-keyscan -H "$STAGING_SERVER_IP" >> ~/.ssh/known_hosts
+  script:
+    - ssh ${STAGING_SERVER_USER}@${STAGING_SERVER_IP} "rm -rf ${FRONTEND_DEPLOY_DIR} && mkdir -p ${FRONTEND_DEPLOY_DIR}"
+    - rsync -avz frontend/dist/${FRONTEND_BUILD_NAME}/browser/ ${STAGING_SERVER_USER}@${STAGING_SERVER_IP}:${FRONTEND_DEPLOY_DIR}/

@@ -1,0 +1,74 @@
+<div class="relative h-dvh overflow-hidden">
+  <!-- Image side - diagonal clip, hidden on small screens -->
+  <div class="hidden lg:block absolute inset-0 diagonal-image">
+    @for (img of images; track img; let i = $index) {
+      <img
+        [src]="img"
+        alt=""
+        class="absolute inset-0 w-full h-full object-cover"
+        [style.opacity]="activeIndex() === i ? 1 : 0"
+        [style.transition]="'opacity 1.5s ease-in-out'"
+      />
+    }
+  </div>
+
+  <!-- Form side -->
+  <div
+    class="relative z-10 h-full flex flex-col justify-center items-center px-6 lg:ms-auto lg:w-1/2"
+  >
+    <div class="w-full max-w-sm flex flex-col gap-6">
+      <div class="text-center">
+        <img [src]="isDarkMode() ? 'images/logo-large.webp' : 'images/logo-large-light.webp'" alt="Logo" class="h-16 mx-auto" />
+      </div>
+
+      <form class="flex flex-col gap-4" (ngSubmit)="login()">
+        <div class="flex flex-col gap-2">
+          <label for="username">{{ 'users.username' | translate }}</label>
+          <input
+            id="username"
+            name="username"
+            type="text"
+            pInputText
+            class="w-full"
+            [placeholder]="'users.username' | translate"
+            [ngModel]="username()"
+            (ngModelChange)="username.set($event)"
+            required
+          />
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <label for="password">{{ 'assignUser.password' | translate }}</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            pInputText
+            class="w-full"
+            [placeholder]="'Password' | translate"
+            [ngModel]="password()"
+            (ngModelChange)="password.set($event)"
+            required
+          />
+        </div>
+
+        <p-button
+          type="submit"
+          [loading]="loading()"
+          [label]="'actions.login' | translate"
+          styleClass="w-full"
+          [disabled]="loading()"
+        />
+      </form>
+
+      <div class="text-center text-primary">
+        @if (langService.currentLang() !== 'en') {
+          <span class="cursor-pointer" (click)="changeLang('en')">English</span>
+        }
+        @if (langService.currentLang() !== 'ar') {
+          <span class="cursor-pointer" (click)="changeLang('ar')">العربية</span>
+        }
+      </div>
+    </div>
+  </div>
+</div>

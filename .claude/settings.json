@@ -1,0 +1,14 @@
+{
+  "extraKnownMarketplaces": {
+    "90soft": {
+      "source": {
+        "source": "git",
+        "url": "http://git.90-soft.com/90_soft/claude-plugins-90soft.git"
+      },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "90soft-toolkit@90soft": true
+  }
+}

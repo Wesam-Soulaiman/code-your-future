@@ -1,0 +1,58 @@
+{
+  "version": "0.2.0",
+  "compounds": [
+    {
+      "name": "Full Stack",
+      "configurations": ["Backend: Debug Server", "Frontend: Launch Chrome", "Parse Dashboard"],
+      "stopAll": true
+    }
+  ],
+  "configurations": [
+    {
+      "name": "Backend: Debug Server",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "nodemon",
+      "runtimeArgs": [
+        "--watch", "build",
+        "--ext", "js",
+        "--delay", "3",
+        "--signal", "SIGTERM",
+        "build/src/app.js"
+      ],
+      "preLaunchTask": "clean-watch:backend",
+      "outFiles": ["${workspaceFolder}/backend/build/**/*.js"],
+      "sourceMaps": true,
+      "console": "integratedTerminal",
+      "restart": true,
+      "cwd": "${workspaceFolder}/backend",
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/backend/**",
+        "!**/node_modules/**"
+      ],
+      "sourceMapPathOverrides": {
+        "./*": "${workspaceFolder}/backend/*"
+      },
+      "env": {
+        "NODE_ENV": "development"
+      }
+    },
+    {
+      "name": "Frontend: Launch Chrome",
+      "type": "chrome",
+      "request": "launch",
+      "preLaunchTask": "serve:frontend",
+      "url": "http://localhost:4200",
+      "webRoot": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "Parse Dashboard",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["parse-dashboard", "--config", "dashboard.json"],
+      "cwd": "${workspaceFolder}/backend",
+      "console": "internalConsole"
+    }
+  ]
+}
