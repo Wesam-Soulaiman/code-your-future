@@ -33,6 +33,7 @@ before(async () => {
   await import('../src/cloudCode/models/User');
   await import('../src/cloudCode/models/File');
   await import('../src/cloudCode/models/IMG');
+  await import('../src/cloudCode/models/StudentAuthIdentity');
 
   const guard = await import('../src/cloudCode/utils/config/schemaGuard');
   hardenDefinitions = guard.hardenDefinitions as typeof hardenDefinitions;
@@ -43,9 +44,15 @@ before(async () => {
 });
 
 describe('registered class surface', () => {
-  test('contains exactly _Role, _User, File, and IMG', () => {
+  test('contains exactly _Role, _User, File, IMG, and StudentAuthIdentity', () => {
     const names = definitions.map(definition => definition.className).sort();
-    assert.deepEqual(names, ['File', 'IMG', '_Role', '_User']);
+    assert.deepEqual(names, [
+      'File',
+      'IMG',
+      'StudentAuthIdentity',
+      '_Role',
+      '_User',
+    ]);
   });
 
   test('AppSettings is no longer registered', () => {
@@ -88,7 +95,7 @@ describe('_Role is Admin-scoped', () => {
 });
 
 describe('deny-by-default access', () => {
-  for (const className of ['_User', 'File', 'IMG']) {
+  for (const className of ['_User', 'File', 'IMG', 'StudentAuthIdentity']) {
     test(`${className} denies every client operation`, () => {
       const definition = definitions.find(entry => entry.className === className);
       assert.ok(definition, `${className} definition must exist`);
@@ -150,6 +157,21 @@ describe('deny-by-default access', () => {
 
     const img = definitions.find(entry => entry.className === 'IMG');
     assert.ok(img!.classLevelPermissions!.protectedFields!['*'].includes('image'));
+  });
+
+  test('StudentAuthIdentity hides every identity column', () => {
+    const identity = definitions.find(
+      entry => entry.className === 'StudentAuthIdentity'
+    );
+    const protectedFields = identity!.classLevelPermissions!.protectedFields!;
+    for (const audience of ['*', 'authenticated']) {
+      for (const field of ['provider', 'providerSubject', 'user']) {
+        assert.ok(
+          protectedFields[audience].includes(field),
+          `${field} must be hidden from '${audience}'`
+        );
+      }
+    }
   });
 });
 

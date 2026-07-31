@@ -237,25 +237,54 @@ rate-limit trip.
 
 ---
 
-## Checkpoint 3 — Student Google authentication
+## Checkpoint 2B / 3 — Student Google authentication ✅ COMPLETE
 
-**Prerequisites:** Checkpoint 2; Google OAuth client configured out-of-band (no secret in the repo).
+Delivered as **Checkpoint 2B**. It is the same scope the plan listed as Checkpoint 3; the numbering
+changed when the UI/UX work was split out as 2A.
 
-**Backend scope:** Google auth adapter wired into `parseConfig.ts`; `logInWith()` **must** use
-`{useMasterKey: true}` (Parse Server ≥ 9.6 enforces the Create CLP on auth signup); create the
-`Student` role assignment on first sign-in; store the verified email read-only; never expose OAuth
-identity payloads.
-**Frontend scope:** Google sign-in entry point; post-sign-in routing (complete-profile vs
-dashboard); the approved EN/AR copy from PRODUCT_REQUIREMENTS §4 verbatim.
-**Data-model scope:** `_User` OAuth linkage only; `authData` excluded from every DTO.
-**Authorization and security:** no Student password login / reset / change; verify the Google
-token server-side; a Student may sign in **without** an invitation.
-**Tests:** first sign-in creates exactly one Student; repeat sign-in reuses the account; password
-login rejected for Students; `authData` absent from all responses.
-**Manual flow:** Google sign-in from a clean browser → land on Complete Profile.
-**Documentation:** `PROJECT.md`, `CURRENT_STATE.md`, `HANDOFF.md`.
-**Out of scope:** Apple sign-in; invitations.
-**Definition of done:** a Google account becomes a Student with no invitation and no password.
+**Prerequisites met:** Checkpoint 2A. A Google Web Client ID is configured per deployment; no secret
+is involved, so nothing was committed that needed to be.
+
+**Delivered**
+- `StudentAuthIdentity` — provider, provider subject, and a user pointer. Deny-by-default CLP, empty
+  ACL, all columns protected, server-controlled writes, and **two unique compound indexes** that are
+  confirmed present in MongoDB at runtime.
+- `POST /api/student-auth/loginWithGoogle` — verifies the credential through Parse Server's bundled
+  Google adapter (signature, audience, issuer, expiry, subject) plus this repository's own
+  `email_verified` rule, then provisions or reuses the Student and issues a real Parse session.
+- `GET /api/student-auth/getSession` — role-agnostic restoration carrying no session token and **no
+  username**. `/api/users/getCurrentUser` is untouched and still tested.
+- Frontend: Google Identity Services on the existing Student page, `/student/welcome`,
+  `studentGuard`, role-aware `authGuard`/`guestGuard`, explicit session states, single-flight
+  restoration, and translated messages for every failure.
+
+**Deviation from the plan, and why:** the plan proposed wiring Parse's Google auth adapter into
+`parseConfig.ts` and calling `logInWith()`. That was **not** done, because Parse persists whatever
+`authData` it is given — including the raw `id_token` — which would have stored the credential, and
+the checkpoint forbids storing it. The adapter is still used, but as a verification library behind
+this repository's own boundary; the session comes from `/loginAs` instead, which also means a
+Student account carries no usable password at all.
+
+**Three defects found during validation** — all by *running* the system, none by unit tests:
+1. `Parse.User.loginAs` was called directly rather than inside the error wrapper, so a synchronous
+   failure carried its internal message to the client.
+2. Concurrent first sign-ins for one Google account produced one Student — correct — but the two
+   losing requests were told the account was *ineligible*, because the `_User` email index rejects
+   them before the identity index does. Recovery now starts from the account conflict.
+3. Google's button rendered in **Dutch** on an English page: `renderButton({locale})` is ignored by
+   the current Google library, and the language must be set on the script URL (`?hl=`).
+
+**Tests:** 315 backend (+79) and 305 frontend (+82), zero new dependencies. No test contacts Google.
+**Runtime:** verified end to end against MongoDB with only Google's token verification substituted —
+first sign-in, returning sign-in, three concurrent sign-ins, Admin conflict, role withdrawal, logout,
+token reuse, and the safe DTO over the wire. Google's own button was confirmed loading and rendering
+in a real browser in both languages.
+
+**Explicitly not implemented:** Complete Profile, `StudentProfile`, Apple sign-in, invitations,
+enrollment, account-linking UI, multi-provider linking, and any Student dashboard data.
+
+**Remaining:** a real end-to-end Google sign-in with a live Google account — it needs a human at a
+browser and the backend `GOOGLE_CLIENT_ID` set. See [HANDOFF.md](HANDOFF.md).
 
 ---
 

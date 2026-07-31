@@ -1,0 +1,51 @@
+<div class="cyf-page cyf-student-page">
+  <a class="cyf-skip-link" href="#cyf-student-main">{{ 'a11y.skipToContent' | translate }}</a>
+
+  <header class="cyf-student-header">
+    <cyf-brand-mark size="md" />
+
+    <div class="cyf-student-header-actions">
+      <cyf-language-switch />
+
+      <p-button
+        type="button"
+        severity="secondary"
+        [text]="true"
+        [disabled]="loggingOut()"
+        (onClick)="logout()"
+        styleClass="cyf-btn cyf-logout-btn"
+      >
+        <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
+        <span>{{ 'actions.logout' | translate }}</span>
+      </p-button>
+    </div>
+  </header>
+
+  <main id="cyf-student-main" class="cyf-container cyf-container-content cyf-student-main">
+    <div class="cyf-card cyf-card-padded cyf-card-raised cyf-student-card">
+      <span class="cyf-student-check" aria-hidden="true">
+        <i class="fa-solid fa-circle-check"></i>
+      </span>
+
+      @if (displayName()) {
+        <h1 class="cyf-page-title">
+          {{ 'student.welcome.titleNamed' | translate: { name: displayName() } }}
+        </h1>
+      } @else {
+        <h1 class="cyf-page-title">{{ 'student.welcome.title' | translate }}</h1>
+      }
+
+      <p class="cyf-lead cyf-student-lead">{{ 'student.welcome.accountReady' | translate }}</p>
+
+      <div class="cyf-surface-subtle cyf-student-next">
+        <p class="cyf-label">{{ 'student.welcome.nextStepTitle' | translate }}</p>
+        <p class="cyf-body-sm">{{ 'student.welcome.nextStepText' | translate }}</p>
+      </div>
+
+      <!-- The approved invitation copy, verbatim in both languages. -->
+      <p class="cyf-body-sm cyf-student-invitation">
+        {{ 'auth.studentInvitationNotice' | translate }}
+      </p>
+    </div>
+  </main>
+</div>

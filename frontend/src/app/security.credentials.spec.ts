@@ -17,6 +17,13 @@ import { environment as productionEnvironment } from '../environments/environmen
  * role membership, on top of deny-by-default CLP. It is **not** a Master Key and
  * must not be classified as a secret.
  *
+ * Classification of `googleClientId`: it is the Google OAuth 2.0 **Web
+ * application Client ID**, which is embedded in the sign-in page by design and
+ * identifies the application to Google. It authorises nothing on its own — the
+ * backend verifies every ID token's signature and audience server-side. There is
+ * deliberately no Google **client secret** anywhere in the browser bundle,
+ * because the flow used here never exchanges an authorization code.
+ *
  * What genuinely must never appear: `masterKey`, `readOnlyMasterKey`,
  * `maintenanceKey`, a database URI, an OAuth client secret, or an Admin password.
  */
@@ -37,6 +44,7 @@ const ALLOWED_ENVIRONMENT_KEYS = [
   'parseAppId',
   'parseApiKey',
   'vapidPublicKey',
+  'googleClientId',
 ];
 
 /** Key names that would indicate a backend-only credential. */
@@ -123,6 +131,36 @@ describe('parseApiKey is public client configuration, not a secret', () => {
     // Guards against the key being repurposed as, say, an Authorization bearer.
     expect(environment.parseApiKey).not.toMatch(/^Bearer\s/i);
   });
+});
+
+describe('googleClientId is public configuration and carries no secret', () => {
+  for (const [name, env] of environments) {
+    it(`${name} declares no Google client secret`, () => {
+      for (const key of Object.keys(env)) {
+        expect(normalise(key)).not.toContain('googleclientsecret');
+        expect(normalise(key)).not.toContain('googlesecret');
+      }
+      expect('googleClientSecret' in env).toBe(false);
+    });
+
+    it(`${name} declares only a public Google Web client id, if any`, () => {
+      // A Google Web client id is public by design — it is embedded in the
+      // sign-in page and identifies the application to Google. What must never
+      // appear is a client *secret*; that is asserted above. An empty value is
+      // equally valid and simply leaves the UI in its "not configured" state.
+      const value = (env as {googleClientId?: unknown}).googleClientId;
+      expect(typeof value).toBe('string');
+      if (String(value).length > 0) {
+        expect(String(value)).toMatch(/^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$/);
+      }
+    });
+
+    it(`${name} carries no Google credential or ID token`, () => {
+      const serialised = JSON.stringify(env);
+      // A Google ID token is a three-segment JWT beginning with a JOSE header.
+      expect(/eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\./.test(serialised)).toBe(false);
+    });
+  }
 });
 
 describe('apiUrl configuration', () => {

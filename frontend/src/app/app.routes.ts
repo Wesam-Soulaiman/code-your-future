@@ -3,30 +3,32 @@
  *
  *   /auth              — redirects to /auth/admin
  *   /auth/admin        — Admin sign-in (public, guest-only)
- *   /auth/student      — Student sign-in, UI only (public, guest-only)
+ *   /auth/student      — Student sign-in with Google (public, guest-only)
  *   /auth/**           — any unknown auth sub-route resolves to /auth/admin
- *   /                  — authenticated shell
- *     /dashboard       — landing page after login
+ *   /student           — redirects to /student/welcome
+ *     /student/welcome — the Student area (Students only)
+ *   /                  — Admin shell (Admins only)
+ *     /dashboard       — Admin landing page
  *
  * Guards:
- *   authGuard   — sends a Visitor to /auth/admin
- *   guestGuard  — sends an authenticated user away from the auth pages
- *   roleGuard   — restricts a route to the supplied application roles
+ *   authGuard    — Admin workspace; Visitor → /auth/admin, Student → their own area
+ *   studentGuard — Student area; Visitor → /auth/student, Admin → the dashboard
+ *   guestGuard   — sends an authenticated user away from the auth pages, to the
+ *                  landing route for the role they actually hold
+ *   roleGuard    — restricts a route to the supplied application roles
  *
- * Redirect safety: every redirect target below is a fixed internal path. No
- * target is ever read from a query parameter or from user input, so none of
- * these can become an open redirect.
+ * Redirect safety: every redirect target below is a fixed internal path, defined
+ * in `guards/home-route.ts`. No target is ever read from a query parameter or
+ * from user input, so none of these can become an open redirect.
  *
- * Student authentication is NOT implemented — `/auth/student` is presentation
- * only and performs no sign-in. Google OAuth arrives in Checkpoint 3.
- *
- * Future checkpoints add the Student workspace (3–4), `/join/:token` (6), and
- * the public Talent Reels route (10). None of them exist yet.
+ * Future checkpoints add Complete Profile (4), `/join/:token` (6), and the public
+ * Talent Reels route (10). None of them exists yet.
  */
 
 import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
+import { studentGuard } from './guards/student.guard';
 
 export const routes: Routes = [
   // ── Public authentication ────────────────────────────────────────────────
@@ -60,7 +62,27 @@ export const routes: Routes = [
     ],
   },
 
-  // ── Authenticated shell ──────────────────────────────────────────────────
+  // ── Student area ─────────────────────────────────────────────────────────
+  {
+    path: 'student',
+    canActivate: [studentGuard],
+    children: [
+      { path: '', redirectTo: 'welcome', pathMatch: 'full' },
+      {
+        path: 'welcome',
+        title: 'Code Your Future — Welcome',
+        // Guarded on the child as well, for the same reason as the auth branch.
+        canActivate: [studentGuard],
+        loadComponent: () =>
+          import('./pages/student/student-welcome.component').then(
+            (m) => m.StudentWelcomeComponent,
+          ),
+      },
+      { path: '**', redirectTo: 'welcome' },
+    ],
+  },
+
+  // ── Admin shell ──────────────────────────────────────────────────────────
   {
     path: '',
     canActivate: [authGuard],
@@ -77,7 +99,7 @@ export const routes: Routes = [
     ],
   },
 
-  // Unknown paths fall back to the shell, which redirects to the dashboard
-  // (or to /auth/admin when the visitor is not signed in).
+  // Unknown paths fall back to the shell, whose guard routes each visitor to
+  // the place they are actually allowed to be.
   { path: '**', redirectTo: '' },
 ];

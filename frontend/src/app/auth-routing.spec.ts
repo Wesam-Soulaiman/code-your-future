@@ -13,6 +13,7 @@ import { CurrentUser } from './models/User';
 import { SessionService } from './services/session.service';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
+import { studentGuard } from './guards/student.guard';
 import { routes } from './app.routes';
 import { useTranslations } from './testing/i18n-testing';
 
@@ -21,7 +22,7 @@ import { useTranslations } from './testing/i18n-testing';
 class StubComponent {}
 
 function signIn(roles: string[] = ['Admin']): void {
-  const user: CurrentUser = { id: 'u1', username: 'admin', roles: roles as AppRole[] };
+  const user: CurrentUser = { id: 'u1', displayName: 'Test User', roles: roles as AppRole[] };
   localStorage.setItem('currentUser', JSON.stringify(user));
   localStorage.setItem('sessionToken', 'r:test-token');
 }
@@ -36,7 +37,7 @@ function signIn(roles: string[] = ['Admin']): void {
 function signInLive(roles: string[] = ['Admin']): void {
   const session = TestBed.inject(SessionService);
   session.saveSession(
-    { id: 'u1', username: 'admin', roles: roles as AppRole[] },
+    { id: 'u1', displayName: 'Test User', roles: roles as AppRole[] },
     'r:test-token',
   );
 }
@@ -80,12 +81,29 @@ describe('auth route structure', () => {
     }
   });
 
-  it('gives every auth route a meaningful title', () => {
+  it('declares a Student area guarded on the branch and on the page', () => {
+    const student = findRoute('student');
+    expect(student).toBeTruthy();
+    expect(student?.canActivate).toContain(studentGuard);
+
+    const welcome = student?.children?.find((child) => child.path === 'welcome');
+    expect(welcome).toBeTruthy();
+    expect(welcome?.canActivate).toContain(studentGuard);
+  });
+
+  it('guards the Admin shell so a Student cannot enter it', () => {
+    const shell = routes.find((route) => route.path === '');
+    expect(shell?.canActivate).toContain(authGuard);
+  });
+
+  it('gives every route a meaningful title', () => {
     const auth = findRoute('auth');
     for (const path of ['admin', 'student']) {
       const child = auth?.children?.find((c) => c.path === path);
       expect(String(child?.title)).toContain('Code Your Future');
     }
+    const welcome = findRoute('student')?.children?.find((c) => c.path === 'welcome');
+    expect(String(welcome?.title)).toContain('Code Your Future');
   });
 
   it('uses only fixed internal redirect targets (no open redirect)', () => {
@@ -113,6 +131,12 @@ describe('auth route structure', () => {
       expect(declared).not.toContain(future);
     }
   });
+
+  it('declares no Complete Profile route yet', () => {
+    const declared = JSON.stringify(routes);
+    expect(declared).not.toContain('complete-profile');
+    expect(declared).not.toContain('completeProfile');
+  });
 });
 
 describe('guestGuard', () => {
@@ -122,52 +146,120 @@ describe('guestGuard', () => {
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
   });
 
-  it('lets a Visitor reach the auth pages', () => {
-    const result = TestBed.runInInjectionContext(
+  const run = () =>
+    TestBed.runInInjectionContext(
       () => guestGuard({} as never, {} as never) as boolean | UrlTree,
     );
-    expect(result).toBe(true);
+
+  it('lets a Visitor reach the auth pages', () => {
+    expect(run()).toBe(true);
   });
 
-  it('redirects an authenticated Admin away from the auth pages', () => {
-    signIn();
-    const result = TestBed.runInInjectionContext(
-      () => guestGuard({} as never, {} as never) as boolean | UrlTree,
-    );
+  it('sends an authenticated Admin to the dashboard', () => {
+    signIn(['Admin']);
+    const result = run();
     expect(result).toBeInstanceOf(UrlTree);
-    expect(String(result)).toBe('/');
+    expect(String(result)).toBe('/dashboard');
+  });
+
+  it('sends an authenticated Student to their own area', () => {
+    signIn(['Student']);
+    const result = run();
+    expect(result).toBeInstanceOf(UrlTree);
+    expect(String(result)).toBe('/student/welcome');
+  });
+
+  it('sends a session with no recognised role back to sign in', () => {
+    signIn(['SuperAdmin']);
+    expect(String(run())).toBe('/auth/admin');
   });
 
   it('returns a UrlTree rather than navigating, so there is no auth-page flash', () => {
     signIn();
-    const result = TestBed.runInInjectionContext(
-      () => guestGuard({} as never, {} as never) as boolean | UrlTree,
-    );
     // A UrlTree is resolved by the router before the component is created.
-    expect(result).toBeInstanceOf(UrlTree);
+    expect(run()).toBeInstanceOf(UrlTree);
   });
 });
 
-describe('authGuard sends a Visitor to the Admin auth page', () => {
+describe('authGuard protects the Admin workspace', () => {
   beforeEach(() => {
     localStorage.clear();
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({ providers: [provideRouter([])] });
   });
 
-  it('redirects to /auth/admin (not the bare /auth) to avoid a double hop', () => {
-    const result = TestBed.runInInjectionContext(
+  const run = () =>
+    TestBed.runInInjectionContext(
       () => authGuard({} as never, {} as never) as boolean | UrlTree,
     );
-    expect(String(result)).toBe('/auth/admin');
+
+  it('redirects a Visitor to /auth/admin (not the bare /auth) to avoid a double hop', () => {
+    expect(String(run())).toBe('/auth/admin');
   });
 
-  it('admits an authenticated user', () => {
-    signIn();
-    const result = TestBed.runInInjectionContext(
-      () => authGuard({} as never, {} as never) as boolean | UrlTree,
+  it('admits an Admin', () => {
+    signIn(['Admin']);
+    expect(run()).toBe(true);
+  });
+
+  it('sends a Student to their own area rather than admitting them', () => {
+    signIn(['Student']);
+    const result = run();
+    expect(result).toBeInstanceOf(UrlTree);
+    expect(String(result)).toBe('/student/welcome');
+  });
+
+  it('refuses a legacy role', () => {
+    signIn(['SuperAdmin', 'Employee']);
+    expect(String(run())).toBe('/auth/admin');
+  });
+});
+
+describe('studentGuard protects the Student area', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+  });
+
+  const run = () =>
+    TestBed.runInInjectionContext(
+      () => studentGuard({} as never, {} as never) as boolean | UrlTree,
     );
-    expect(result).toBe(true);
+
+  it('sends a Visitor to the Student sign-in page, not the Admin one', () => {
+    const result = run();
+    expect(result).toBeInstanceOf(UrlTree);
+    expect(String(result)).toBe('/auth/student');
+  });
+
+  it('admits a Student', () => {
+    signIn(['Student']);
+    expect(run()).toBe(true);
+  });
+
+  it('sends an Admin to the dashboard rather than admitting them', () => {
+    signIn(['Admin']);
+    expect(String(run())).toBe('/dashboard');
+  });
+
+  it('refuses a legacy role', () => {
+    signIn(['Employee']);
+    expect(String(run())).toBe('/auth/student');
+  });
+
+  it('refuses a session whose Student role was withdrawn', () => {
+    signIn(['Student']);
+    expect(run()).toBe(true);
+
+    // The backend removed the role; restoration replaced the cached set.
+    localStorage.setItem(
+      'currentUser',
+      JSON.stringify({ id: 'u1', displayName: 'Test User', roles: [] }),
+    );
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    expect(String(run())).toBe('/auth/student');
   });
 });
 
@@ -196,7 +288,23 @@ describe('navigation behaviour', () => {
               { path: '**', redirectTo: 'admin' },
             ],
           },
-          { path: '', canActivate: [authGuard], component: StubComponent },
+          {
+            path: 'student',
+            canActivate: [studentGuard],
+            children: [
+              { path: '', redirectTo: 'welcome', pathMatch: 'full' },
+              { path: 'welcome', canActivate: [studentGuard], component: StubComponent },
+              { path: '**', redirectTo: 'welcome' },
+            ],
+          },
+          {
+            path: '',
+            canActivate: [authGuard],
+            children: [
+              { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+              { path: 'dashboard', component: StubComponent },
+            ],
+          },
           { path: '**', redirectTo: '' },
         ]),
       ],
@@ -227,24 +335,62 @@ describe('navigation behaviour', () => {
     expect(location.path()).toBe('/auth/admin');
   });
 
+  it('sends a Visitor asking for the Student area to Student sign-in', async () => {
+    await router.navigateByUrl('/student/welcome');
+    expect(router.url).toBe('/auth/student');
+  });
+
+  it('lets a signed-in Student into their area', async () => {
+    signInLive(['Student']);
+    await router.navigateByUrl('/student/welcome');
+    expect(router.url).toBe('/student/welcome');
+  });
+
+  it('redirects bare /student to the welcome page', async () => {
+    signInLive(['Student']);
+    await router.navigateByUrl('/student');
+    expect(router.url).toBe('/student/welcome');
+  });
+
+  it('keeps a Student out of the Admin workspace', async () => {
+    signInLive(['Student']);
+    await router.navigateByUrl('/dashboard');
+    expect(router.url).toBe('/student/welcome');
+  });
+
+  it('keeps an Admin out of the Student area', async () => {
+    signInLive(['Admin']);
+    await router.navigateByUrl('/student/welcome');
+    expect(router.url).toBe('/dashboard');
+  });
+
   it('keeps an authenticated Admin off the auth pages', async () => {
-    signInLive();
+    signInLive(['Admin']);
     // Navigate to a URL different from the current one — the router treats a
     // same-URL navigation as a no-op, which would not exercise the guard.
     await router.navigateByUrl('/auth/student');
-    expect(router.url).toBe('/');
+    expect(router.url).toBe('/dashboard');
 
     await router.navigateByUrl('/auth/admin');
-    expect(router.url).toBe('/');
+    expect(router.url).toBe('/dashboard');
+  });
+
+  it('keeps an authenticated Student off the auth pages', async () => {
+    signInLive(['Student']);
+    await router.navigateByUrl('/auth/student');
+    expect(router.url).toBe('/student/welcome');
+
+    await router.navigateByUrl('/auth/admin');
+    expect(router.url).toBe('/student/welcome');
   });
 
   it('does not loop between the guards', async () => {
-    signInLive();
+    signInLive(['Admin']);
     await router.navigateByUrl('/auth/student');
-    expect(router.url).toBe('/');
+    expect(router.url).toBe('/dashboard');
 
     // Signing out and heading back to an auth page must settle immediately —
-    // the two guards must not bounce the user between '/' and '/auth/admin'.
+    // the guards must not bounce the user between the workspaces.
     TestBed.inject(SessionService).clearSession();
     await router.navigateByUrl('/auth/admin');
     expect(router.url).toBe('/auth/admin');
@@ -252,6 +398,21 @@ describe('navigation behaviour', () => {
     // ...and a Visitor asking for a protected URL lands on the auth page.
     await router.navigateByUrl('/');
     expect(router.url).toBe('/auth/admin');
+  });
+
+  it('does not loop for a Student either', async () => {
+    signInLive(['Student']);
+    await router.navigateByUrl('/student/welcome');
+    expect(router.url).toBe('/student/welcome');
+
+    TestBed.inject(SessionService).clearSession();
+    // Move away first: the router treats a navigation to the current URL as a
+    // no-op, and '/student' redirects straight back to '/student/welcome'.
+    await router.navigateByUrl('/auth/admin');
+    expect(router.url).toBe('/auth/admin');
+
+    await router.navigateByUrl('/student/welcome');
+    expect(router.url).toBe('/auth/student');
   });
 
   it('allows switching between the two auth pages', async () => {

@@ -23,6 +23,24 @@ function convertParseDates(obj: unknown): unknown {
   return obj;
 }
 
+/**
+ * Which sign-in page an expired session should return to.
+ *
+ * Read straight from storage rather than from `SessionService`, because an
+ * interceptor must not inject a service that may itself be mid-teardown. The
+ * cached role is only used to choose a *page*; it grants nothing.
+ */
+function isCachedStudent(): boolean {
+  try {
+    const raw = localStorage.getItem('currentUser');
+    if (!raw) return false;
+    const roles = (JSON.parse(raw) as { roles?: unknown }).roles;
+    return Array.isArray(roles) && roles.includes('Student') && !roles.includes('Admin');
+  } catch {
+    return false;
+  }
+}
+
 export const httpInterceptor: HttpInterceptorFn = (req, next) => {
   const toastService = inject(ToastService);
   const router = inject(Router);
@@ -32,11 +50,12 @@ export const httpInterceptor: HttpInterceptorFn = (req, next) => {
     'X-Parse-Application-Id': environment.parseAppId,
   };
 
-  // Attach the session token to every request except login, which is the call
-  // that establishes the session. The template checked for '/functions/login',
-  // which never matched the real 'loginUser' route.
+  // Attach the session token to every request except the two calls that
+  // *establish* a session. The template checked for '/functions/login', which
+  // never matched the real 'loginUser' route.
   const sessionToken = localStorage.getItem('sessionToken');
-  if (sessionToken && !req.url.includes('loginUser')) {
+  const isSignIn = req.url.includes('loginUser') || req.url.includes('loginWithGoogle');
+  if (sessionToken && !isSignIn) {
     headers['X-Parse-Session-Token'] = sessionToken;
   }
 
@@ -58,10 +77,14 @@ export const httpInterceptor: HttpInterceptorFn = (req, next) => {
         toastService.error(message);
       }
 
-      // Handle session expired
+      // Session expired or revoked. Clear both stored values — leaving the
+      // cached user behind would keep stale roles visible to the guards — and
+      // send the visitor to the sign-in page that matches the session they had.
       if ([142, 209].includes(error.error?.code)) {
+        const wasStudent = isCachedStudent();
         localStorage.removeItem('sessionToken');
-        router.navigate(['/auth/admin']);
+        localStorage.removeItem('currentUser');
+        router.navigate([wasStudent ? '/auth/student' : '/auth/admin']);
       }
 
       return throwError(() => error);

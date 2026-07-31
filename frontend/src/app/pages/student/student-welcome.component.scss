@@ -1,0 +1,86 @@
+/* Student welcome — scoped styles.
+   Composition only: every colour, space, radius and size comes from the
+   Checkpoint 2A token layer, and all box properties are logical so one
+   stylesheet serves LTR and RTL. */
+
+:host {
+  display: block;
+}
+
+.cyf-student-page {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+}
+
+.cyf-student-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cyf-space-4);
+  flex-wrap: wrap;
+  padding: var(--cyf-space-4) var(--cyf-space-6);
+  border-block-end: 1px solid var(--cyf-border);
+  background: var(--cyf-surface);
+}
+
+.cyf-student-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+}
+
+.cyf-student-main {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding-block: var(--cyf-space-8);
+}
+
+.cyf-student-card {
+  inline-size: 100%;
+  text-align: start;
+}
+
+.cyf-student-check {
+  display: grid;
+  place-items: center;
+  inline-size: 3rem;
+  block-size: 3rem;
+  margin-block-end: var(--cyf-space-4);
+  border-radius: var(--cyf-radius-full);
+  background: var(--cyf-success-subtle);
+  color: var(--cyf-success);
+  font-size: var(--cyf-text-xl);
+}
+
+.cyf-student-card h1 {
+  margin: 0 0 var(--cyf-space-3);
+}
+
+.cyf-student-lead {
+  margin: 0 0 var(--cyf-space-6);
+}
+
+.cyf-student-next {
+  padding: var(--cyf-space-4);
+
+  p {
+    margin: 0;
+  }
+
+  p + p {
+    margin-block-start: var(--cyf-space-1);
+  }
+}
+
+.cyf-student-invitation {
+  margin: var(--cyf-space-6) 0 0;
+  color: var(--cyf-text-secondary);
+}
+
+@media (max-width: 480px) {
+  .cyf-student-header {
+    padding-inline: var(--cyf-space-4);
+  }
+}

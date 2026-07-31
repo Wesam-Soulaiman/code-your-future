@@ -7,9 +7,7 @@ import { SessionService } from './session.service';
 
 const SAFE_USER: CurrentUser = {
   id: 'u1',
-  username: 'admin',
-  firstName: 'Ada',
-  lastName: 'Lovelace',
+  displayName: 'Ada Lovelace',
   roles: [AppRole.ADMIN],
 };
 
@@ -26,7 +24,7 @@ describe('SessionService', () => {
     const session = service();
     session.saveSession(SAFE_USER, 'r:token');
     expect(session.isLoggedIn()).toBe(true);
-    expect(session.user()?.username).toBe('admin');
+    expect(session.user()?.displayName).toBe('Ada Lovelace');
     expect(session.roles()).toEqual(['Admin']);
     expect(session.isAdmin()).toBe(true);
     expect(session.isStudent()).toBe(false);
@@ -59,10 +57,12 @@ describe('SessionService', () => {
     session.saveSession(
       {
         ...SAFE_USER,
+        username: 'gid_internal_username',
         email: 'leak@example.com',
         phoneNumber: '+963900000000',
         authData: { google: { id: 'x' } },
         sessionToken: 'r:should-not-be-here',
+        providerSubject: '110000000000000000001',
       } as unknown as CurrentUser,
       'r:token',
     );
@@ -72,21 +72,17 @@ describe('SessionService', () => {
     expect(stored).not.toContain('+963900000000');
     expect(stored).not.toContain('authData');
     expect(stored).not.toContain('should-not-be-here');
+    expect(stored).not.toContain('gid_internal_username');
+    expect(stored).not.toContain('110000000000000000001');
 
     const user = session.user() as unknown as Record<string, unknown>;
-    expect(Object.keys(user).sort()).toEqual([
-      'firstName',
-      'id',
-      'lastName',
-      'roles',
-      'username',
-    ]);
+    expect(Object.keys(user).sort()).toEqual(['displayName', 'id', 'roles']);
   });
 
   it('strips legacy role names from a stale cached session', () => {
     localStorage.setItem(
       'currentUser',
-      JSON.stringify({ id: 'u1', username: 'legacy', roles: ['SuperAdmin', 'Employee'] }),
+      JSON.stringify({ id: 'u1', displayName: 'Legacy', roles: ['SuperAdmin', 'Employee'] }),
     );
     localStorage.setItem('sessionToken', 'r:token');
 
@@ -117,5 +113,52 @@ describe('SessionService', () => {
     localStorage.setItem('sessionToken', 'r:token');
     const session = service();
     expect(session.user()).toBeNull();
+  });
+
+  describe('explicit session states', () => {
+    it('starts unauthenticated when no token is stored', () => {
+      expect(service().status()).toBe('unauthenticated');
+    });
+
+    it('starts restoring when a token is present but unverified', () => {
+      localStorage.setItem('currentUser', JSON.stringify(SAFE_USER));
+      localStorage.setItem('sessionToken', 'r:token');
+      const session = service();
+      expect(session.status()).toBe('restoring');
+      expect(session.isRestoring()).toBe(true);
+      // A stored token is not yet proof of anything.
+      expect(session.isAuthenticated()).toBe(false);
+    });
+
+    it('becomes authenticated only once a session is saved', () => {
+      localStorage.setItem('sessionToken', 'r:token');
+      const session = service();
+      expect(session.isAuthenticated()).toBe(false);
+      session.saveSession(SAFE_USER, 'r:token');
+      expect(session.status()).toBe('authenticated');
+      expect(session.isAuthenticated()).toBe(true);
+    });
+
+    it('becomes unauthenticated when the session is cleared', () => {
+      const session = service();
+      session.saveSession(SAFE_USER, 'r:token');
+      session.clearSession();
+      expect(session.status()).toBe('unauthenticated');
+      expect(session.isRestoring()).toBe(false);
+    });
+  });
+
+  describe('display name', () => {
+    it('is the safe display name from the DTO', () => {
+      const session = service();
+      session.saveSession(SAFE_USER, 'r:token');
+      expect(session.userDisplayName()).toBe('Ada Lovelace');
+    });
+
+    it('is empty rather than falling back to an internal identifier', () => {
+      const session = service();
+      session.saveSession({ id: 'u2', roles: [AppRole.STUDENT] }, 'r:token');
+      expect(session.userDisplayName()).toBe('');
+    });
   });
 });

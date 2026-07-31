@@ -6,8 +6,8 @@ Batch-based training platform. Parse Server 9.x backend + Angular 21 frontend.
 
 Authoritative product behaviour lives in [docs/PRODUCT_REQUIREMENTS.md](docs/PRODUCT_REQUIREMENTS.md).
 This file describes **what is implemented right now** — the secure product
-foundation from Checkpoint 1 plus the UI/UX design system and authentication
-experience from Checkpoint 2A.
+foundation from Checkpoint 1, the UI/UX design system from Checkpoint 2A, and
+Student Google authentication from Checkpoint 2B.
 
 ---
 
@@ -46,6 +46,23 @@ function that resolves the caller from its session and returns a hand-built DTO.
 `protectedFields` additionally strips `email`, `username`, `emailVerified`,
 `authData`, and `phoneNumber` for non-master callers.
 
+### `StudentAuthIdentity`
+
+Links an external identity-provider account to a Student — the minimum needed to
+recognise a returning learner. All operations denied, empty default ACL, every
+column in `protectedFields`, and a `beforeSave` that refuses non-server writes
+and freezes the columns after creation. No API returns one.
+
+| Field | Description | Required |
+|---|---|---|
+| provider | Identity provider name (`google`) | Yes |
+| providerSubject | The provider's stable subject id — never returned | Yes |
+| user | Pointer to the Student `_User` | Yes |
+
+Two unique compound indexes: `(provider, providerSubject)` so one Google account
+maps to exactly one Student, and `(provider, user)` so a Student can never hold a
+duplicate. **No credential, token, email, name, or other claim is stored.**
+
 ### `File`
 
 Private file infrastructure. All operations denied, default object ACL empty, the
@@ -71,7 +88,8 @@ Same deny-by-default posture and ACL rejection as `File`.
 ## Entity Relationships
 
 ```
-_User ──(membership)── _Role {Admin, Student}
+_User ──(membership)────── _Role {Admin, Student}
+      └──(1:1 per provider) StudentAuthIdentity {google}
 File, IMG  — standalone private infrastructure, no product owner yet
 ```
 
@@ -79,13 +97,15 @@ File, IMG  — standalone private infrastructure, no product owner yet
 
 ## API surface
 
-Three cloud functions. Nothing else is reachable.
+Five cloud functions. Nothing else is reachable.
 
 | Route | Method | Auth | Purpose |
 |---|---|---|---|
 | `/api/users/loginUser` | POST | none (rate limited 10/min) | Admin password login. Returns a safe DTO **plus** the session token. Refuses any account without the Admin role. |
 | `/api/users/getCurrentUser` | GET | session | Session restoration. Safe DTO, **no** session token, no email, no phone. |
-| `/api/users/logout` | POST | session | Invalidates the caller's own session. Idempotent. |
+| `/api/users/logout` | POST | session | Invalidates the caller's own session. Idempotent. Used by both roles. |
+| `/api/student-auth/loginWithGoogle` | POST | none (rate limited 10/min) | Verifies a Google credential, provisions or reuses the Student, and returns a safe DTO **plus** the session token. |
+| `/api/student-auth/getSession` | GET | session | Session restoration for **either** role. `{id, roles, displayName?}` — no session token, **no username**, no email. |
 
 Blocked for every client: `/classes/*`, `/schemas`, `/batch`, Parse's
 `POST /users` signup, `requestPasswordReset`, and the raw `/files/*` endpoints —
@@ -103,13 +123,26 @@ all return 403 (or 404 where the route does not resolve).
 - Duplicate-submit prevention and Enter-key submission.
 - Language switch and a link to Student sign-in.
 
-### Student sign-in (`/auth/student`) — presentation only
-- Student heading, value proposition, and a **disabled** Google button.
+### Student sign-in (`/auth/student`)
+- Google's own sign-in button, rendered in the page's language.
+- Translated states: loading, ready, signing in, cancelled, invalid credential,
+  unverified Google email, account not eligible, rate limited, backend
+  unavailable, and sign-in not configured on this server.
 - The approved invitation copy, verbatim in both languages.
 - Privacy note and a link to Admin sign-in.
-- **No email, username, password, signup, reset, or invitation-token field.**
-- Google OAuth is **not implemented** — the button has no click handler, issues no
-  request, and creates no session. It is enabled in Checkpoint 3.
+- **No email, username, password, signup, reset, or invitation-token field**, and
+  no Apple button.
+- A first verified sign-in creates the Student automatically. **No invitation is
+  required to sign in.**
+
+### Student welcome (`/student/welcome`) — Students only
+- Branding, a greeting using the verified Google name when Google supplies one,
+  and confirmation that the account is ready.
+- States that completing the profile is the next step and that it is not
+  available yet.
+- Language switch and logout.
+- **No profile form, completion percentage, batch, invitation, task, statistic,
+  chart, or link to anything that does not exist.**
 
 ### `/auth`
 - Redirects to `/auth/admin`. Any unknown `/auth/**` sub-route resolves there too.
@@ -117,13 +150,14 @@ all return 403 (or 404 where the route does not resolve).
 ### Dashboard (`/dashboard`)
 - Landing page after login. Placeholder pending the Admin workspace.
 
-### Sidebar Navigation
+### Sidebar Navigation (Admin shell only)
 
 | Item | Route | Icon | Roles |
 |---|---|---|---|
-| Dashboard | `/dashboard` | `fa-solid fa-gauge` | any authenticated user |
+| Dashboard | `/dashboard` | `fa-solid fa-gauge` | Admin |
 
-No other navigation exists. Students, Batches, Resources, Live Slides, Tasks, Pinned Students,
+The Student area has no navigation at all — one page, a language switch, and
+logout. No other navigation exists anywhere. Students, Batches, Resources, Live Slides, Tasks, Pinned Students,
 Talent Reels, and user management are **not** present.
 
 The template's `/users` management screen was removed in Checkpoint 1: Code Your
@@ -140,6 +174,18 @@ Future has no manual user-administration requirement.
 - Logout destroys the server-side session and clears local state even if the
   server call fails.
 - No Student password login, signup, reset, or change exists anywhere.
+- **Student Google sign-in**: the credential is verified server-side (signature,
+  audience, issuer, expiry, subject, and a Google-verified email) before anything
+  is created. It is never stored, logged, returned, or placed in a URL.
+- A Student's Parse username and password are generated server-side from a
+  CSPRNG, never leave the server, and cannot be used — password login refuses any
+  non-Admin.
+- An Admin account is never converted to a Student, and a Google identity cannot
+  move between Students.
+- Simultaneous first sign-ins are resolved by unique database indexes, so exactly
+  one Student and one identity result.
+- Removing the Student role blocks the next sign-in and empties the roles on the
+  next session restoration.
 
 ### Access boundaries
 - Deny-by-default CLP on every class.
@@ -188,8 +234,8 @@ Currently unused — no list page exists.
 
 | Suite | Command | Count |
 |---|---|---|
-| Backend | `cd backend && pnpm run test` (`node:test`) | 210 |
-| Frontend | `cd frontend && pnpm run test` (Vitest) | 167 |
+| Backend | `cd backend && pnpm run test` (`node:test`) | 315 |
+| Frontend | `cd frontend && pnpm run test` (Vitest) | 305 |
 
 No new dependency was added for either suite.
 
@@ -209,9 +255,27 @@ No new dependency was added for either suite.
 
 ---
 
+## Required configuration
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `GOOGLE_CLIENT_ID` | `backend/.env` | Google **Web application** Client ID. Student sign-in refuses without it; Admin login is unaffected. |
+| `googleClientId` | `frontend/src/environments/environment*.ts` | The same public Client ID for the browser. |
+
+There is **no Google client secret** anywhere: this flow returns a signed ID
+token directly and never exchanges an authorization code.
+
 ## Last Updated
 
-Checkpoint 2A — UI/UX design system and authentication experience: semantic design
+Checkpoint 2B — Student Google authentication: `StudentAuthIdentity` with two
+unique compound indexes, server-side credential verification through Parse
+Server's bundled Google adapter plus a verified-email rule, idempotent and
+concurrency-safe provisioning, real Parse sessions issued through `/loginAs`
+(so a Student holds no usable password), a role-agnostic session-restoration
+endpoint that carries no username, `/student/welcome` behind a Student guard,
+role-aware guards throughout, and 161 new tests.
+
+Preceded by Checkpoint 2A — UI/UX design system and authentication experience: semantic design
 tokens, typography with language-aware stacks, layout and UI primitives, a
 redesigned Admin auth page with translated error states, a **presentation-only**
 Student auth page (Google OAuth not implemented), `/auth/admin` + `/auth/student`

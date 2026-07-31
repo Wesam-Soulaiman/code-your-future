@@ -25,6 +25,8 @@ Claude Code.
 - **Swagger** — auto-generated API documentation
 - **Cron** — scheduled jobs via `@Cron` decorator
 - **Seed** — idempotently creates the `Admin` and `Student` roles and the Admin account
+- **Student Google sign-in** — server-side credential verification, automatic provisioning,
+  and real revocable Parse sessions; a Student never holds a usable password
 - **Tests** — `node:test`, no extra dependency
 
 ### Frontend
@@ -34,8 +36,8 @@ Claude Code.
 - **Design system** — semantic tokens (`src/styles/tokens.css`), typography with language-aware
   font stacks (`src/styles/typography.css`), and layout/UI primitives in CSS logical properties
   (`src/styles/layout.css`), layered additively on the existing PrimeNG theme
-- **Auth experience** — `/auth/admin` (working) and `/auth/student` (presentation only; Google
-  OAuth is **not** implemented yet)
+- **Auth experience** — `/auth/admin` (Admin password login) and `/auth/student`
+  (**Google sign-in**, using Google Identity Services); `/student/welcome` is the Student area
 - **Accessibility baseline** — landmarks, one `h1` per page, real labels, visible focus,
   44px targets, status never by colour alone, reduced-motion support
 - **Multi-language** — English + Arabic with exact key parity and RTL/LTR auto-switching,
@@ -172,6 +174,66 @@ Additional environment variables read by the backend (none are secrets):
 | `MASTER_KEY_IPS` | Comma-separated IPs/CIDRs allowed to use the master key | `127.0.0.1,::1` |
 | `LOG_LEVEL` | `error`, `warn`, `info`, or `debug` | `info` |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` / `ADMIN_EMAIL` | Seeds the initial Admin account. **If `ADMIN_PASSWORD` is unset, seeding skips with a warning — no default password is ever invented.** | none |
+| `GOOGLE_CLIENT_ID` | Google **Web application** Client ID for Student sign-in. Not a secret — the browser holds the same value. **If unset, Student sign-in refuses with `GOOGLE_NOT_CONFIGURED` and Admin login is unaffected.** | none |
+
+#### Student Google sign-in
+
+Create an **OAuth 2.0 Web application** client in the Google Cloud console, add
+your app's origins to its *Authorised JavaScript origins*, then set the same
+Client ID in two places:
+
+- `GOOGLE_CLIENT_ID` in `backend/.env` — the server verifies every ID token's
+  signature, audience, issuer, expiry and subject against it, and additionally
+  requires that Google has verified the account's email;
+- `googleClientId` in `frontend/src/environments/environment*.ts`.
+
+There is **no client secret**: the browser flow returns a signed ID token
+directly, so no authorization-code exchange happens and there is nothing secret
+to store. Nothing about the credential is persisted — no token, no claim, and no
+Google profile data beyond the verified email and name on the account itself.
+
+Nothing about the credential is logged either. The Google subject, the ID token,
+`authData`, and claim bags are redacted by key name at **every** log level, so no
+`LOG_LEVEL` setting is required for privacy.
+
+#### Authorized JavaScript origins — an owner action
+
+Google refuses to issue a credential to a page whose origin is not registered on
+the OAuth client. The symptom is an HTTP 403 on `accounts.google.com/gsi/button`
+and `[GSI_LOGGER]: The given origin is not allowed for the given client ID`.
+
+An origin is **scheme + host + port only** — no path, no hash, no query:
+
+```
+http://localhost:4200
+```
+
+> Google Cloud Console → **APIs & Services** → **Credentials** → select the Code
+> Your Future **OAuth 2.0 Web client** → **Authorized JavaScript origins** →
+> **Add URI** → `http://localhost:4200` → Save.
+
+Add `http://127.0.0.1:4200` only if you genuinely open the app on that hostname —
+`localhost` and `127.0.0.1` are different origins to a browser. Never add
+wildcards or routes such as `/auth/student`. Changes can take a few minutes to
+propagate.
+
+While the origin is unauthorised the button renders but nothing happens: no
+session is created and no raw Google error is shown.
+
+#### Cross-Origin-Opener-Policy
+
+Google's popup talks back to the page that opened it, which Chrome blocks unless
+the document sends:
+
+```
+Cross-Origin-Opener-Policy: same-origin-allow-popups
+```
+
+`ng serve` sends it already — it is configured in `frontend/angular.json` under
+`serve.options.headers`. **Whatever serves the built frontend in production must
+send the same header**; see [docs/TEMPLATE_ARCHITECTURE.md §16d](docs/TEMPLATE_ARCHITECTURE.md)
+for nginx, Apache, and static-host equivalents. Do not add
+`Cross-Origin-Embedder-Policy` — it blocks Google's button iframe.
 
 #### CORS policy — fails closed
 
@@ -194,7 +256,8 @@ allow-lists, never wildcards. No production domain is hardcoded anywhere.
 - `frontend/src/environments/environment.ts` — local dev
 - `frontend/src/environments/environment.prod.ts` — production
 
-Both must have matching `parseAppId` and `parseApiKey` with the backend `.env`.
+Both must have matching `parseAppId` and `parseApiKey` with the backend `.env`,
+and `googleClientId` must match the backend's `GOOGLE_CLIENT_ID`.
 
 `parseApiKey` is the Parse **REST API key** — a *client* key, in the same family as
 `javascriptKey`. Parse client keys identify the application; they do not authorise

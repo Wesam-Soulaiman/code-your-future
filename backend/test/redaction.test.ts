@@ -263,3 +263,237 @@ describe('Parse logger adapter', () => {
     assert.ok(line.includes('getCurrentUser'));
   });
 });
+
+/**
+ * ── S-19 — OAuth identity redaction ⟨CP2B closeout⟩ ─────────────────────────
+ *
+ * Parse Server logs each trigger's `Input`/`Result`, so saving a
+ * `StudentAuthIdentity` used to write the Google **subject** into the log line.
+ * The subject is a stable identifier for a real person, so it is now redacted by
+ * key name — everywhere, at every log level, and without relying on `LOG_LEVEL`.
+ *
+ * The rules must stay precise: `id` and `objectId` are ordinary, safe fields and
+ * must survive, or every log line loses the identifier that makes it useful.
+ */
+const OAUTH_CANARY = {
+  subject: '110000000000000000900',
+  credential: 'eyJhbGciOiJSUzI1NiJ9.CREDENTIALCANARY.signature',
+  idToken: 'eyJhbGciOiJSUzI1NiJ9.IDTOKENCANARY.signature',
+  refreshToken: '1//REFRESHTOKENCANARY',
+  authorizationCode: '4/AUTHORIZATIONCODECANARY',
+};
+
+function assertNoOauthCanaries(output: string) {
+  for (const [name, value] of Object.entries(OAUTH_CANARY)) {
+    assert.ok(!output.includes(value), `${name} canary leaked: ${output}`);
+  }
+}
+
+describe('OAuth identity redaction (S-19)', () => {
+  test('every OAuth identity key name is recognised as sensitive', () => {
+    for (const key of [
+      'sub',
+      'subject',
+      'providerSubject',
+      'googleSubject',
+      'oauthSubject',
+      'credential',
+      'idToken',
+      'id_token',
+      'accessToken',
+      'refreshToken',
+      'authorizationCode',
+      'authData',
+      'claims',
+      'rawClaims',
+      'authentication',
+    ]) {
+      assert.ok(isSensitiveKey(key), `${key} must be treated as sensitive`);
+    }
+  });
+
+  test('a direct subject value is redacted', () => {
+    const output = serialise(redact({providerSubject: OAUTH_CANARY.subject}));
+    assert.ok(output.includes(REDACTED));
+    assertNoOauthCanaries(output);
+  });
+
+  test('a nested subject is redacted at depth', () => {
+    const output = serialise(
+      redact({
+        op: 'provisionStudent',
+        identity: {
+          provider: 'google',
+          detail: {inner: {providerSubject: OAUTH_CANARY.subject}},
+        },
+      })
+    );
+    assertNoOauthCanaries(output);
+    // The non-sensitive neighbours survive, so the line is still diagnosable.
+    assert.ok(output.includes('provisionStudent'));
+    assert.ok(output.includes('google'));
+  });
+
+  test('a claim bag containing sub is redacted', () => {
+    const output = serialise(
+      redact({claims: {sub: OAUTH_CANARY.subject, email: CANARY.email}})
+    );
+    assertNoOauthCanaries(output);
+    assert.ok(!output.includes(CANARY.email));
+  });
+
+  test('a bare sub claim is redacted', () => {
+    const output = serialise(redact({sub: OAUTH_CANARY.subject}));
+    assertNoOauthCanaries(output);
+  });
+
+  test('subjects inside arrays are redacted', () => {
+    const output = serialise(
+      redact([{providerSubject: OAUTH_CANARY.subject}, {sub: OAUTH_CANARY.subject}])
+    );
+    assertNoOauthCanaries(output);
+  });
+
+  test('subjects inside a Map are redacted', () => {
+    const map = new Map<string, unknown>([
+      ['providerSubject', OAUTH_CANARY.subject],
+      ['credential', OAUTH_CANARY.credential],
+    ]);
+    assertNoOauthCanaries(serialise(redact(map)));
+  });
+
+  test('subjects inside a Set are redacted', () => {
+    const set = new Set([{sub: OAUTH_CANARY.subject}]);
+    assertNoOauthCanaries(serialise(redact(set)));
+  });
+
+  test('subjects hung off an Error are redacted', () => {
+    const error = new Error('provisioning failed') as Error & Record<string, unknown>;
+    error['providerSubject'] = OAUTH_CANARY.subject;
+    error['credential'] = OAUTH_CANARY.credential;
+    const output = serialise(redact(error));
+    assertNoOauthCanaries(output);
+    assert.ok(output.includes('provisioning failed'));
+  });
+
+  test('subjects on a Parse-like object never reach the output', () => {
+    const parseLike = {
+      className: 'StudentAuthIdentity',
+      id: 'abc123',
+      attributes: {providerSubject: OAUTH_CANARY.subject},
+      get: () => undefined,
+    };
+    const output = serialise(redact(parseLike));
+    assertNoOauthCanaries(output);
+    assert.ok(output.includes('StudentAuthIdentity'));
+  });
+
+  test('every OAuth token kind stays redacted', () => {
+    const output = serialise(
+      redact({
+        credential: OAUTH_CANARY.credential,
+        idToken: OAUTH_CANARY.idToken,
+        id_token: OAUTH_CANARY.idToken,
+        accessToken: CANARY.accessToken,
+        refreshToken: OAUTH_CANARY.refreshToken,
+        authorizationCode: OAUTH_CANARY.authorizationCode,
+        authData: {google: {id: OAUTH_CANARY.subject}},
+      })
+    );
+    assertNoOauthCanaries(output);
+    assert.ok(!output.includes(CANARY.accessToken));
+  });
+
+  test('ordinary id and objectId values survive', () => {
+    const output = serialise(
+      redact({id: 'bwz1IxJxNp', objectId: 'Xy7Qm2', userId: 'u1', code: 'SIGN_IN_FAILED'})
+    );
+    assert.ok(output.includes('bwz1IxJxNp'), 'id must survive');
+    assert.ok(output.includes('Xy7Qm2'), 'objectId must survive');
+    assert.ok(output.includes('u1'), 'userId must survive');
+    assert.ok(output.includes('SIGN_IN_FAILED'), 'the stable error code must survive');
+  });
+
+  test('short words merely containing "sub" are not redacted', () => {
+    // `sub` is matched as a whole word, so ordinary product vocabulary survives.
+    const output = serialise(
+      redact({submissionCount: 7, subtotal: 42, subscriptionTier: 'basic'})
+    );
+    assert.ok(output.includes('7'));
+    assert.ok(output.includes('42'));
+    assert.ok(output.includes('basic'));
+  });
+
+  test('every existing redaction rule still holds', () => {
+    const output = serialise(
+      redactMeta({
+        password: CANARY.password,
+        sessionToken: CANARY.sessionToken,
+        masterKey: CANARY.masterKey,
+        databaseURI: CANARY.dbUri,
+        email: CANARY.email,
+        phoneNumber: CANARY.phone,
+        clientSecret: 'CLIENTSECRETCANARY',
+      })
+    );
+    assertNoCanaries(output);
+    assert.ok(!output.includes('CLIENTSECRETCANARY'));
+  });
+});
+
+describe('Parse trigger logging for a Student sign-in (S-19)', () => {
+  /** The exact shape Parse Server writes when the identity trigger runs. */
+  const TRIGGER_INPUT =
+    `Input: {"ACL":{},"provider":"google","providerSubject":"${OAUTH_CANARY.subject}",` +
+    '"user":{"__type":"Pointer","className":"_User","objectId":"bwz1IxJxNp"}}';
+
+  test('the trigger line no longer carries the Google subject', () => {
+    const line = redactMessage(TRIGGER_INPUT);
+    assertNoOauthCanaries(line);
+    assert.ok(line.includes(REDACTED));
+  });
+
+  test('the trigger line keeps the objectId that makes it useful', () => {
+    const line = redactMessage(TRIGGER_INPUT);
+    assert.ok(line.includes('bwz1IxJxNp'));
+    assert.ok(line.includes('_User'));
+  });
+
+  test('this holds through the Parse logger adapter, at info level', () => {
+    // The previous mitigation was LOG_LEVEL=warn. Redaction now applies at the
+    // level Parse actually logs triggers at, so no log-level setting is needed.
+    const line = buildParseLogLine('info', TRIGGER_INPUT, {
+      className: 'StudentAuthIdentity',
+      triggerType: 'beforeSave',
+    });
+    assertNoOauthCanaries(line);
+    assert.ok(line.includes('StudentAuthIdentity'));
+  });
+
+  test('the sign-in call log carries no credential, subject, email, or token', () => {
+    const line = buildParseLogLine(
+      'info',
+      'Ran cloud function loginWithGoogle for user undefined with:\n' +
+        `  Input: {"credential":"${OAUTH_CANARY.credential}"}\n` +
+        `  Result: {"id":"bwz1IxJxNp","roles":["Student"],"sessionToken":"${CANARY.sessionToken}"}`,
+      {functionName: 'loginWithGoogle', params: {credential: OAUTH_CANARY.credential}}
+    );
+    assertNoOauthCanaries(line);
+    assertNoCanaries(line);
+    assert.ok(line.includes('loginWithGoogle'), 'the operation stays diagnosable');
+  });
+
+  test('a provisioning failure log carries no identity data', () => {
+    const line = buildParseLogLine('error', 'Student provisioning failed', {
+      op: 'provisionStudent',
+      providerSubject: OAUTH_CANARY.subject,
+      email: CANARY.email,
+      userId: 'bwz1IxJxNp',
+      code: 'ACCOUNT_NOT_ELIGIBLE',
+    });
+    assertNoOauthCanaries(line);
+    assertNoCanaries(line);
+    assert.ok(line.includes('ACCOUNT_NOT_ELIGIBLE'));
+    assert.ok(line.includes('bwz1IxJxNp'));
+  });
+});

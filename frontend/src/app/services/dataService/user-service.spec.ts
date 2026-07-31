@@ -141,7 +141,7 @@ describe('logout', () => {
 
   it('clears local session state on success', async () => {
     const { api, http, session } = setup();
-    session.saveSession({ id: 'u1', username: 'admin', roles: [AppRole.ADMIN] }, 'r:token');
+    session.saveSession({ id: 'u1', displayName: 'Admin', roles: [AppRole.ADMIN] }, 'r:token');
     expect(session.isLoggedIn()).toBe(true);
 
     const pending = new Promise<void>((resolve) => api.logout().subscribe(() => resolve()));
@@ -156,7 +156,7 @@ describe('logout', () => {
 
   it('still clears local state when the server call fails', async () => {
     const { api, http, session } = setup();
-    session.saveSession({ id: 'u1', username: 'admin', roles: [AppRole.ADMIN] }, 'r:token');
+    session.saveSession({ id: 'u1', displayName: 'Admin', roles: [AppRole.ADMIN] }, 'r:token');
 
     const pending = new Promise<void>((resolve) =>
       api.logout().subscribe({ next: () => resolve(), error: () => resolve() }),

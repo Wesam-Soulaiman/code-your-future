@@ -7,31 +7,73 @@
       <p class="cyf-body-sm">{{ 'auth.student.subtitle' | translate }}</p>
     </div>
 
-    <!-- Explains the disabled control below. Placed before it so the reason is
-         encountered first, in both reading and tab order. -->
-    <cyf-alert variant="info" [prefix]="'a11y.noticePrefix' | translate">
-      {{ 'auth.student.comingNext' | translate }}
-    </cyf-alert>
+    <!-- Failure and status messages. The region is always present so a message
+         appearing causes no layout shift, and errors are announced assertively. -->
+    <div class="cyf-student-status" aria-live="polite">
+      @if (errorKey()) {
+        <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+          {{ errorKey()! | translate }}
+        </cyf-alert>
+      } @else if (notConfigured()) {
+        <cyf-alert variant="warning" [prefix]="'a11y.noticePrefix' | translate">
+          {{ 'auth.student.errors.notConfigured' | translate }}
+        </cyf-alert>
+      } @else if (unavailable()) {
+        <cyf-alert variant="warning" [prefix]="'a11y.noticePrefix' | translate">
+          {{ 'auth.student.googleUnavailable' | translate }}
+        </cyf-alert>
+      } @else if (redirecting()) {
+        <cyf-alert variant="success" [prefix]="'a11y.noticePrefix' | translate">
+          {{ 'auth.student.signedIn' | translate }}
+        </cyf-alert>
+      }
+    </div>
 
     <!--
-      Google sign-in — VISUAL ONLY.
-      No (click) handler, no service, no navigation. `disabled` makes it inert
-      for pointer, keyboard, and programmatic activation alike.
-    -->
-    <button
-      type="button"
-      class="cyf-btn-outline cyf-google-btn"
-      disabled
-      [attr.aria-describedby]="'student-google-note'"
-    >
-      <span class="cyf-google-icon" aria-hidden="true">
-        <i class="fa-brands fa-google"></i>
-      </span>
-      <span>{{ 'auth.student.continueWithGoogle' | translate }}</span>
-    </button>
+      Google sign-in.
 
-    <p id="student-google-note" class="cyf-helper cyf-google-note">
-      {{ 'auth.student.googleUnavailableHint' | translate }}
+      When Google's library is ready its own button is rendered into the host
+      below: it is the supported entry point for this flow and carries Google's
+      required branding. Until then — and whenever the library cannot load or
+      the deployment has no Client ID — the same slot shows an explained,
+      disabled control, so the page never presents an action that cannot work.
+    -->
+    <div class="cyf-google-slot" [class.cyf-google-slot-busy]="busy()">
+      <div #googleButtonHost class="cyf-google-host" [hidden]="!googleReady()"></div>
+
+      @if (!googleReady()) {
+        <button
+          type="button"
+          class="cyf-btn-outline cyf-google-btn"
+          disabled
+          [attr.aria-describedby]="'student-google-note'"
+        >
+          <span class="cyf-google-icon" aria-hidden="true">
+            @if (loadingSdk()) {
+              <i class="fa-solid fa-circle-notch fa-spin"></i>
+            } @else {
+              <i class="fa-brands fa-google"></i>
+            }
+          </span>
+          <span>{{ 'auth.student.continueWithGoogle' | translate }}</span>
+        </button>
+      }
+    </div>
+
+    <p id="student-google-note" class="cyf-helper cyf-google-note" aria-live="polite">
+      @if (authenticating()) {
+        {{ 'auth.student.signingIn' | translate }}
+      } @else if (redirecting()) {
+        {{ 'auth.student.signedIn' | translate }}
+      } @else if (loadingSdk()) {
+        {{ 'auth.student.loadingGoogle' | translate }}
+      } @else if (notConfigured()) {
+        {{ 'auth.student.googleUnavailableHint' | translate }}
+      } @else if (unavailable()) {
+        {{ 'auth.student.googleUnavailableHint' | translate }}
+      } @else {
+        {{ 'auth.student.googleReadyHint' | translate }}
+      }
     </p>
 
     <!-- Approved invitation copy — verbatim from the product requirements. -->

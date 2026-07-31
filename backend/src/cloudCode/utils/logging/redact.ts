@@ -45,11 +45,18 @@ const SENSITIVE_KEY_FRAGMENTS: readonly string[] = [
   // OAuth / auth payloads
   'authdata',
   'authorization',
+  'authorizationcode',
+  'authentication',
   'cookie',
   'setcookie',
   'clientsecret',
   'privatekey',
   'vapid',
+  // OAuth identity — a provider's subject is a stable identifier for a real
+  // person. `subject` as a fragment covers `providerSubject`, `googleSubject`,
+  // and `oauthSubject` in one rule; `claims` covers a whole claim bag.
+  'subject',
+  'claims',
   // infrastructure
   'databaseuri',
   'connectionstring',
@@ -90,9 +97,19 @@ function normaliseKey(key: string): string {
   return key.replace(/[^a-z0-9]/gi, '').toLowerCase();
 }
 
+/**
+ * Key names that are sensitive only as a **whole word**.
+ *
+ * `sub` is the OAuth subject claim and must be redacted, but it is too short to
+ * be a substring rule: that would also swallow `submission`, `subtotal`, and
+ * `subscription`. Exact matching keeps the rule precise.
+ */
+const SENSITIVE_KEY_NAMES: readonly string[] = ['sub'];
+
 /** True when a key name marks its value as sensitive. */
 export function isSensitiveKey(key: string): boolean {
   const normalised = normaliseKey(key);
+  if (SENSITIVE_KEY_NAMES.includes(normalised)) return true;
   return SENSITIVE_KEY_FRAGMENTS.some(fragment => normalised.includes(fragment));
 }
 

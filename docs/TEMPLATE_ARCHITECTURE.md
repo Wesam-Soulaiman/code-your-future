@@ -1035,6 +1035,233 @@ alone (icon + visually hidden "Error:" / "Note:" prefix) · `:focus-visible` rin
 interactive element · 44px minimum control and touch target · decorative aside `aria-hidden` · no
 autofocus · reduced-motion honoured.
 
+## 16c. Student Google authentication ⟨CP2B⟩
+
+### Configuration
+
+One environment variable, on the backend: **`GOOGLE_CLIENT_ID`** — the Google Cloud **Web
+application Client ID**. The browser holds the same value in
+`frontend/src/environments/environment{,.prod}.ts` as `googleClientId`.
+
+There is deliberately **no client secret anywhere**. The browser flow returns a signed ID token
+directly; verifying it needs only Google's public keys and the expected audience, so no
+authorization-code exchange — and therefore no secret — exists. A test asserts that neither
+environment file declares a `clientSecret`, and that `googleClientId` is either empty or has the
+published `NNN-xxxx.apps.googleusercontent.com` shape.
+
+Absence is not an error. The server boots normally, logs *which key* is missing (never a value), and
+only the Student endpoint refuses, with `GOOGLE_NOT_CONFIGURED`. **Admin password login is
+unaffected** — verified at runtime with the variable unset.
+
+### The flow
+
+```
+browser                          backend
+───────                          ───────
+Google Identity Services
+  └─ user picks an account
+  └─ Google returns an ID token
+POST /api/student-auth/loginWithGoogle {credential}
+                                 verify signature · audience · issuer ·
+                                 expiry · subject · verified email
+                                 ├─ identity exists → reuse the Student
+                                 └─ no identity    → create _User, grant
+                                                     Student, create identity
+                                 issue a session via Parse /loginAs
+                              ←  {id, roles, displayName?, sessionToken}
+store the session
+navigate to /student/welcome
+```
+
+**Verification is delegated, not reimplemented.** `modules/StudentAuth/googleVerifier.ts` calls Parse
+Server's bundled `Adapters/Auth/google`, which fetches Google's JWKS and checks the RS256 signature,
+the audience, the expiry, and the issuer. This repository then re-asserts audience, issuer, expiry
+and subject on the verified claims and adds the product rule the adapter does not enforce —
+`email_verified === true`. No JWT or OAuth code is written here.
+
+`setGoogleCredentialVerifier()` is an injectable seam so the whole surface is testable without ever
+contacting Google.
+
+### `StudentAuthIdentity`
+
+Three columns: `provider`, `providerSubject`, and a `user` pointer. **No credential, no token, no
+email, no name, no claim of any kind.** Deny-by-default CLP on every operation, an empty object ACL,
+`protectedFields` covering all three columns, and a `beforeSave` that refuses any non-master write
+and freezes the columns after creation. No cloud function reads, lists, or returns one.
+
+Two unique compound indexes, both confirmed present in MongoDB at runtime:
+
+| Index | Guarantees |
+|---|---|
+| `(provider, providerSubject)` | one Google account maps to exactly one Student |
+| `(provider, _p_user)` | one Student holds at most one identity per provider |
+
+`_p_user` is the MongoDB column for a Parse pointer; naming the logical field would index a column
+that does not exist.
+
+### Provisioning rules
+
+- **First sign-in** creates one `_User`, grants the `Student` role server-side, and creates one
+  identity. The username is `gid_` + 24 random bytes and the password is 48 random bytes from a
+  CSPRNG — both server-generated, never returned, never logged, and discarded immediately. The
+  Google email is never used as a login identifier.
+- **Returning sign-in** reuses the account, creates nothing, and re-checks live `Student` membership.
+- **An Admin is never converted.** An email already held by another account fails closed with
+  `ACCOUNT_NOT_ELIGIBLE`; nothing is merged and nothing is disclosed.
+- **A withdrawn Student role blocks the next sign-in** and empties the roles on the next restoration.
+
+### Concurrency
+
+Simultaneous first sign-ins are decided by the **database**, not by an in-memory check. Two distinct
+races exist, and both were found by runtime validation rather than by unit tests:
+
+1. the identity index rejects the second writer → it deletes the `_User` it had just created and
+   continues on the winner's account;
+2. the `_User` **email** index rejects the second writer *before* the identity index ever sees it →
+   recovery starts from the account conflict, looks for an identity on the same subject (briefly
+   retrying, because the winner may be between its two saves), and continues on the winner's account.
+
+Three simultaneous sign-ins against MongoDB produced **one account, one identity, three successful
+responses**.
+
+### Sessions
+
+Sessions come from Parse's own `/loginAs`, which exists so a trusted server can create a session for
+a user it authenticated another way. It is required because a Student has **no usable password**.
+`/loginAs` refuses anything but a full master key, and Express's `restrictRoutes` blocks it for
+external callers (403 observed) — cloud code reaches it through Parse's `directAccess` path, which is
+enabled by mounting `parseServer.app` in `app.ts`.
+
+The session is an ordinary revocable `_Session`: `logout` invalidates it, and the old token then
+fails with `209`.
+
+### Endpoints
+
+| Route | Method | Auth | Purpose |
+|---|---|---|---|
+| `/api/student-auth/loginWithGoogle` | POST | none (10/min) | Verify a credential and sign a Student in. The only response carrying a session token. |
+| `/api/student-auth/getSession` | GET | session | Role-agnostic restoration: `{id, roles, displayName?}`. No token, **no username**. |
+
+`getSession` exists alongside `/api/users/getCurrentUser` rather than replacing it. `getCurrentUser`
+returns `username`, which for a Student is the internal generated identifier that must never reach
+the browser; `utils/dto/` is a protected path, so a new builder was added instead of changing it.
+`getCurrentUser` remains registered and tested.
+
+### Stable error codes
+
+`GOOGLE_NOT_CONFIGURED` · `INVALID_CREDENTIAL` · `EMAIL_NOT_VERIFIED` · `ACCOUNT_NOT_ELIGIBLE` ·
+`SIGN_IN_FAILED`. The code **is** the whole message — no verifier text, no Google text, no account
+information. Every verification failure collapses to one code so a forger learns nothing, and a
+conflicting account is indistinguishable from an unknown one. The frontend maps each code to a
+translated sentence in `utils/google-auth-error.ts`.
+
+### Routes and guards
+
+| Route | Guard | Visitor | Student | Admin |
+|---|---|---|---|---|
+| `/auth/student` | `guestGuard` | shown | → `/student/welcome` | → `/dashboard` |
+| `/auth/admin` | `guestGuard` | shown | → `/student/welcome` | → `/dashboard` |
+| `/student/welcome` | `studentGuard` | → `/auth/student` | shown | → `/dashboard` |
+| `/dashboard` | `authGuard` | → `/auth/admin` | → `/student/welcome` | shown |
+
+Every target is a fixed internal path defined once in `guards/home-route.ts`, asserted by test to
+contain no scheme and no `//`. Guards sit on the parent **and** each child, because Angular does not
+re-run a parent's `canActivate` when only the child changes.
+
+### Google's button and language
+
+Google's own rendered button is used — it is the supported entry point and carries Google's required
+branding. Its language comes from the **script URL** (`gsi/client?hl=<lang>`), not from the `locale`
+option on `renderButton`: a real browser showed that `locale` never reached Google's button iframe,
+and an English page rendered a **Dutch** button. Changing language therefore reloads Google's script,
+which `GoogleIdentityService.initialize()` does when the requested locale differs.
+
+Google's script is fetched only when the Student page asks for it, so a visitor who never opens that
+page contacts Google not at all.
+
+## 16d. Browser security headers and the Google origin ⟨CP2B closeout⟩
+
+### Cross-Origin-Opener-Policy
+
+Google Identity Services opens a popup and talks back to the page that opened it with
+`window.postMessage`. Chrome severs that link unless the **document** declares:
+
+```
+Cross-Origin-Opener-Policy: same-origin-allow-popups
+```
+
+Without it the browser reports *"Cross-Origin-Opener-Policy policy would block the
+window.postMessage call"*.
+
+| Layer | Who sets it | Where |
+|---|---|---|
+| Local development | **This repository** | `frontend/angular.json` → `serve.options.headers` |
+| Production hosting | **Outside this repository** | the static host / reverse proxy in front of `dist/` |
+
+Exactly one COOP value is declared anywhere in the repository, asserted by test. The header must be
+an **HTTP header** — a `<meta http-equiv>` is silently ignored for COOP, so a test rejects that too.
+
+**No `Cross-Origin-Embedder-Policy` is set**, deliberately: COEP would block Google's cross-origin
+button iframe outright.
+
+Production equivalents, for whichever host serves the built frontend:
+
+```nginx
+# nginx
+add_header Cross-Origin-Opener-Policy "same-origin-allow-popups" always;
+```
+```apache
+# Apache
+Header always set Cross-Origin-Opener-Policy "same-origin-allow-popups"
+```
+```
+# Netlify _headers / Vercel headers
+Cross-Origin-Opener-Policy: same-origin-allow-popups
+```
+
+**This is a document header only.** It governs the page and its popups, and has nothing to do with
+the backend API's CORS policy, which is unchanged and still fails closed.
+
+### Authorised JavaScript origins
+
+Google refuses to issue a credential to a page whose **origin** is not registered on the OAuth
+client. The symptom is an HTTP **403** on `accounts.google.com/gsi/button` plus
+`[GSI_LOGGER]: The given origin is not allowed for the given client ID`.
+
+An origin is scheme + host + port, and nothing else — **no path, no hash, no query**:
+
+```
+http://localhost:4200
+```
+
+`http://localhost:4200/auth/student`, `http://localhost:4200/#/auth/student`, and `http://localhost:*`
+are all invalid entries.
+
+**This is an owner action; the repository cannot perform it.**
+
+> Google Cloud Console → **APIs & Services** → **Credentials** → select the Code Your Future
+> **OAuth 2.0 Web client** → **Authorized JavaScript origins** → **Add URI** →
+> `http://localhost:4200` → Save.
+>
+> Add `http://127.0.0.1:4200` **only** if the app is genuinely opened on that hostname — `localhost`
+> and `127.0.0.1` are different origins to a browser. Add each deployed origin the same way.
+
+Changes can take a few minutes to propagate.
+
+**What the application does while the origin is unauthorised:** Google's button renders but never
+issues a credential, so the page simply stays put. **No session is created, no navigation happens,
+and no raw Google or GSI text is rendered** — asserted by test and observed in a real browser. There
+is no failure message in this state, because the page has no way to know Google refused: the 403
+happens inside Google's own iframe.
+
+### Client ID expectations
+
+The backend's `GOOGLE_CLIENT_ID` and the frontend's `googleClientId` must be the **same public Web
+client ID**. Verified by comparing SHA-256 fingerprints rather than values, so neither is ever
+printed. A test asserts the frontend value is either empty or a bare
+`NNN-xxxx.apps.googleusercontent.com` — an origin or a route in that field would mean the two
+settings had been confused. **No Google client secret exists in Angular**, also asserted by test.
+
 ## 17. Known limitations of the template
 
 1. No environment validation; missing `.env` keys fail at runtime.

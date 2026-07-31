@@ -27,4 +27,16 @@ export const environment = {
   // VAPID public key for Web Push notifications (leave empty to disable)
   // Generate with: npx web-push generate-vapid-keys
   vapidPublicKey: '',
+
+  // Google OAuth 2.0 **Web application Client ID** for Student sign-in.
+  //
+  // Public by design: it is embedded in the sign-in page and identifies the
+  // application to Google. It is NOT a secret and there is no client secret in
+  // the browser — the backend verifies the returned ID token's signature and
+  // audience against its own GOOGLE_CLIENT_ID.
+  //
+  // Left empty on purpose so no real value is committed. Fill it in per
+  // deployment; while it is empty the Student page shows the "sign-in is not
+  // configured" state and issues no request.
+  googleClientId: '1020047849769-faustv3raaj8g8o2hm9mm9j8a5mv2ssd.apps.googleusercontent.com',
 };

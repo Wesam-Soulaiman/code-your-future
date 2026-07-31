@@ -22,9 +22,9 @@ with hard-coded state, not application code.
 | Single pnpm version | `pnpm -v` → `10.33.0` in all three directories |
 | Backend type-check | `npx tsc --noEmit` → exit 0, zero diagnostics |
 | Backend compile | `pnpm run compile` → exit 0 (now cleans `build/` first) |
-| **Backend tests** | `pnpm run test` → **210 pass, 0 fail**, exits cleanly with no force-exit |
-| Frontend production build | `pnpm run build` → exit 0, initial bundle 674.37 kB |
-| **Frontend tests** | `pnpm run test` → **167 pass, 0 fail** (11 spec files) |
+| **Backend tests** | `pnpm run test` → **315 pass, 0 fail**, exits cleanly with no force-exit |
+| Frontend production build | `pnpm run build` → exit 0, initial bundle 676.47 kB |
+| **Frontend tests** | `pnpm run test` → **305 pass, 0 fail** (15 spec files) |
 | sharp | real WebP encode after install (44 bytes) |
 
 ### Runtime — observed against a clean isolated database
@@ -34,10 +34,10 @@ with hard-coded state, not application code.
 | Frontend dev server | `GET /` → 200, `<title>Code Your Future</title>` |
 | Swagger | `/api-docs/json` → 200, OpenAPI 3.0.3 |
 | **`AppSettings` absent** | 0 occurrences in the Swagger document; no model, no route |
-| Registered models | **exactly `_Role`, `_User`, `File`, `IMG`** (schema guard log) |
-| Registered routes | **exactly 3** — `loginUser`, `getCurrentUser`, `logout` |
+| Registered models | **exactly `_Role`, `_User`, `File`, `IMG`, `StudentAuthIdentity`** (schema guard log) |
+| Registered routes | **exactly 5** — `loginUser`, `getCurrentUser`, `logout`, `loginWithGoogle`, `getSession` |
 | Triggers | 4 (`File.beforeSave`, `IMG.beforeSave`/`afterSave`/`afterDelete`) |
-| Indexes | `No indexes to apply` (the only unique index went with `AppSettings`) |
+| Indexes | **2 unique compound indexes created** on `StudentAuthIdentity`: `(provider, providerSubject)` and `(provider, _p_user)` |
 | Roles on a clean DB | `{"created":["Admin","Student"]}` — exactly these two |
 | Admin account | created once, granted the Admin role; `adminUserCreated:false` on re-run |
 | No Student seeded | Student role created with 0 members |
@@ -56,7 +56,7 @@ with hard-coded state, not application code.
 | Raw file route | `/api/files/{appId}/x.pdf` → **403** |
 | `app-settingses` route | **403** |
 | Master key in body | 403 (not exploitable in this configuration) |
-| Logs | no master key, no admin password, no REST key, no database URI, no session token; Parse's own `Input:`/`Result:` lines show `password:"[REDACTED]"`, `sessionToken:"[REDACTED]"`, `params:"[OMITTED]"` |
+| Logs | no master key, no admin password, no REST key, no database URI, no session token; Parse's own `Input:`/`Result:` lines show `password:"[REDACTED]"`, `sessionToken:"[REDACTED]"`, `params:"[OMITTED]"`, and ⟨CP2B closeout⟩ `providerSubject:"[REDACTED]"` |
 | EN/AR | 71 keys each, no drift; `app.name` = `Code Your Future`; no `users` block |
 | **CORS — allowed origin** | `Origin: http://localhost:4200` → `Access-Control-Allow-Origin: http://localhost:4200` |
 | **CORS — rejected origin** | `Origin: https://evil.example.test` → header does not match the requester → browser blocks |
@@ -76,7 +76,7 @@ with hard-coded state, not application code.
 
 | Item | State |
 |---|---|
-| `Student` role | Seeded and enforced, but **no Student can authenticate** — Google OAuth is Checkpoint 3. A Student provisioned server-side is correctly refused password login. |
+| `Student` role | Seeded, enforced, and **now reachable**: a verified Google identity provisions a Student ⟨CP2B⟩. A Student still cannot use password login. |
 | `File` / `IMG` | Private and server-controlled, but **no client-reachable path creates or reads one**. The controlled-access extension points are documented, not implemented (OQ-10). |
 | `LiveQueryService` (frontend) | Fully implemented; `liveQuery.classNames` is still `[]` and no `beforeSubscribe` hook exists, so no class is subscribable. |
 | `fileAdapter.ts` | Still dead code — never passed to Parse Server. Its `validateFilename()` still returns instead of throwing. |
@@ -87,7 +87,7 @@ with hard-coded state, not application code.
 | `data-table` component | Retained and functional, but unused — no list page exists. |
 | Web Push | `sw-push.js` and the `web-push` dependency exist; `vapidPublicKey` empty, no push function. |
 | Dashboard page | Intentionally empty — a placeholder with no fake statistics, charts, or product data. Content arrives with the Admin workspace checkpoints. |
-| Student auth page | **Presentation only.** No service, no HTTP, no navigation, no session write; the Google button is `disabled`. Google OAuth is Checkpoint 3. |
+| Student auth page | **Live** ⟨CP2B⟩. Google Identity Services renders Google's own button; a verified credential creates or reuses a Student and establishes a session. Still no email, username, password, signup, reset, or invitation-token field. |
 | CORS | **Resolved in the closeout.** Fails closed on every path — see [TEMPLATE_ARCHITECTURE.md §11a](TEMPLATE_ARCHITECTURE.md). Production still requires `CORS_ORIGINS` to be set before any browser client can reach the API. |
 
 ## 3. Failing
@@ -139,6 +139,7 @@ validation is not optional.
 | S-11 | `protectedFields: {'*':['email']}` — any authenticated user could read every email | `email`, `username`, `emailVerified`, `authData`, `phoneNumber` protected for `*` **and** `authenticated` |
 | S-12 | No log redaction | Recursive redaction boundary + Parse `loggerAdapter` |
 | S-14 | Master key on nearly every user query | Seven client-facing master-key operations deleted with their functions; remaining uses audited and listed |
+| **S-19** | **Closed ⟨CP2B closeout⟩.** Parse Server logs each trigger's `Input`/`Result`, so saving a `StudentAuthIdentity` wrote the Google subject into the line. `redact.ts` now treats `sub` (whole word), `subject` (fragment, covering `providerSubject` / `googleSubject` / `oauthSubject`), `claims`, `authorizationcode`, and `authentication` as sensitive. **Closed at every log level — `LOG_LEVEL=warn` is no longer required.** Verified at runtime with the level unset: the trigger line reads `providerSubject":"[REDACTED]"` while `objectId` survives. `id`, `objectId`, `userId`, and stable error codes are unaffected, and `submission` / `subtotal` / `subscription` are not swallowed. |
 | — | Anonymous Parse users enabled by default | `enableAnonymousUsers: false` |
 | — | Read-only master key usable from any IP | `readOnlyMasterKeyIps: ['127.0.0.1','::1']` |
 | — | Stack traces / internals reachable in error bodies | `sanitizedErrorHandler` returns `{"error":"Request failed"}` |
@@ -272,11 +273,53 @@ suite, `base-dialog`, `image-uploader`, `image-cropper-dialog`, `LiveQueryServic
 `frontend/package.json`. A regression test (`backend/test/templatePreservation.test.ts`) fails if any
 of the stylesheet sections is removed.
 
+## 7c. Checkpoint 2B — Student Google authentication ⟨implemented⟩
+
+**Backend.** `StudentAuthIdentity` (provider · providerSubject · user pointer, nothing else),
+`POST /api/student-auth/loginWithGoogle`, and `GET /api/student-auth/getSession`. Verification is
+delegated to Parse Server's bundled Google adapter with this repository's own `email_verified` rule
+on top; the credential is never stored, logged, returned, or placed in a URL. Sessions come from
+Parse's `/loginAs`, so a Student account carries no usable password. Full design in
+[TEMPLATE_ARCHITECTURE.md §16c](TEMPLATE_ARCHITECTURE.md).
+
+**Frontend.** Google's own button on the existing Student page, `/student/welcome` behind
+`studentGuard`, role-aware `authGuard` and `guestGuard`, explicit `restoring` / `authenticated` /
+`unauthenticated` session states, single-flight restoration, and a translated message for every
+failure state. `SessionService` no longer stores a username at all.
+
+### Runtime — observed end to end against MongoDB
+
+Google's *token verification* was substituted through the module's own injectable seam; every other
+layer is genuine — Express, `restrictRoutes`, the cloud function, provisioning, the unique indexes,
+`/loginAs`, and the DTO over the wire.
+
+| Check | Result |
+|---|---|
+| Missing `GOOGLE_CLIENT_ID` | endpoint refuses with `GOOGLE_NOT_CONFIGURED`; **Admin login unaffected** |
+| Forged/unsigned token (real verifier, over HTTP) | `INVALID_CREDENTIAL` — signature checking is genuinely enforced |
+| First sign-in | 1 `_User`, 1 identity, `roles:["Student"]`, a real `r:` session token |
+| Sign-in response keys | exactly `displayName, id, roles, sessionToken` — no username, email, subject, or credential |
+| Returning sign-in | same account; no new `_User`, no new identity |
+| Three concurrent first sign-ins | **3 succeeded → 1 account, 1 identity** |
+| Admin email conflict | `ACCOUNT_NOT_ELIGIBLE`; nothing created, Admin untouched |
+| Session restoration | `{displayName, id, roles}` — no token, no username |
+| Logout | `{"success":true}`; the old token then fails with `209` |
+| Student role withdrawn | roles come back `[]`; the next sign-in is refused |
+| Identity columns in MongoDB | `provider`, `providerSubject`, `_p_user` only |
+| Duplicate identity insert | rejected by MongoDB with `11000` on **both** unique indexes |
+| Student password login | still refused |
+| `/classes/StudentAuthIdentity` | **403** (also 403 with a master key header) |
+| Logs | no credential, no email, no internal username, no session token, **and no Google subject** — scanned at the default `info` level after the closeout, 0 occurrences of every canary |
+| Google's button in a real browser | loads and renders at 1440 EN / 1440 AR / 390 EN — zero overflow, one `h1`, no inputs, no console errors |
+| **⟨closeout⟩ COOP on the document** | `Cross-Origin-Opener-Policy: same-origin-allow-popups`, exactly one value, set by the Angular dev server; no COEP |
+| **⟨closeout⟩ postMessage warning** | **gone** — 0 opener/postMessage warnings on `http://localhost:4200` |
+| **⟨closeout⟩ Google origin** | `gsi/button` returns **403** — `http://localhost:4200` is not yet an *Authorised JavaScript origin* for the client. **No session is created**, no navigation happens, and no raw GSI text is rendered |
+
 ## 8. Product features not implemented
 
 None of the following exists in any form — no model, no cloud function, no route, no page, no DTO:
 
-Google/Apple OAuth · StudentAuthIdentity · StudentProfile · institution list ·
+Apple OAuth · StudentProfile · institution list ·
 `expectedGraduationDate` normalisation · private profile photo · Complete Profile · Student
 dashboard · Batch · Batch lifecycle · BatchInvitation · invitation tokens · QR generation ·
 `/join/:token` · Enrollment · the pending-invitation flow · Resources · PDF validation · resource

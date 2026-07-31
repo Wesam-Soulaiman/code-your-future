@@ -105,8 +105,8 @@ describe('approved Student copy', () => {
 describe('route surface', () => {
   const paths = routes.map((route) => route.path);
 
-  it('exposes only /auth, the shell, and a wildcard', () => {
-    expect(paths).toEqual(['auth', '', '**']);
+  it('exposes only /auth, the Student area, the shell, and a wildcard', () => {
+    expect(paths).toEqual(['auth', 'student', '', '**']);
   });
 
   it('no longer registers the /users management route', () => {

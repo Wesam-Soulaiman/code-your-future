@@ -28,4 +28,9 @@ export const environment = {
 
   // VAPID public key for Web Push notifications
   vapidPublicKey: '',
+
+  // Google OAuth 2.0 **Web application Client ID** for Student sign-in.
+  // Public configuration, not a secret — see environment.ts for the full note.
+  // MUST be filled in before deploying, or Student sign-in stays unavailable.
+  googleClientId: '',
 };

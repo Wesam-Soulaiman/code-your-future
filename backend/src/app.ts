@@ -47,6 +47,7 @@ import {
 } from '@90soft/parse-server-kit';
 import {initializeParseServer} from './cloudCode/utils/config/parseConfig';
 import {buildCorsOptions, logCorsPolicy} from './cloudCode/utils/config/cors';
+import {googleAuthStatus} from './cloudCode/modules/StudentAuth/googleConfig';
 import './cloudCode/cron'; // Load cron job definitions before CronRegistry.initialize
 
 const PORT = Number(process.env.PORT) || 1337;
@@ -174,6 +175,29 @@ async function main() {
 
     await applyUniqueIndexes(parseServer);
     await applyMongoValidators(parseServer);
+
+    // Student Google sign-in is optional configuration. Report presence by key
+    // name only — the value is never read into a log line — and never fail the
+    // boot: Admin password login must keep working without it.
+    const google = googleAuthStatus();
+    if (google.configured) {
+      safeLog.info('Student Google sign-in is configured', {
+        op: 'bootstrap',
+        ok: true,
+        stage: 'google-auth',
+      });
+    } else {
+      safeLog.warn(
+        'Student Google sign-in is NOT configured — the endpoint will refuse ' +
+          'with GOOGLE_NOT_CONFIGURED. Admin login is unaffected.',
+        {
+          op: 'bootstrap',
+          ok: false,
+          stage: 'google-auth',
+          requiredKeys: google.requiredKeys,
+        }
+      );
+    }
 
     safeLog.info('Server listening', {op: 'bootstrap', ok: true, port: PORT});
   });

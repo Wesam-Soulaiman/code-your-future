@@ -14,11 +14,9 @@ import { providePrimeNG } from 'primeng/config';
 import { routes } from './app.routes';
 import { httpInterceptor } from './services/http.interceptor';
 import { MyPreset } from './theme';
-import { SessionService } from './services/session.service';
-import { AuthApiService } from './services/dataService/user-service';
+import { StudentAuthApiService } from './services/dataService/student-auth-service';
 import { ChangeLangService } from './services/change-lang.service';
 import { SwitchThemeService } from './services/switch-theme.service';
-import { catchError, firstValueFrom, of, tap } from 'rxjs';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -46,23 +44,20 @@ export const appConfig: ApplicationConfig = {
     }),
 
     /**
-     * Session restoration. Fetches the safe current-user DTO (no session token,
-     * no email, no phone) and clears local state if the token is rejected.
+     * Session restoration.
+     *
+     * Fetches the safe, role-agnostic session DTO (no session token, no
+     * username, no email, no phone) and clears local state if the token is
+     * rejected. It runs for Admins and Students alike, and it is **awaited**, so
+     * the router never activates a route while `status()` is still `restoring` —
+     * that is what keeps a guard from deciding on unproven cached roles, and
+     * what prevents a flash of protected content.
+     *
+     * `restoreSession()` shares one in-flight request, so a guard asking at the
+     * same moment does not cause a second call.
      */
     provideAppInitializer(async () => {
-      const session = inject(SessionService);
-      const authApi = inject(AuthApiService);
-      if (session.isLoggedIn()) {
-        await firstValueFrom(
-          authApi.getCurrentUser().pipe(
-            tap((user) => session.saveSession(user, session.token()!)),
-            catchError(() => {
-              session.clearSession();
-              return of(null);
-            }),
-          ),
-        );
-      }
+      await inject(StudentAuthApiService).restoreSession();
     }),
 
     provideRouter(routes, withHashLocation(), withViewTransitions()),

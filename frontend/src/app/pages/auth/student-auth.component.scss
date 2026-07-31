@@ -25,7 +25,34 @@
 
 cyf-alert {
   display: block;
+}
+
+/* Reserved message space: a status or failure panel appearing must not push the
+   sign-in control down the page. */
+.cyf-student-status {
+  min-block-size: var(--cyf-space-2);
   margin-block-end: var(--cyf-space-5);
+}
+
+.cyf-google-slot {
+  display: grid;
+  min-block-size: var(--cyf-touch-target);
+
+  /* Google's rendered button is an iframe we do not style; the whole slot dims
+     while a sign-in is in flight so a second attempt reads as unavailable. */
+  &.cyf-google-slot-busy {
+    opacity: var(--cyf-disabled-opacity);
+    pointer-events: none;
+  }
+}
+
+.cyf-google-host {
+  display: flex;
+  justify-content: center;
+
+  &[hidden] {
+    display: none;
+  }
 }
 
 .cyf-google-btn {

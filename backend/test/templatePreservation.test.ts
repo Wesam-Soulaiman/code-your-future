@@ -16,7 +16,7 @@
 
 import {test, describe} from 'node:test';
 import assert from 'node:assert/strict';
-import {existsSync, readFileSync} from 'node:fs';
+import {existsSync, readFileSync, readdirSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 
 function findRepoRoot(): string {
@@ -324,27 +324,74 @@ describe('no future product feature leaked into the frontend', () => {
     }
   });
 
-  test('the Student auth page performs no authentication', () => {
-    const student = read('app/pages/auth/student-auth.component.ts');
+  /**
+   * Checkpoint 2B enabled Student Google sign-in, so the old "this page cannot
+   * authenticate anybody" guard no longer describes the product. What replaces
+   * it is the contract that still must hold: the page authenticates **only**
+   * through Google, it never offers a password, and the credential never leaks
+   * into storage, a log, or a URL.
+   */
+  test('the Student auth page offers no credential input of any kind', () => {
     const template = read('app/pages/auth/student-auth.component.html');
-
-    // No service that could sign anyone in, and no imperative navigation.
-    // `RouterLink` is fine — it is declarative markup for the Admin link.
-    assert.ok(!student.includes('AuthApiService'));
-    assert.ok(!student.includes('SessionService'));
-    assert.ok(!student.includes('HttpClient'));
-    assert.ok(!/inject\(\s*Router\s*\)/.test(student), 'no imperative Router');
-    assert.ok(!/\.navigate(ByUrl)?\(/.test(student), 'no programmatic navigation');
-    assert.ok(!student.includes('localStorage'), 'no direct session write');
-    // No click handler on the Google control. Comments are stripped first —
-    // the template documents its own "no (click) handler" rule in prose.
     const markup = template.replace(/<!--[\s\S]*?-->/g, '');
-    assert.ok(!/\(click\)/.test(markup), 'Student page must have no click handler');
-    assert.ok(!/\(submit\)|\(ngSubmit\)/.test(markup), 'Student page must have no form submit');
 
-    // The Google control is disabled, so it is inert for pointer, keyboard and
-    // programmatic activation alike.
-    assert.ok(/class="cyf-btn-outline cyf-google-btn"[\s\S]*?disabled/.test(markup));
+    assert.ok(!/<input/i.test(markup), 'no input element may exist');
+    assert.ok(!/<form/i.test(markup), 'no form may exist');
+    assert.ok(!/type="password"/i.test(markup));
+    assert.ok(!/apple/i.test(markup), 'Apple sign-in is out of scope');
+    for (const forbidden of ['signup', 'sign-up', 'resetPassword', 'invitationToken']) {
+      assert.ok(!markup.includes(forbidden), `forbidden affordance: ${forbidden}`);
+    }
+  });
+
+  test('the Student auth page never persists or logs the credential', () => {
+    const component = read('app/pages/auth/student-auth.component.ts');
+
+    assert.ok(!component.includes('localStorage'), 'no direct storage write');
+    assert.ok(!component.includes('sessionStorage'), 'no direct storage write');
+    assert.ok(!/console\.(log|info|warn|error|debug)/.test(component), 'no console output');
+    // The credential travels in a request body, never in a query string.
+    assert.ok(!/credential=\$\{/.test(component));
+    assert.ok(!/\?credential/.test(component));
+  });
+
+  test('the Google credential is sent in a request body, not a URL', () => {
+    const service = read('app/services/dataService/student-auth-service.ts');
+    assert.ok(service.includes('{ credential }'), 'credential belongs in the body');
+    assert.ok(!/\?credential=/.test(service));
+    assert.ok(!service.includes('localStorage.setItem'), 'the credential is never stored');
+  });
+
+  test('the Student welcome page shows no fabricated product data', () => {
+    const template = read('app/pages/student/student-welcome.component.html');
+    const markup = template.replace(/<!--[\s\S]*?-->/g, '');
+
+    for (const forbidden of [
+      'p-chart',
+      'p-progressbar',
+      'p-knob',
+      'completionPercent',
+      'progressPercent',
+      '<canvas',
+    ]) {
+      assert.ok(!markup.includes(forbidden), `fake data widget found: ${forbidden}`);
+    }
+    // No hardcoded number is rendered at all — every visible string is a key.
+    assert.ok(!/>\s*\d+\s*%/.test(markup), 'no hardcoded percentage');
+  });
+
+  test('no future product page was added', () => {
+    const pages = join(FRONTEND_SRC, 'app', 'pages');
+    const present = readdirSync(pages).sort();
+    assert.deepEqual(present, ['auth', 'dashboard', 'student']);
+
+    const studentPages = readdirSync(join(pages, 'student')).sort();
+    for (const name of studentPages) {
+      assert.ok(
+        name.startsWith('student-welcome'),
+        `unexpected Student page: ${name}`
+      );
+    }
   });
 
   test('no Google OAuth dependency was added', () => {
@@ -360,6 +407,35 @@ describe('no future product feature leaked into the frontend', () => {
       '@react-oauth',
     ]) {
       assert.ok(!packageJson.includes(forbidden), `Google package found: ${forbidden}`);
+    }
+  });
+
+  test('Google sign-in uses the official library, loaded at runtime', () => {
+    // Google Identity Services is the official browser flow. It is fetched from
+    // Google's own origin when the Student page asks for it — not vendored, not
+    // bundled, and not loaded for a visitor who never opens that page.
+    const service = read('app/services/google-identity.service.ts');
+    assert.ok(service.includes('https://accounts.google.com/gsi/client'));
+    assert.ok(!service.includes('jsonwebtoken'), 'no hand-rolled JWT handling');
+    assert.ok(!service.includes('client_secret'), 'no client secret in the browser');
+  });
+
+  test('no Google client secret exists anywhere in the frontend', () => {
+    for (const file of ['environments/environment.ts', 'environments/environment.prod.ts']) {
+      const source = readFileSync(join(FRONTEND_SRC, file), 'utf8');
+      assert.ok(!/clientSecret/i.test(source), `${file} must declare no client secret`);
+
+      // A Google **Web client id** is public configuration, not a secret: it is
+      // embedded in the sign-in page by design. Either it is empty (leaving the
+      // UI unconfigured) or it has the published client-id shape — anything
+      // else would mean something other than a client id had been pasted in.
+      const declared = /googleClientId:\s*'([^']*)'/.exec(source);
+      assert.ok(declared, `${file} must declare googleClientId`);
+      const value = declared![1];
+      assert.ok(
+        value === '' || /^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(value),
+        `${file}: googleClientId must be empty or a public Google Web client id`
+      );
     }
   });
 });

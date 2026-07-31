@@ -18,7 +18,7 @@ import { adminGuard, roleGuard } from './role.guard';
 function signIn(roles: string[]): void {
   const user: CurrentUser = {
     id: 'u1',
-    username: 'tester',
+    displayName: 'Tester',
     roles: roles as AppRole[],
   };
   localStorage.setItem('currentUser', JSON.stringify(user));

@@ -22,11 +22,25 @@
       "title": "Student sign in",
       "subtitle": "Sign in with Google to build and share your work.",
       "continueWithGoogle": "Continue with Google",
-      "comingNext": "Student sign-in with Google is not available yet. It will be enabled in the next checkpoint.",
-      "googleUnavailableHint": "This button is disabled until Google sign-in is enabled.",
+      "googleUnavailableHint": "Sign-in is unavailable right now.",
       "privacy": "We only use your Google account to verify who you are. We never post on your behalf.",
       "adminPrompt": "Are you an administrator?",
-      "adminLink": "Go to admin sign in"
+      "adminLink": "Go to admin sign in",
+      "loadingGoogle": "Preparing Google sign-in...",
+      "googleReadyHint": "You will be asked to choose a Google account.",
+      "signingIn": "Signing you in...",
+      "signedIn": "Signed in. Taking you to your account...",
+      "googleUnavailable": "Google sign-in could not be loaded. Check your connection or any content blocker, then reload the page.",
+      "errors": {
+        "notConfigured": "Student sign-in is not set up on this server yet. Please contact Code Your Future.",
+        "invalidCredential": "We could not verify your Google sign-in. Please try again.",
+        "emailNotVerified": "Your Google email address is not verified. Verify it with Google, then try again.",
+        "notEligible": "This account cannot sign in as a student.",
+        "rateLimited": "Too many sign-in attempts. Please wait a moment and try again.",
+        "unavailable": "We cannot reach the server right now. Please check your connection and try again.",
+        "cancelled": "Sign-in was cancelled. You can try again whenever you are ready.",
+        "unexpected": "Something went wrong. Please try again."
+      }
     },
     "aside": {
       "adminTitle": "Run your batches with confidence",
@@ -142,5 +156,14 @@
   "success": {
     "saved": "Saved successfully",
     "deleted": "Deleted successfully"
+  },
+  "student": {
+    "welcome": {
+      "title": "Welcome to Code Your Future",
+      "titleNamed": "Welcome, {{name}}",
+      "accountReady": "Your student account is ready.",
+      "nextStepTitle": "What happens next",
+      "nextStepText": "Completing your profile is the next step. It is not available yet — we will let you know as soon as it is."
+    }
   }
 }

@@ -82,11 +82,17 @@ export class ShellComponent implements OnInit, OnDestroy {
   });
 
   userInitials = computed(() => {
-    const user = this.sessionService.user();
-    const f = user?.firstName?.[0] ?? '';
-    const l = user?.lastName?.[0] ?? '';
-    // Falls back to the username: the safe DTO carries no email address.
-    return (f + l).toUpperCase() || (user?.username?.[0] ?? 'U').toUpperCase();
+    // Built from the display name only: the safe DTO carries no email address,
+    // and no username — a Student's is internal and never leaves the server.
+    const parts = this.sessionService
+      .userDisplayName()
+      .split(/\s+/)
+      .filter((part) => part.length > 0);
+    const initials = parts
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('');
+    return initials.toUpperCase() || 'U';
   });
   themeIcon = computed(() => (this.isDarkMode() ? 'fa-solid fa-sun' : 'fa-solid fa-moon'));
   backIcon = computed(() =>
