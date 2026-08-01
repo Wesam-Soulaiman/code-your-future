@@ -13,6 +13,7 @@ import { CurrentUser } from './models/User';
 import { SessionService } from './services/session.service';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
+import { profileCompleteGuard } from './guards/profile-complete.guard';
 import { studentGuard } from './guards/student.guard';
 import { routes } from './app.routes';
 import { useTranslations } from './testing/i18n-testing';
@@ -21,8 +22,14 @@ import { useTranslations } from './testing/i18n-testing';
 @Component({ selector: 'app-stub', template: 'stub' })
 class StubComponent {}
 
-function signIn(roles: string[] = ['Admin']): void {
-  const user: CurrentUser = { id: 'u1', displayName: 'Test User', roles: roles as AppRole[] };
+function signIn(roles: string[] = ['Admin'], profileComplete = true): void {
+  const user: CurrentUser = {
+    id: 'u1',
+    displayName: 'Test User',
+    roles: roles as AppRole[],
+    // The server's answer, refreshed on every restoration ⟨CP3A⟩.
+    ...(roles.includes('Student') ? { profileComplete } : {}),
+  };
   localStorage.setItem('currentUser', JSON.stringify(user));
   localStorage.setItem('sessionToken', 'r:test-token');
 }
@@ -34,10 +41,15 @@ function signIn(roles: string[] = ['Admin']): void {
  * localStorage after the router has already injected it has no effect. Tests
  * that sign in mid-run must go through the service.
  */
-function signInLive(roles: string[] = ['Admin']): void {
+function signInLive(roles: string[] = ['Admin'], profileComplete = true): void {
   const session = TestBed.inject(SessionService);
   session.saveSession(
-    { id: 'u1', displayName: 'Test User', roles: roles as AppRole[] },
+    {
+      id: 'u1',
+      displayName: 'Test User',
+      roles: roles as AppRole[],
+      ...(roles.includes('Student') ? { profileComplete } : {}),
+    },
     'r:test-token',
   );
 }
@@ -79,6 +91,22 @@ describe('auth route structure', () => {
       const child = auth?.children?.find((c) => c.path === path);
       expect(child?.canActivate, `${path} must be guarded`).toContain(guestGuard);
     }
+  });
+
+  it('guards the welcome page with the profile-completion guard ⟨CP3A⟩', () => {
+    const welcome = routes
+      .find((route) => route.path === 'student')
+      ?.children?.find((child) => child.path === 'welcome');
+    expect(welcome?.canActivate).toContain(profileCompleteGuard);
+  });
+
+  it('does NOT guard the profile form with the completion guard', () => {
+    // Guarding the form with the guard that redirects to it would loop.
+    const profile = routes
+      .find((route) => route.path === 'student')
+      ?.children?.find((child) => child.path === 'profile');
+    expect(profile).toBeTruthy();
+    expect(profile?.canActivate).not.toContain(profileCompleteGuard);
   });
 
   it('declares a Student area guarded on the branch and on the page', () => {
@@ -162,11 +190,16 @@ describe('guestGuard', () => {
     expect(String(result)).toBe('/dashboard');
   });
 
-  it('sends an authenticated Student to their own area', () => {
-    signIn(['Student']);
+  it('sends a Student with a complete profile to their welcome page', () => {
+    signIn(['Student'], true);
     const result = run();
     expect(result).toBeInstanceOf(UrlTree);
     expect(String(result)).toBe('/student/welcome');
+  });
+
+  it('sends a Student with an unfinished profile to the form ⟨CP3A⟩', () => {
+    signIn(['Student'], false);
+    expect(String(run())).toBe('/student/profile');
   });
 
   it('sends a session with no recognised role back to sign in', () => {
@@ -203,10 +236,15 @@ describe('authGuard protects the Admin workspace', () => {
   });
 
   it('sends a Student to their own area rather than admitting them', () => {
-    signIn(['Student']);
+    signIn(['Student'], true);
     const result = run();
     expect(result).toBeInstanceOf(UrlTree);
     expect(String(result)).toBe('/student/welcome');
+  });
+
+  it('sends an unfinished Student to the profile form ⟨CP3A⟩', () => {
+    signIn(['Student'], false);
+    expect(String(run())).toBe('/student/profile');
   });
 
   it('refuses a legacy role', () => {
@@ -293,7 +331,12 @@ describe('navigation behaviour', () => {
             canActivate: [studentGuard],
             children: [
               { path: '', redirectTo: 'welcome', pathMatch: 'full' },
-              { path: 'welcome', canActivate: [studentGuard], component: StubComponent },
+              { path: 'profile', canActivate: [studentGuard], component: StubComponent },
+              {
+                path: 'welcome',
+                canActivate: [studentGuard, profileCompleteGuard],
+                component: StubComponent,
+              },
               { path: '**', redirectTo: 'welcome' },
             ],
           },
@@ -341,19 +384,19 @@ describe('navigation behaviour', () => {
   });
 
   it('lets a signed-in Student into their area', async () => {
-    signInLive(['Student']);
+    signInLive(['Student'], true);
     await router.navigateByUrl('/student/welcome');
     expect(router.url).toBe('/student/welcome');
   });
 
   it('redirects bare /student to the welcome page', async () => {
-    signInLive(['Student']);
+    signInLive(['Student'], true);
     await router.navigateByUrl('/student');
     expect(router.url).toBe('/student/welcome');
   });
 
   it('keeps a Student out of the Admin workspace', async () => {
-    signInLive(['Student']);
+    signInLive(['Student'], true);
     await router.navigateByUrl('/dashboard');
     expect(router.url).toBe('/student/welcome');
   });
@@ -376,7 +419,7 @@ describe('navigation behaviour', () => {
   });
 
   it('keeps an authenticated Student off the auth pages', async () => {
-    signInLive(['Student']);
+    signInLive(['Student'], true);
     await router.navigateByUrl('/auth/student');
     expect(router.url).toBe('/student/welcome');
 
@@ -401,7 +444,7 @@ describe('navigation behaviour', () => {
   });
 
   it('does not loop for a Student either', async () => {
-    signInLive(['Student']);
+    signInLive(['Student'], true);
     await router.navigateByUrl('/student/welcome');
     expect(router.url).toBe('/student/welcome');
 

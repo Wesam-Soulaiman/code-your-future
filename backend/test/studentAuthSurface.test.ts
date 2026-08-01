@@ -157,9 +157,34 @@ describe('safe session DTO', () => {
       authData: {google: {id: 'sub-1', id_token: 'header.payload.signature'}},
     });
 
-  test('exposes only id, roles, and displayName', () => {
+  test('exposes only id, roles, displayName, and the completion flag', () => {
     const result = dto.toSessionDto(studentUser(), [AppRole.STUDENT]);
-    assert.deepEqual(Object.keys(result).sort(), ['displayName', 'id', 'roles']);
+    assert.deepEqual(Object.keys(result).sort(), [
+      'displayName',
+      'id',
+      'profileComplete',
+      'roles',
+    ]);
+  });
+
+  test('the completion flag is one boolean, never the profile ⟨CP3A⟩', () => {
+    const incomplete = dto.toSessionDto(studentUser(), [AppRole.STUDENT], false);
+    const complete = dto.toSessionDto(studentUser(), [AppRole.STUDENT], true);
+    assert.equal(incomplete.profileComplete, false);
+    assert.equal(complete.profileComplete, true);
+
+    // No profile field travels on a session response.
+    const serialised = JSON.stringify(complete);
+    for (const field of ['phone', 'city', 'dateOfBirth', 'institution', 'careerGoal']) {
+      assert.equal(serialised.includes(field), false, `${field} must not appear`);
+    }
+  });
+
+  test('an Admin has no completion flag at all', () => {
+    // An Admin's profile is not incomplete — it does not exist.
+    const admin = fakeUser({username: 'wesam'});
+    const result = dto.toSessionDto(admin, [AppRole.ADMIN]);
+    assert.equal('profileComplete' in result, false);
   });
 
   test('never carries a session token', () => {
@@ -220,6 +245,7 @@ describe('safe session DTO', () => {
     assert.deepEqual(Object.keys(result).sort(), [
       'displayName',
       'id',
+      'profileComplete',
       'roles',
       'sessionToken',
     ]);
@@ -323,9 +349,29 @@ describe('identity model shape', () => {
     ).getSchemaDefinition(model);
   });
 
-  test('stores exactly provider, providerSubject, and a user pointer', () => {
+  test('stores exactly the provider identity, and nothing about the person', () => {
     const declared = Object.keys(schema.fields).sort();
-    assert.deepEqual(declared, ['provider', 'providerSubject', 'user']);
+    // `providerPictureUrl` is provider identity data like the subject beside
+    // it, captured once so the first profile save can import an avatar. It is
+    // a protected field and appears in no DTO ⟨CP3A catalog⟩.
+    assert.deepEqual(declared, [
+      'provider',
+      'providerPictureUrl',
+      'providerSubject',
+      'user',
+    ]);
+  });
+
+  test('the avatar URL is hidden from every non-master caller', () => {
+    const clp = (schema as unknown as {
+      classLevelPermissions?: {protectedFields?: Record<string, string[]>};
+    }).classLevelPermissions;
+    for (const audience of ['*', 'authenticated']) {
+      assert.ok(
+        (clp?.protectedFields?.[audience] ?? []).includes('providerPictureUrl'),
+        `providerPictureUrl must be hidden from ${audience}`
+      );
+    }
   });
 
   test('stores no token, claim, or profile data', () => {

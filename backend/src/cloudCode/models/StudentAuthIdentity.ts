@@ -49,8 +49,8 @@ import {ParseClass, ParseField, BaseModel, BeforeSave} from '@90soft/parse-serve
     protectedFields: {
       // Every column is hidden from any non-master caller. Even if a future
       // query somehow reached this class, it would read an empty shell.
-      '*': ['provider', 'providerSubject', 'user'],
-      authenticated: ['provider', 'providerSubject', 'user'],
+      '*': ['provider', 'providerSubject', 'user', 'providerPictureUrl'],
+      authenticated: ['provider', 'providerSubject', 'user', 'providerPictureUrl'],
     },
   },
   // Deny-by-default object ACL. The server-controlled flow that creates the
@@ -103,6 +103,26 @@ export default class StudentAuthIdentity extends BaseModel {
     description: 'The Student this identity belongs to',
   })
   user!: Parse.User;
+
+  /**
+   * The provider's avatar URL, captured at first sign-in ⟨CP3A catalog⟩.
+   *
+   * It lives here rather than on `_User` or on the profile because it is
+   * **provider identity data**, the same as the subject beside it — and because
+   * putting it on the profile would place an unauthenticated address for a
+   * photograph of a person one careless DTO away from a browser.
+   *
+   * Written once, read once: the first profile save fetches the image, stores a
+   * private re-encoded copy, and never consults this column again. It is in
+   * `protectedFields` and appears in no DTO and no log.
+   */
+  @ParseField({
+    type: 'String',
+    description:
+      "The provider's avatar URL, used once to import a profile photo. " +
+      'Never returned by any API.',
+  })
+  providerPictureUrl!: string;
 
   // ==================== TRIGGERS ====================
 

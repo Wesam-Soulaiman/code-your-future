@@ -52,6 +52,55 @@ export interface GoogleIdentityClaims {
   givenName?: string;
   /** Family name, when Google supplies one. */
   familyName?: string;
+  /**
+   * Google's avatar URL, when it supplies one and it passes the host check.
+   *
+   * **Never returned by any endpoint and never sent to a browser.** It exists so
+   * the backend can fetch the image once, on first profile creation, and store
+   * a private re-encoded copy. Keeping the URL out of every DTO is deliberate:
+   * a Google avatar URL is a stable, unauthenticated address for a photograph of
+   * a person, and publishing one would undo the point of storing the image
+   * privately at all.
+   */
+  pictureUrl?: string;
+}
+
+/**
+ * Hosts a Google avatar may be fetched from.
+ *
+ * This is the SSRF boundary. The URL arrives inside a token, so it is attacker-
+ * influenced in principle: without pinning, a forged `picture` claim would turn
+ * the backend into a request forwarder aimed at anything reachable from the
+ * server — including cloud metadata endpoints and internal services.
+ *
+ * Matched on the parsed hostname, either exactly or as a sub-domain, so
+ * `googleusercontent.com.evil.test` does not pass.
+ */
+export const GOOGLE_PICTURE_HOSTS: readonly string[] = [
+  'googleusercontent.com',
+  'google.com',
+  'gstatic.com',
+];
+
+/** True when a URL is an `https:` address on a pinned Google image host. */
+export function isGooglePictureUrl(value: unknown): boolean {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 1024) return false;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return false;
+  }
+
+  // Plain http would let a network position swap the image; there is no reason
+  // to accept it from a provider that serves everything over TLS.
+  if (parsed.protocol !== 'https:') return false;
+
+  const host = parsed.hostname.toLowerCase();
+  return GOOGLE_PICTURE_HOSTS.some(
+    allowed => host === allowed || host.endsWith(`.${allowed}`)
+  );
 }
 
 /** Raw claims as returned by a verifier implementation. */
@@ -64,6 +113,7 @@ export interface RawGoogleClaims {
   email_verified?: unknown;
   given_name?: unknown;
   family_name?: unknown;
+  picture?: unknown;
   [claim: string]: unknown;
 }
 
@@ -230,6 +280,11 @@ export async function verifyGoogleCredential(
 
   const familyName = asString(claims.family_name);
   if (familyName) identity.familyName = familyName;
+
+  // Optional and non-load-bearing: an avatar URL that fails the host check is
+  // simply dropped, never a reason to refuse a sign-in.
+  const picture = asString(claims.picture);
+  if (picture && isGooglePictureUrl(picture)) identity.pictureUrl = picture;
 
   return identity;
 }

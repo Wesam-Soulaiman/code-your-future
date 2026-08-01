@@ -382,13 +382,20 @@ describe('no future product feature leaked into the frontend', () => {
 
   test('no future product page was added', () => {
     const pages = join(FRONTEND_SRC, 'app', 'pages');
+    // `admin` holds Profile Catalogs, a real working page added because the
+    // feature now exists. Nothing here is a stub for a later checkpoint.
     const present = readdirSync(pages).sort();
-    assert.deepEqual(present, ['auth', 'dashboard', 'student']);
+    assert.deepEqual(present, ['admin', 'auth', 'dashboard', 'student']);
+
+    const adminPages = readdirSync(join(pages, 'admin')).sort();
+    for (const name of adminPages) {
+      assert.ok(name.startsWith('profile-catalogs'), `unexpected Admin page: ${name}`);
+    }
 
     const studentPages = readdirSync(join(pages, 'student')).sort();
     for (const name of studentPages) {
       assert.ok(
-        name.startsWith('student-welcome'),
+        name.startsWith('student-welcome') || name.startsWith('student-profile'),
         `unexpected Student page: ${name}`
       );
     }

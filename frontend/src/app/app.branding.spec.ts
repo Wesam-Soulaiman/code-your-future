@@ -113,7 +113,9 @@ describe('route surface', () => {
     const shell = routes.find((route) => route.path === '');
     const children = (shell?.children ?? []).map((child) => child.path);
     expect(children).not.toContain('users');
-    expect(children).toEqual(['', 'dashboard']);
+    // Profile Catalogs was added in the Checkpoint 3A catalog work; it is a
+    // real, working Admin page, not a stub.
+    expect(children).toEqual(['', 'dashboard', 'dashboard/profile-catalogs']);
   });
 
   it('registers no future-checkpoint route', () => {

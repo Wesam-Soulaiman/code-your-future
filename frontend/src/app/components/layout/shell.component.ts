@@ -221,6 +221,15 @@ export class ShellComponent implements OnInit, OnDestroy {
       icon: 'fa-solid fa-gauge',
       route: '/dashboard',
     },
+    {
+      // Added because the feature now exists ⟨CP3A catalog⟩. Nothing is stubbed
+      // here: every item in this list leads to a page that works.
+      id: 'profile-catalogs',
+      labelKey: 'nav.profileCatalogs',
+      icon: 'fa-solid fa-list-ul',
+      route: '/dashboard/profile-catalogs',
+      roles: [AppRole.ADMIN],
+    },
   ];
 
   // Role-set aware: an item without `roles` is visible to any authenticated

@@ -1,697 +1,567 @@
-# Handoff — Checkpoint 2B
+# Handoff — Checkpoint 3A (Profile Catalog)
 
-**Checkpoint:** 2B — Student Google Authentication
-**Date:** 2026-07-31
+**Checkpoint:** 3A — Complete Student Profile, completed with Profile Catalog management
+**Date:** 2026-08-01
 **Branch:** `master` (never left)
-**Baseline commit:** `9ec03df` — *feat: establish UI UX foundation and authentication experience*
-**Safe for review:** **Yes**, and **safe to commit** — see §26.
-**Closeout applied:** Google privacy, authorized-origin handling, and popup communication — §26.
+**Baseline commit:** `79fea2b` — *feat: add secure student Google authentication*
+**Ready for review:** **Yes.**
 
-Checkpoint 2A's handoff is preserved in the repository history at `9ec03df`, Checkpoint 1's at
-`0344a43`, and Phase 0's at `a796aa0`.
+This handoff supersedes the first Checkpoint 3A handoff. Both bodies of work are
+uncommitted on top of `79fea2b` and are meant to be reviewed together: the second
+completes the first and corrects three defects in it.
 
----
-
-## 1. Objective
-
-Enable real Google authentication for Students: open `/auth/student`, sign in with Google, have the
-backend verify the credential, create or reuse the Student safely, assign the Student role, issue a
-real Parse session, land on a protected welcome page, survive a refresh, and log out for good.
-
-Nothing beyond that — no Complete Profile, no Batches, no invitations, no enrollment, no Student
-dashboard data.
+Earlier handoffs are preserved in history: Checkpoint 2B at `79fea2b`, 2A at
+`9ec03df`, 1 at `0344a43`, Phase 0 at `a796aa0`.
 
 ---
 
-## 2. Initial state
+## 1. Initial state
 
 ```
-$ git status              nothing to commit, working tree clean
-$ git branch --show-current   master
-$ git log --oneline -3
-9ec03df feat: establish UI UX foundation and authentication experience
-0344a43 feat: establish secure product foundation and access boundaries
-a796aa0 docs: establish project context and template architecture
-$ git diff --stat         (empty)
+$ git branch --show-current    master
+$ git log --oneline -1
+79fea2b feat: add secure student Google authentication
+$ git diff --cached --name-only    (empty — nothing staged)
+$ git status --porcelain -uall | wc -l    44
 ```
 
----
-
-## 3. Google configuration architecture
-
-One backend variable — **`GOOGLE_CLIENT_ID`**, the Google Cloud **Web application** Client ID — and
-the same public value in the browser as `googleClientId` in
-`frontend/src/environments/environment{,.prod}.ts`.
-
-**There is no client secret anywhere, by design.** The browser flow returns a signed ID token
-directly; verifying it needs Google's public keys and the expected audience, so no
-authorization-code exchange exists and no secret has to be stored. A test asserts that neither
-environment file declares a `clientSecret`, and that `googleClientId` is either empty or has the
-published `NNN-xxxx.apps.googleusercontent.com` shape.
-
-**Missing configuration fails safely.** The server boots normally and logs *which key* is absent —
-never a value. Only the Student endpoint refuses, with the stable code `GOOGLE_NOT_CONFIGURED`.
-**Admin password login keeps working**, verified at runtime with the variable unset.
-
-`backend/.env` was **not** modified. The runtime checks supplied the variable as an in-process
-override.
+The 44 entries were the first Checkpoint 3A cut, uncommitted and intentional.
+**Every one of them was preserved**; nothing was reset, cleaned, stashed, or
+discarded, and no file from that work was deleted.
 
 ---
 
-## 4. Student auth UI
+## 2. What changed, and why
 
-The Checkpoint 2A page is unchanged in structure, copy, and styling; the Google action now works.
+### 2.1 The four profile selections became catalog references
 
-Google's **own** rendered button is used — it is the supported entry point for this flow and carries
-Google's required branding — and it sits in the slot the page already reserved. Until the library is
-ready, and whenever it cannot load or the deployment is unconfigured, the same slot shows the
-explained, disabled control from 2A, so the page never presents an action that cannot work.
+`city`, `institution`, `major`, and the new `targetRole` are now **pointers**
+into `ProfileCatalogItem` rather than free text or a hard-coded array.
 
-States: SDK loading · ready · authenticating · redirecting · cancelled/dismissed · invalid
-credential · unverified Google email · account not eligible · rate limited · backend unavailable ·
-missing configuration. Every one is a translated key chosen from the backend's stable code —
-**no raw Google or Parse string is ever rendered**. Duplicate submission is prevented, the message
-area is reserved so nothing shifts, errors are announced assertively, and EN/AR with full RTL is
-preserved. Still no email, username, password, signup, reset, or invitation-token field, and no
-Apple button.
+The practical difference: "Damascus", "damascus", and "Dmascus" used to be three
+different places, and correcting the institution list meant a deployment. Now a
+rename is one Admin edit and it corrects every profile pointing at the item at
+once — because the profiles point at the item, not at a copy of its name.
 
-The approved invitation copy appears verbatim in both languages, on this page and on the welcome
-page.
+A request carries an **id**. A bare `city`, `institution`, `major`, or
+`targetRole` in a payload is refused outright, because it is somebody trying to
+write a name straight into the record.
+
+### 2.2 `ProfileCatalogItem` — closed and typed, not a settings store
+
+Restricted to exactly `CITY`, `INSTITUTION`, `MAJOR`, `TARGET_ROLE`, checked at
+the cloud-function boundary before any query exists. The category is **immutable
+after creation**: retyping an item would silently reinterpret every profile
+pointing at it. There is no `key`, `value`, `config`, `json`, or `data` column,
+and a test asserts there never will be.
+
+Deny-by-default CLP on all six operations, an empty class ACL, no per-record
+grant to anybody, every column in `protectedFields`, and a unique
+`(type, code)` index.
+
+**Five Admin operations** and **one Student read**. No generic CRUD, no class
+name in any signature, no `where`.
+
+### 2.3 Deleting versus deactivating
+
+An unused item is deleted. An item any profile references is refused with
+`CATALOG_IN_USE`, counted across **every** reference column rather than just the
+matching one. Cascading or nulling would blank a field in somebody's profile
+without their knowledge.
+
+Deactivation is the supported alternative, and it is asymmetric on purpose: an
+inactive item **stays valid** on the profiles that already chose it, and can
+never be *newly* selected. Both halves matter — the first so an Admin tidying a
+list does not invalidate answers people already gave, the second so deactivation
+means something.
+
+### 2.4 The optional target role
+
+`targetRole` is optional; `targetRoleReason` answers, in exactly these words:
+
+- English — **Why did you choose this role?**
+- Arabic — **لماذا اخترت هذا الدور؟**
+
+Optional, ≤ 500 characters, shown only when a role is selected, and cleared when
+the role is cleared. **Neither affects completion**, and neither is an
+evaluation — nothing scores or ranks either one. `careerGoal` is unchanged.
+
+Sending a reason without a role is **not** an error: a Student clearing their
+role is a legitimate save, and refusing it would strand them on a form
+complaining about a field they can no longer see. The value is dropped instead.
 
 ---
 
-## 5. Backend verification flow
+## 3. Three defects in the first cut, fixed
 
-`modules/StudentAuth/googleVerifier.ts` is the single trust boundary. It delegates the cryptography
-to **Parse Server's bundled Google auth adapter** — the official server-side mechanism for this
-stack — which fetches Google's JWKS and checks the RS256 signature, the audience, the expiry and the
-issuer. No JWT or OAuth code is written in this repository.
+### 3.1 `PROFILE_UNAVAILABLE` on a first save with a photo
 
-On top of that, this module re-asserts audience, issuer, expiry and subject on the *verified* claims
-and adds the product rule the adapter does not enforce: **`email_verified === true`**.
+**Cause.** Choosing a photo uploaded it immediately, against a profile that did
+not exist yet. A photo belongs to a profile; on a first save there is none until
+the save creates it.
 
-The adapter needs the expected subject up front, so the token payload is base64-decoded **without
-any trust** to obtain a candidate; the adapter then verifies the signature and asserts that the
-*verified* `sub` equals that candidate. A forged payload changes the candidate but cannot make the
-signature check pass.
+**Fix.** Selecting an image is now a **local preview**. One Save action
+validates, writes the profile, and *then* uploads. If the profile save fails the
+photo is not sent at all — attaching an image to details that were rejected would
+be attaching it to nothing.
 
-The request carries exactly one meaningful field, `credential`. An `email`, `name`, `sub`, or
-`profileStatus` sent alongside it is **never read**; `role`, `roles`, `userId`, `sessionToken`, and
-`authData` are refused outright by the shared privileged-parameter gate.
+**If the upload alone fails**, the saved profile stands, nothing is rolled back,
+the page says "Your details were saved. The photo could not be uploaded," and
+offers a retry that re-sends only the file. Throwing away twelve correct fields
+over one image would be the worse outcome.
 
-**Never happens:** the credential is not logged, not returned, not stored, and not placed in a URL;
-no raw claim is persisted; no role is accepted from a client; no internal verification error reaches
-the caller.
+### 3.2 A whole photograph in the log, on every upload
+
+**Cause.** Parse Server logs every cloud-function call at `info` as a message
+containing the serialised input and result. The upload was a cloud function
+taking base64, so the image appeared verbatim inside `Input: {"data":"…"}` — and
+again on the way back out.
+
+**Fix, at the cause.** The bytes moved to a dedicated authenticated binary route
+(§4). They never enter Parse's cloud-function pipeline, so there is no line to
+redact.
+
+**Fix, as a second layer**, because a future edit could put them back: redaction
+now treats file and image keys as **content** — `data`, `base64`, `photo`,
+`image`, `file`, `buffer`, `bytes`, `binary`, `contents`, `payload`, `blob`,
+`attachment`, `thumbnail`, `avatar`, `picture`, and `filename`.
+
+A matching key survives **only** when its value is a number or a boolean, which
+no image can be. `bytes: 48213` tells an operator the upload worked; the bytes
+themselves are never acceptable, and **no truncated prefix is kept** — the first
+characters of a JPEG are still the first characters of a JPEG.
+
+Two details in that pass are load-bearing:
+
+- **`profile` is stripped before matching**, because `profileId` contains
+  `file`. Without it, every profile id in every log line would read
+  `[REDACTED]`, losing the identifier that lets an operator follow a request.
+- **`{` is excluded from the unquoted value class.** Parse writes
+  `Input: {"data":"…"}`; with `{` allowed the first match is `Input` →
+  `{"data":"…`, which is not sensitive, so it is kept — and the scanner has
+  already consumed the pair it was supposed to mask. This is why the fix looked
+  correct and did nothing until the pattern changed.
+
+The value pattern was also rewritten from `(?:[^"\\]|\\.)*` to
+`[^"\\]*(?:\\.[^"\\]*)*`. Both match the same strings, but only the second is
+unambiguous; the first has two ways to match every ordinary character, which on
+a multi-megabyte unterminated payload explores an exponential number of paths.
+An image is exactly that size.
+
+### 3.3 A person's name in the log
+
+Found while validating the above. Parse's `beforeSave` and result lines
+serialised a Student's `fullName` and their Google `displayName` verbatim — in
+the same lines where the email beside them was already `[REDACTED]`. That is
+incoherent: a name identifies a person as well as an address does.
+
+`fullname`, `displayname`, `givenname`, and `familyname` joined the personal-data
+list. No log call site anywhere passes a field with those names, so nothing
+useful was lost. Runtime validation now asserts the absence of all of them.
 
 ---
 
-## 6. `StudentAuthIdentity`
+## 4. The photo endpoint
 
-Three columns — `provider`, `providerSubject`, and a `user` pointer. Nothing else: no credential, no
-token, no email, no name, no picture, no locale, no claim of any kind.
-
-Deny-by-default CLP on all six operations, an empty default object ACL, `protectedFields` covering
-every column for both `*` and `authenticated`, and a `beforeSave` that refuses any non-master write,
-refuses to make the record public, and freezes the three columns after creation. **No cloud function
-reads, lists, or returns an identity record**, asserted by test.
-
-Two unique compound indexes, both confirmed present in MongoDB at runtime and both observed
-rejecting a duplicate with error `11000`:
-
-| Index | Guarantees |
+| | |
 |---|---|
-| `(provider, providerSubject)` | one Google account maps to exactly one Student |
-| `(provider, _p_user)` | one Student holds at most one identity per provider |
+| `POST {mountPath}/profile-photo` | multipart, field `photo` |
+| `GET {mountPath}/profile-photo` | the owner's bytes, `image/webp` |
 
-`_p_user` is the MongoDB column name for a Parse pointer; naming the logical field would have
-indexed a column that does not exist.
+Mounted on the Parse mount path **before** the entity-route middleware, so it
+terminates its own two paths and every other request falls through untouched.
 
----
+- Raw multipart rather than base64 — a third smaller on the wire.
+- **The size limit applies at the socket**, before anything is decoded or held
+  whole. A cloud function had already parsed the entire payload before the first
+  check could run.
+- The caller is resolved from `X-Parse-Session-Token` against `_Session`, an
+  expired session is rejected explicitly, and **live** `Student` membership is
+  read. No user id, profile id, or class name is accepted from the client.
+- MIME type, filename extension, and the **actual byte signature** must all
+  agree, then `sharp` must decode it; every upload is re-encoded to a bounded
+  WebP, which strips EXIF including GPS.
+- `Cache-Control: private, no-store` and `X-Content-Type-Options: nosniff`. A
+  photograph of a person must not sit in a proxy or a shared machine's cache.
+- The 10-per-minute bound moved with the endpoint rather than being dropped.
 
-## 7. First sign-in
-
-One `_User`, the `Student` role granted server-side, one identity record, one Parse session, and a
-safe DTO.
-
-The username is `gid_` + 24 random bytes and the password is 48 random bytes, both from
-`crypto.randomBytes`. Both are server-generated, unpredictable, never returned, never logged, and
-the password is discarded the moment `save()` completes. **The Google email is never used as a login
-identifier.** The password is unusable regardless: `loginUser` verifies the Admin role after
-authentication and destroys the session for anyone else.
-
-A failed verification creates nothing — confirmed at runtime by counting `_User` rows before and
-after.
-
----
-
-## 8. Returning sign-in
-
-The identity is found, the account is reused, no `_User` and no identity are created, and live
-`Student` membership is re-checked. Provisioning is idempotent: three sequential sign-ins produced
-exactly one account and one identity.
+**What did not change.** `blockRawFileRoutes` still answers `/api/files/*` with
+403 — verified at runtime. `File`, `IMG`, and `fileAdapter.ts` are untouched and
+unwired. `fileUpload` stays disabled. **No public URL exists.** The bytes still
+live inline on the private, owner-ACL'd, deny-by-default profile row, so
+**OQ-10 / S-20 remain open**: this is a profile-photo answer, not the general
+private-file architecture, and it would not serve a Batch Resource PDF.
 
 ---
 
-## 9. Concurrent sign-in protection
+## 5. Searchable selects and polished date pickers
 
-Decided by the **database**, not by an in-memory check. There are two distinct races, and the second
-was found only by running the system:
+Four PrimeNG `p-select` controls — city, institution, major, target role — all
+filterable, keyboard reachable, rendered into `body` so no card can clip an
+overlay, with loading, empty, and no-match states. **No native `<select>`
+remains anywhere on the form.** Target role is clearable because it is optional;
+the three required ones are not, since clearing them could only produce a
+required error.
 
-1. **The identity index rejects the second writer.** It deletes the `_User` it had just created and
-   continues on the winner's account.
-2. **The `_User` email index rejects the second writer first**, before the identity index ever sees
-   it. Recovery therefore starts from the account conflict: look for an identity on the same
-   subject, briefly retrying because the winner may be between its two saves, and continue on the
-   winner's account. Without this, the losers were told the account was *ineligible*.
+An item an Admin has since retired still appears **on the profile that chose
+it**, marked "no longer offered" in words rather than by colour, and the backend
+still refuses it as a new choice for anybody else.
 
-Runtime result: **three simultaneous sign-ins → three successful responses, one account, one
-identity.**
+Two PrimeNG DatePickers replace the native `type="date"` and `type="month"`
+inputs:
 
----
+- **Date of birth** — full date, calendar icon, clear action, year navigation so
+  a birth year is reachable without paging through months, and `maxDate` set to
+  today so a future date is not reachable at all rather than typed and rejected.
+- **Expected graduation** — `view="month"`, `dateFormat="mm/yy"`. **No day is
+  ever offered**, because month-and-year is the precision anybody has. The
+  browser sends `YYYY-MM`; the backend remains authoritative and stores the
+  first of that month at `00:00:00.000Z`.
 
-## 10. Identity conflicts
-
-| Situation | Behaviour |
-|---|---|
-| Email already held by an Admin | `ACCOUNT_NOT_ELIGIBLE`. Nothing merged, nothing converted, nothing created. Verified at runtime. |
-| Identity already linked to another Student | The existing link wins; a second account can never claim it. |
-| Student role withdrawn | The next sign-in is refused, and the next restoration reports `roles: []`. |
-| Legacy `SuperAdmin` / `Employee` membership | Grants nothing. |
-| Client-supplied email, name, or subject | Never read — identity comes only from the verified token. |
-| Client-supplied role | Rejected outright with `119`. |
-
-No response distinguishes a conflicting account from an unknown one, so the endpoint cannot be used
-to discover whether a given Google address has an account here.
-
-No account-linking UI and no multi-provider linking were built.
-
----
-
-## 11. Sessions, restoration, and the safe DTO
-
-Sessions come from Parse's own **`/loginAs`**, which exists so a trusted server can create a session
-for a user it authenticated another way. It is required because a Student has no usable password.
-`/loginAs` refuses anything but a full master key, and `restrictRoutes` blocks it for external
-callers — **403 observed from outside**; cloud code reaches it through Parse's `directAccess` path,
-which is enabled by mounting `parseServer.app` in `app.ts`.
-
-The session is an ordinary revocable `_Session`. Logout invalidates it and the old token then fails
-with `209`, both observed.
-
-| Response | Keys |
-|---|---|
-| `loginWithGoogle` (the only one with a token) | `id`, `roles`, `displayName?`, `sessionToken` |
-| `getSession` (routine restoration) | `id`, `roles`, `displayName?` |
-
-Never present: session token on the routine call, password, `authData`, ACL, raw Parse objects, raw
-role objects, email, phone, the Google subject, the credential, any provider claim, the internal
-username, or anything from `StudentAuthIdentity`. Verified over the wire, not only in unit tests.
-
-`displayName` is built server-side from the **verified** Google names for a Student, and from the
-login name for an Admin. A Student with no name gets no display name rather than an identifier.
-There is **no profile-completion status**, because it cannot be truthfully derived until
-`StudentProfile` exists.
-
-**Frontend session state** gained explicit `restoring` / `authenticated` / `unauthenticated` states.
-Restoration is awaited during bootstrap, so the router never activates a route while roles are still
-unproven — no protected-content flash. `restoreSession()` shares one in-flight request, so two
-callers cause one call. A rejected token clears both stored values and returns the visitor to the
-sign-in page matching the session they had. No second state-management library was added; language
-preference is untouched by sign-out.
+**PrimeNG does not read `@ngx-translate`.** Its DatePicker draws month and day
+names from its own translation object, which defaults to English — so an Arabic
+page opened an Arabic-labelled field onto a calendar reading
+"May 2001 / Su Mo Tu We Th Fr Sa". Found by looking at a screenshot, not by a
+test. `PrimeNgLocaleService` now generates both languages from
+`Intl.DateTimeFormat` — the browser already ships correct names, so the spelling
+cannot drift and a later locale needs no new list — and re-applies them on every
+language change.
 
 ---
 
-## 12. The `getSession` endpoint, and the protected-path blocker
+## 6. Profile Catalogs — the Admin page
 
-**Blocker, reported rather than worked around.** §9 of the checkpoint forbids returning the internal
-username. `/api/users/getCurrentUser` returns `username`, which for a Student is exactly that
-value — but `backend/src/cloudCode/utils/dto/` and `modules/User/` are **protected paths** under
-`CLAUDE.md`, and the Checkpoint 1 handoff records that a previous task was corrected for
-reinterpreting those rules.
+`/dashboard/profile-catalogs`, Admin-only, reachable from one new navigation
+item (**Profile Catalogs** / **قوائم الملف الشخصي**). Added because the feature
+now exists; nothing in that menu is a stub.
 
-So `getCurrentUser` was left untouched, still registered and still tested, and a new role-agnostic
-`getSession` was added in the new module. The browser restores through `getSession`; the older
-endpoint simply is not what the frontend calls.
+Four tabs — Cities, Universities & Institutes, Majors, Target Roles — each with
+list, search, create, edit, activate, deactivate, and delete, plus loading,
+empty, and error states. Institutions additionally carry University / Institute /
+Other and the `isOther` flag.
 
-**Owner decision available:** if the protection rules are amended to allow it, `getCurrentUser` and
-`getSession` should be merged into one endpoint. Two restoration endpoints is redundancy this
-checkpoint could not remove on its own authority.
+Two details worth keeping:
 
----
+- **The code preview.** The server normalises whatever it is given, so an Admin
+  typing `Damascus Univ.` sees `DAMASCUS_UNIV` before saving rather than
+  discovering it afterwards.
+- **`CATALOG_IN_USE` is explained, not just reported.** The message says the item
+  is in use and that deactivating retires it without blanking anybody's profile.
 
-## 13. Routes and guards
-
-| Route | Guard | Visitor | Student | Admin |
-|---|---|---|---|---|
-| `/auth/student` | `guestGuard` | shown | → `/student/welcome` | → `/dashboard` |
-| `/auth/admin` | `guestGuard` | shown | → `/student/welcome` | → `/dashboard` |
-| `/student/welcome` | `studentGuard` | → `/auth/student` | shown | → `/dashboard` |
-| `/dashboard` | `authGuard` | → `/auth/admin` | → `/student/welcome` | shown |
-
-A Visitor asking for the Student area is sent to **Student** sign-in, not Admin: somebody following
-a Student link should not be asked for a password they will never have.
-
-Every target is a fixed internal path defined once in `guards/home-route.ts`; a test asserts no
-redirect target contains a scheme or `//`, so none can become an open redirect. Guards sit on the
-parent **and** each child, because Angular does not re-run a parent's `canActivate` when only the
-child changes. Restoration completes before any guard runs. No redirect loop exists in either
-direction, asserted by test.
+**Empty means empty.** Cities, majors, and target roles ship with no data,
+because no authoritative source exists and a plausible-looking invented list is
+worse than an empty one — an empty one is obviously empty. Only institutions are
+seeded, from the list the first Checkpoint 3A cut already carried, including
+`Other`. Seeding is keyed on the normalised code, so it is safe on every boot and
+concurrently, and it **does not overwrite an Admin's edits**.
 
 ---
 
-## 14. Security, privacy, and one honest gap
+## 6b. The name and photo start from Google
 
-**No Phase 1 control regressed** — re-verified at runtime: Admin login works; Student password login
-refused; `/classes/*` and `/schemas` 403 (including `StudentAuthIdentity`, and including with a
-master-key header); raw file routes 403; `POST /users` 404; `requestPasswordReset` 403;
-`app-settingses` 403; CORS still allow-listed with no wildcard; master key still localhost-only;
-recursive redaction intact; errors still sanitised; `AppSettings` still absent.
+A Student signs in with Google, so their name and avatar are already known and
+verified. Making them retype one and re-upload the other is friction for no
+benefit — so both are taken, **once**, and both are theirs to change.
 
-**Master-key operations added — five, each narrow and server-initiated:**
+**The name** is prefilled into the form from the verified claims, with a note
+saying where it came from that disappears the moment they edit the field. It is a
+suggestion and nothing more: nothing writes it but the Student pressing Save, and
+a saved profile never claims a provider name.
 
-| # | Operation | Why it must use the master key |
-|---|---|---|
-| 1 | Read `StudentAuthIdentity` | The class denies every client read. |
-| 2 | Read `_User` | `find`/`get` CLP are `{}`. |
-| 3 | Create `_User` | The product forbids manual Student creation; only the server may do it. |
-| 4 | Add the user to the `Student` role | Client-chosen roles are forbidden. |
-| 5 | Issue a session via `/loginAs` | The Student has no password to present to `logIn`. |
+**The photo** is imported on the save that *creates* the profile. It is fetched
+server-side and put through exactly the upload validation — declared MIME,
+filename extension, real byte signature, a `sharp` decode — then re-encoded to a
+bounded WebP. Google is a trustworthy source of a photograph, not a reason to
+skip checking that what arrived is one.
 
-`useMasterKey` usage was **not** broadened anywhere else.
+**Once is the whole design.** Neither is ever re-applied, so a corrected spelling
+or a removed photo is permanent. Two things fall out of that for free: an import
+can never overwrite an image the Student chose, and removal needs no "suppressed"
+flag to track and get wrong.
 
-**Logging.** The credential, the verified email, the internal username, and the session token are
-all absent from the logs — scanned, not assumed. This module's own logging emits an allow-list of
-seven fields (`op, provider, stage, ok, code, userId, created`) and drops anything else, so a future
-edit cannot start logging a claim by adding one field to a call. Asserted by test.
+### Fetching a URL that arrived in a token
 
-**Gap S-19 — closed in the closeout (§26).** The Google subject no longer reaches the log at any
-level, and no `LOG_LEVEL` setting is required for privacy.
+The avatar URL is verified and trustworthy in practice, but *"the backend fetches
+a URL a request named"* is the shape of a server-side request forgery whatever
+the source. It is treated as untrusted at four points:
+
+1. **At capture** — `https:` only, hostname pinned to `googleusercontent.com`,
+   `google.com`, or `gstatic.com`, matched exactly or as a sub-domain. A URL that
+   fails is **dropped, not refused**: a bad avatar must never cost somebody their
+   sign-in.
+2. **At read** — re-checked, because the check that admitted it and this read are
+   separated by time and a database.
+3. **At request** — `redirect: 'error'` (following one would let a pinned host
+   hand off to an unpinned one), no credentials, 4-second timeout.
+4. **At the body** — the content type must be an accepted image; a declared
+   length over 5 MiB is refused **before a byte is read**; the bytes actually
+   received are checked again, because a header is a claim, not a guarantee.
+
+The URL itself lives on `StudentAuthIdentity` beside the provider subject — it is
+provider identity data — in `protectedFields`, and reaches no DTO, no browser,
+and no log. It is deliberately **not** on the profile: a Google avatar URL is a
+stable, unauthenticated address for a photograph of a person, and putting it on
+the object that gets serialised to a browser would be one careless field away
+from undoing the reason the image is stored privately at all.
+
+Nothing here throws. A missing, slow, or malformed avatar is a profile with no
+photo and an Add button — never a failed save.
+
+### Framing the photo
+
+Choosing a photo by hand opens the template's **`image-cropper-dialog`**, which
+had been carried since Checkpoint 1 and never wired to anything. A profile photo
+is rendered in a circle, so what a Student sees is a square crop of whatever they
+picked — chosen by the browser, from the centre, with no say from them. Letting
+them place that square is the difference between a portrait and an arbitrary
+rectangle of somebody's shoulder.
+
+`aspectRatio: 1` and `maintainAspectRatio` match the avatar exactly, and the
+cropper is asked for **WebP** — which is what gets stored anyway, so the preview
+is the image. The result becomes the pending file and the existing
+save-then-upload flow carries it unchanged; cancelling changes nothing, and an
+existing photo survives a dismissed dialog.
+
+Two things surfaced by being the component's first consumer, both fixed in place:
+
+- its stylesheet was **empty**, and its footer carried PrimeNG's own
+  `.p-dialog-footer` class inside the dialog *body* — where PrimeNG positions
+  that class for the real footer slot, drawing the buttons **on top of the
+  image**. The footer is now a plain row with a separator;
+- its buttons read `'Close' | translate` and `'Save' | translate`, which are not
+  keys — ngx-translate echoes a missing key, so an Arabic dialog showed English
+  words. They now use `actions.cancel` and `actions.save`, which already existed
+  in both languages.
+
+The file's type and size are checked **before** the cropper opens, so an
+unusable file is refused while the Student still has the picker in mind rather
+than after they have spent time framing a crop; the cropped result is checked
+again, because it is a different image.
 
 ---
 
-## 15. Defects found during validation
-
-All three were found by **running** the system. None was caught by the unit suites, and each now has
-a regression test.
-
-1. **`Parse.User.loginAs` was called outside the error wrapper.** A synchronous throw — a missing
-   method on a misconfigured SDK — escaped `catchError` and carried its internal message to the
-   client. Both the issuer and `issueStudentSession` now sanitise.
-2. **Concurrent first sign-ins failed for the losers.** One account and one identity resulted, which
-   was correct, but two of three requests were told the account was ineligible, because the `_User`
-   email index rejects them before the identity index does. Recovery now starts from the account
-   conflict. Three of three now succeed.
-3. **Google's button rendered in Dutch on an English page.** `renderButton({locale})` is ignored by
-   the current Google library — the parameter never reached the button iframe. The language must be
-   set on the script URL (`gsi/client?hl=`), so changing language now reloads Google's script. Found
-   by looking at a screenshot.
-
-A fourth, smaller one: two of my own tests were self-deceiving — a defaulted parameter swallowed the
-`undefined` the test meant to pass, so the "missing credential" and "nameless greeting" cases were
-silently testing the ordinary path. Both were rewritten.
-
----
-
-## 16. Tests
+## 7. Tests
 
 | Suite | Command | Result |
 |---|---|---|
-| Backend | `cd backend && pnpm run test` | **315 pass / 0 fail** (59 suites) — was 210 |
-| Frontend | `cd frontend && pnpm run test` | **305 pass / 0 fail** (15 files) — was 167 |
+| Backend | `cd backend && pnpm run test` | **739 pass, 0 fail** |
+| Frontend | `cd frontend && pnpm run test` | **509 pass, 0 fail** (18 files) |
+| Backend compile | `pnpm run compile` | exit 0 |
+| Frontend build | `pnpm run build` | exit 0, initial bundle **701.83 kB** |
 
-**Zero new dependencies.** **No test contacts Google**: verification is injected through
-`setGoogleCredentialVerifier`, and the browser library is replaced by a double.
+Zero new dependencies; both `--frozen-lockfile` installs succeed unchanged.
 
-**Backend, new (105).** Missing configuration · invalid credential · verifier failure · invalid
-audience (single and array) · invalid issuer · expired · missing expiry · missing subject ·
-unverified email · missing email · claim reduction to exactly four fields · credential absent from
-the result · malformed-token rejection before any adapter call · stable code set · conflicting and
-unknown accounts indistinguishable · first sign-in creates exactly one Student · Student role
-assigned · Admin role never assigned · identity created · verified email and names stored ·
-username server-generated, not the email, unpredictable · password long, random, never returned ·
-returning sign-in reuses · no duplicate account or identity · role withdrawal refuses · missing
-account refuses · Admin never converted · email conflict not merged · identity cannot move between
-Students · legacy roles grant nothing · no half-provisioned account left behind · concurrent
-identity race · concurrent email race · winner ineligible still refused · session issuance delegated
-· failing issuer sanitised · synchronous failure sanitised · registered function surface ·
-rate limiting · one accepted field · no identity-exposing function · no Student password flow · no
-future function · `AppSettings` absent · DTO allow-list and forbidden keys · internal username never
-leaked · display-name rules · logging allow-list · subject dropped · raw Parse object dropped ·
-identity schema shape and both unique indexes · plus the updated repository-integrity guard.
+The photo endpoint is tested against a **real Express server on an ephemeral
+loopback port**, posting real multipart bodies — the only way multer's size
+limit, the signature checks, and `sharp` are actually run rather than described.
 
-**Frontend, new (138).** Google library states (loading, ready, unavailable, unconfigured) and their
-copy · locale passed to both `initialize` and `renderButton` · script reloaded on a language change,
-not reloaded otherwise · credential forwarded, empty response ignored, never stored · no auto-select
-· sign-in posts the credential in the body, never in a URL · session established · redirect to
-`/student/welcome` · missing token treated as failure · duplicate submission prevented · busy state
-· dismissal ignored while authenticating · seven failure states, each translated · no raw backend or
-provider string · assertive announcement · no session on failure · cancellation · stale error
-cleared · restoration for both roles · rejected session cleared · role withdrawal reflected ·
-one request for concurrent restorations · expired Student → Student sign-in, expired Admin → Admin
-sign-in · session token attached to ordinary calls but not to sign-in calls · explicit session
-states · display-name rules · every guard for every role · no open redirect · no redirect loop ·
-welcome page content, no fake data, no dead links, no HTTP on load, logout behaviour, duplicate
-logout prevented · Arabic throughout · layout safety · error-key mapping and translation coverage.
+The Google import is tested in two halves, because the halves need different
+things. The host allow-list is asserted against 14 hostile URLs *and* against the
+fact that **no request is issued at all** for any of them. Everything downstream
+of that check needs a response that appears to come from a pinned host, so the
+transport is doubled — not the checks — and the happy path is proved by asserting
+that what lands in storage is a real `RIFF...WEBP`, not the PNG that was sent.
 
 ---
 
-## 17. Build and validation results
+## 8. Runtime validation — 65 + 20 checks, all green
 
-```
-root      pnpm install --frozen-lockfile                      exit 0
-backend   pnpm install --frozen-lockfile                      exit 0
-backend   pnpm run compile                                    exit 0
-backend   pnpm run test                    315 pass / 0 fail  exit 0
-frontend  pnpm install --frozen-lockfile --shamefully-hoist   exit 0
-frontend  pnpm run build                   676.47 kB initial  exit 0
-frontend  pnpm run test                    305 pass / 0 fail  exit 0
-```
+Against an isolated `mongod` on port 27018 with a local credential double for
+Google. Highlights:
 
----
+- Admin CRUD across all four categories; an unknown category or a class name in
+  its place is `CATALOG_VALIDATION_FAILED`; a duplicate code is
+  `CATALOG_DUPLICATE`.
+- A Student receives **active items only**; a Visitor is refused; a Student
+  cannot reach an Admin operation and an Admin cannot reach the Student read.
+- Uploading before the profile exists is `PROFILE_UNAVAILABLE`; **one Save then
+  upload succeeds with no `PROFILE_UNAVAILABLE` anywhere**, and the owner reads
+  the bytes back as `image/webp` with `private, no-store`.
+- **No base64, no `data:` URI, no long blob, and no personal value** — name,
+  email, or phone — anywhere in the server log. A photo log line carries a byte
+  count and nothing more.
+- A name in place of an id, a wrong-category id, and a newly chosen inactive item
+  are each `VALIDATION_FAILED`; an already-chosen retired item keeps the profile
+  complete.
+- Deleting a referenced item is `CATALOG_IN_USE` with the profile untouched;
+  deactivating it keeps it on that profile and removes it from new options.
+- `2001-05-09T00:00:00.000Z` and `2027-06-01T00:00:00.000Z` stored; switching to
+  Graduate clears the graduation date.
+- A disguised script and a 6 MiB upload are both refused; another Student gets
+  404 for the photo and their own empty profile.
+- `/classes/*`, `/schemas`, and `/files/*` all **403**; CORS answers the
+  allow-listed origin only, never a wildcard, and never echoes a foreign origin.
+- No country, timezone, remote-attendance, or evaluation column exists, and only
+  the eight approved classes are in the database.
 
-## 18. Runtime validation
+A further **20 checks** cover the Google import: the name arrives prefilled and
+is marked as such; the Student's override is stored and survives both a re-read
+and a second sign-in; a pinned-host URL is captured while an unpinned one is
+never stored; an avatar that cannot be downloaded degrades to no photo rather
+than a failed save; no DTO or log line carries a URL, a provider field, or a
+subject; and a removed photo stays removed across later saves.
 
-Against an **isolated `mongod` on port 27018** with a scratch dbpath. `backend/.env` was never
-modified; overrides were applied in-process.
-
-The full server (`build/src/app.js`) was booted and **only Google's token verification** was replaced
-through the module's own seam. Everything else was genuine: Express, CORS, `restrictRoutes`,
-`validateEntityRoutes`, the cloud function, provisioning, the unique indexes, `/loginAs`, and the DTO
-over the wire.
-
-| # | Check | Result |
-|---|---|---|
-| 1 | Backend starts | `Server listening {"port":1341}` |
-| 2 | Frontend starts | `GET http://localhost:4201/` → 200 |
-| 3 | Admin login still works | 200, `roles:["Admin"]`, token issued |
-| 4 | Student auth page loads | renders at 1440 EN / 1440 AR / 390 EN, zero overflow, one `h1`, no inputs |
-| 5 | Missing Google configuration | `GOOGLE_NOT_CONFIGURED`; Admin login unaffected |
-| 6 | First verified sign-in | 1 `_User`, 1 identity, `roles:["Student"]`, real `r:` token |
-| 7 | Returning sign-in | same account; no new `_User`, no new identity |
-| 8 | Session restoration | `{displayName, id, roles}` — no token, no username |
-| 9 | Student welcome route protected | Visitor → `/auth/student` (guard tests) |
-| 10 | Student cannot enter Admin routes | → `/student/welcome` |
-| 11 | Admin cannot enter Student routes | → `/dashboard` |
-| 12 | Logout invalidates | `{"success":true}` |
-| 13 | Old token cannot be reused | `209 Invalid session token` |
-| 14 | No credential in logs | 0 occurrences; token `[REDACTED]`, params `[OMITTED]` |
-| 15 | `File` / `IMG` private | `/classes/File` → 403, `/classes/IMG` → 403, raw files → 403 |
-| 16 | `AppSettings` absent | route 403, collection absent, no registered function |
-| 17 | CORS restricted | allowed origin echoed; foreign origin not echoed; **no wildcard** |
-| 18 | No future navigation or fake data | Student area is one page; asserted by test |
-
-Additionally observed: a **forged, unsigned token was rejected by the real verifier over HTTP**
-(`INVALID_CREDENTIAL`), so signature checking is genuinely enforced; three concurrent sign-ins
-produced one account and one identity; an Admin-email conflict created nothing; withdrawing the
-Student role emptied the roles and refused the next sign-in; `/classes/StudentAuthIdentity` returned
-403 even with a master-key header; and both unique indexes rejected duplicate inserts with `11000`.
+Two of the four initial failures were **my assertions being wrong**, not the
+system: Parse maps `OPERATION_FORBIDDEN` onto HTTP 400 with code 119 rather than
+403, and the `cors` package answers a static allow-list by echoing the configured
+origin (so a foreign request receives a header that does not match itself and the
+browser blocks it). Both assertions were corrected to test the behaviour rather
+than the status number. The other two were the real name-in-log defect.
 
 ---
 
-## 19. Real Google browser result
+## 9. Visual validation — 27 captures
 
-**A real end-to-end Google sign-in was NOT performed, and nothing above claims one.** It needs a
-human to choose a Google account and consent, plus `GOOGLE_CLIENT_ID` set in `backend/.env` — a file
-this checkpoint must not modify.
+Complete Profile and Profile Catalogs at **1440 / 768 / 390 px** in **English
+and Arabic**, plus both date pickers open and a searchable select open in both
+languages.
 
-**What was confirmed in a real browser** (headless Chrome 150, `document.fonts.ready` awaited): with
-the configured Client ID, Google Identity Services **loads and renders its own button** at 1440 EN,
-1440 AR, and 390 EN — zero horizontal overflow, exactly one `h1`, no input elements, and **no
-console errors**. Arabic renders the button as "المواصلة باستخدام Google" and mirrors correctly in
-RTL. That is what surfaced the Dutch-button defect in §15.
+- **Zero** horizontal overflow, **zero** clipped text.
+- **No native date input and no `<select>`** on any capture.
+- Exactly one `h1` per page; four labelled sections on the form; no percentage.
+- **No console errors.**
+- Every overlay renders fully inside the viewport.
+- The date-of-birth picker shows 35 day cells and year navigation; the graduation
+  picker shows 12 month buttons and **zero day cells**.
 
----
+Plus the Google-sourced name at 1440 px in both languages, and the same page
+after editing it. The field arrives filled, the hint reads "Taken from your
+Google account. Change it if you prefer a different name." and its Arabic
+equivalent, and the hint **disappears on the first keystroke**. **No Google URL
+appears anywhere in the rendered markup.**
 
-## 20. Manual setup and validation remaining
+Reviewed by eye: profile EN 1440, AR 1440, AR 390; the Arabic graduation picker
+(Arabic month names, RTL, month-only); the Arabic institution select (filter
+input, Arabic names, University tags); Profile Catalogs AR 1440 and EN 390; and
+the prefilled name in English.
 
-1. **Set `GOOGLE_CLIENT_ID` in `backend/.env`** to match the browser's `googleClientId`.
-2. **Add the deployment origins** to the Google client's *Authorised JavaScript origins*.
-3. **Perform one real Google sign-in** end to end: click the button, choose an account, land on
-   `/student/welcome`, refresh, and log out.
-4. ~~Decide on `LOG_LEVEL=warn`~~ — **no longer needed**; S-19 is closed at every log level (§26).
-5. **Decide the `getCurrentUser` / `getSession` overlap** (§12).
-6. Confirm the welcome page in **light mode** — it has only been reviewed in the default dark theme.
-
----
-
-## 21. Warnings
-
-| Warning | Assessment |
-|---|---|
-| Frontend initial bundle **676.47 kB** against a 500 kB budget | Pre-existing; +2.10 kB from this checkpoint. |
-| Google's script is a third-party runtime dependency on `accounts.google.com` | Inherent to the official flow. It is fetched **only** when the Student page asks for it, and a blocked script degrades to an explained, disabled control. |
-| Switching language on the Student page refetches Google's script | Required: the button's language is fixed when the script loads (§15.3). |
-| Hash routing still active | OQ-12 still open, still due before Checkpoint 6. |
-| `favicon.ico` still missing | Pre-existing. |
-| 13 Parse Server deprecation warnings at boot | Pre-existing; all future-default changes. |
+**Not claimed:** no real Google sign-in was performed. The runtime and visual
+passes used the injectable credential verifier, and the Google Cloud origin
+change from the Checkpoint 2B closeout is still outstanding.
 
 ---
 
-## 22. Remaining gaps
-
-- **No real Google sign-in has been performed** (§19).
-- ~~**S-19**~~ — **closed** in the closeout (§26).
-- **Two restoration endpoints** until the protected-path question is settled (§12).
-- No Complete Profile, `StudentProfile`, Apple sign-in, invitation, enrollment, account-linking UI,
-  or multi-provider linking — all out of scope and none stubbed.
-- The Student welcome page is intentionally minimal and carries no product data.
-- `authData` is never populated, so a future migration to Parse's native auth flow would need to
-  backfill it — deliberate: Parse persists the raw `id_token` in `authData`, which this checkpoint
-  forbids storing.
-
----
-
-## 23. Files
+## 10. Files
 
 ### Added (23)
 
-**Backend (8)** — `src/cloudCode/models/StudentAuthIdentity.ts` ·
-`src/cloudCode/modules/StudentAuth/{errors,googleConfig,googleVerifier,provisioning,dto,logging,functions}.ts`
+**Backend (11)** — `models/ProfileCatalogItem.ts` ·
+`modules/ProfileCatalog/{constants,errors,dto,validation,repository,logging,functions,seed}.ts` ·
+`modules/StudentProfile/{catalogRefs,photoRoute,googleImport}.ts`
 
-**Backend tests (3)** — `test/googleVerification.test.ts` · `test/studentProvisioning.test.ts` ·
-`test/studentAuthSurface.test.ts`
+**Backend tests (3)** — `profileCatalogSurface.test.ts` · `imageRedaction.test.ts` ·
+`googleProfileImport.test.ts`
 
-**Frontend (7)** — `src/app/services/google-identity.service.ts` ·
-`src/app/services/dataService/student-auth-service.ts` · `src/app/utils/google-auth-error.ts` ·
-`src/app/guards/student.guard.ts` · `src/app/guards/home-route.ts` ·
-`src/app/pages/student/student-welcome.component.{ts,html,scss}`
+**Frontend (7)** — `models/ProfileCatalogItem.ts` ·
+`utils/profile-catalog-constants.ts` · `utils/catalog-error.ts` ·
+`services/dataService/profile-catalog-service.ts` ·
+`services/primeng-locale.service.ts` ·
+`pages/admin/profile-catalogs.component.{ts,html,scss}`
 
-**Frontend tests (4)** — `src/app/services/google-identity.service.spec.ts` ·
-`src/app/services/dataService/student-auth-service.spec.ts` ·
-`src/app/utils/google-auth-error.spec.ts` ·
-`src/app/pages/student/student-welcome.component.spec.ts`
+**Frontend tests (2)** — `pages/admin/profile-catalogs.component.spec.ts` ·
+`services/primeng-locale.service.spec.ts`
 
-### Modified (31)
+### Modified
 
-**Backend (3)** — `src/app.ts` (Google configuration status at boot) · `test/schemaAccess.test.ts` ·
-`test/templatePreservation.test.ts`
+**Backend (12)** — `app.ts` (mount the photo route; seed the catalog) ·
+`utils/logging/redact.ts` (authorised) · `models/StudentProfile.ts` ·
+`models/StudentAuthIdentity.ts` · `modules/StudentAuth/{googleVerifier,provisioning}.ts` ·
+`modules/StudentProfile/{constants,validation,repository,dto,functions,photo}.ts`
 
-**Frontend source (15)** — `src/app/app.config.ts` · `src/app/app.routes.ts` ·
-`src/app/guards/{auth,guest}.guard.ts` · `src/app/models/User.ts` ·
-`src/app/services/session.service.ts` · `src/app/services/http.interceptor.ts` ·
-`src/app/components/layout/shell.component.ts` ·
-`src/app/pages/auth/student-auth.component.{ts,html,scss}` ·
-`src/environments/environment{,.prod}.ts` · `public/i18n/{en,ar}.json`
+**Backend tests (7)** — `studentProfile{Validation,Surface,Operations}.test.ts` ·
+`studentAuthSurface.test.ts` · `redaction.test.ts` · `schemaAccess.test.ts` ·
+`templatePreservation.test.ts`
 
-**Frontend tests (7)** — `app.branding.spec.ts` · `auth-routing.spec.ts` ·
-`security.credentials.spec.ts` · `session.service.spec.ts` · `guards/role.guard.spec.ts` ·
-`services/dataService/user-service.spec.ts` · `pages/auth/student-auth.component.spec.ts`
+**Frontend (12)** — `models/StudentProfile.ts` ·
+`utils/{student-profile-constants,profile-error}.ts` ·
+`services/dataService/student-profile-service.ts` · `services/http.interceptor.ts` ·
+`app.config.ts` · `app.routes.ts` · `components/layout/shell.component.ts` ·
+`styles/layout.css` · `pages/student/student-profile.component.{ts,html,scss}` ·
+`public/i18n/{en,ar}.json`
 
-**Docs (6)** — `PROJECT.md` · `README.md` · `docs/TEMPLATE_ARCHITECTURE.md` ·
-`docs/CURRENT_STATE.md` · `docs/IMPLEMENTATION_PLAN.md` · `docs/HANDOFF.md`
+**Frontend (14)** — also
+`components/shared/image-cropper-dialog/image-cropper-dialog.component.{html,scss}`
+(first consumer; see §6c)
 
-### Deleted (0)
+**Frontend tests (2)** — `pages/student/student-profile.component.spec.ts` ·
+`app.branding.spec.ts`
 
-**Nothing was deleted.**
+**Docs (6)** — `PROJECT.md` · `docs/PRODUCT_REQUIREMENTS.md` (authorised) ·
+`docs/TEMPLATE_ARCHITECTURE.md` · `docs/IMPLEMENTATION_PLAN.md` ·
+`docs/CURRENT_STATE.md` · `docs/HANDOFF.md`
 
-**Deliberately untouched:** `backend/.env` · `backend/dashboard.json` · `docs/prototypes/*` ·
-`docs/PRODUCT_REQUIREMENTS.md` · `CLAUDE.md`, `backend/CLAUDE.md`, `frontend/CLAUDE.md` ·
-`.claude/**` · all three lockfiles · `backend/package.json`, `frontend/package.json` and every
-dependency in them · `node_modules` · `backend/src/cloudCode/utils/**` ·
-`backend/src/cloudCode/database/**` · `backend/src/cloudCode/modules/User/**` ·
-`models/{User,File,IMG}.ts`.
+### Deleted (0) — nothing was deleted.
+
+`README.md` was **not** changed: no configuration, environment variable, or
+command changed.
+
+**Deliberately untouched:** `backend/.env` · `backend/dashboard.json` ·
+`docs/prototypes/*` · all three `CLAUDE.md` files · `.claude/**` ·
+`backend/src/cloudCode/utils/**` except the authorised `logging/redact.ts` ·
+`database/**` · `modules/User/**` · `models/{User,File,IMG}.ts` · all three
+lockfiles and both manifests · `node_modules`.
 
 ---
 
-## 24. Git verification
+## 11. Warnings and remaining gaps
+
+1. **Initial bundle 698.48 kB against a 500 kB warning budget.** Pre-existing —
+   it was 677.55 kB before this work and over budget then too. PrimeNG's Select
+   and DatePicker account for most of the increase, and both are load-bearing
+   requirements.
+2. **`OQ-10` / `S-20` remain open.** The photo has an authenticated route; the
+   general private-file architecture does not, and Batch Resources (Checkpoint 7)
+   will need one.
+3. **A local database carrying first-cut Checkpoint 3A data will not accept the
+   new schema.** `city`, `institution`, and `major` changed from `String` to
+   `Pointer`. Drop the `StudentProfile` collection, or use a fresh database. The
+   runtime validation ran against a clean one.
+4. **No real Google sign-in was performed**, for the reason in §9. In particular
+   **a successful avatar download from Google's own CDN has not been observed** —
+   the runtime pass used a pinned host that does not resolve, which proves the
+   failure path, and the success path is proved by test with the transport
+   doubled. The first real sign-in is where an end-to-end import should be
+   confirmed.
+
+---
+
+## 12. Git verification
 
 ```
-$ git diff --check                exit 0 (LF→CRLF notices only)
-$ git status --short              31 modified, 23 untracked, 0 staged, 0 deleted
-$ git diff --cached --name-only   (empty — nothing staged)
+$ git diff --check                 exit 0 (LF→CRLF notices only)
+$ git diff --cached --name-only    (empty — nothing staged)
 $ git ls-files backend/.env backend/dashboard.json
-                                  (empty — neither is tracked)
-$ git check-ignore -v backend/.env
-backend/.gitignore:6:.env	backend/.env
-$ git check-ignore -v backend/dashboard.json
-backend/.gitignore:4:dashboard.json	backend/dashboard.json
+                                   (empty — neither is tracked)
 ```
 
 | Confirmation | Result |
 |---|---|
-| Nothing staged, nothing committed, nothing pushed | ✅ `HEAD` is still `9ec03df` |
-| No branch created, switched, merged, or deleted | ✅ still on `master` |
-| `.env` / `dashboard.json` unmodified and still ignored | ✅ |
-| No secret exposed or tracked | ✅ no client secret exists; runtime credentials passed via environment variables only |
-| Prototypes unchanged | ✅ absent from `git status` |
-| Protected instruction files unchanged | ✅ `CLAUDE.md`, `backend/CLAUDE.md`, `frontend/CLAUDE.md`, `.claude/**` |
-| Protected source paths unchanged | ✅ `utils/`, `database/`, `modules/User/`, `models/{User,File,IMG}.ts` |
-| No preserved template capability removed | ✅ guarded by `templatePreservation.test.ts` |
-| No dependency added or removed | ✅ all lockfiles and manifests unmodified |
-| No future product feature | ✅ no profile, batch, invitation, enrollment, resource, task, or reel |
+| Nothing staged, nothing committed, nothing pushed | ✅ `HEAD` still `79fea2b` |
+| No branch created or switched | ✅ still on `master` |
+| Existing Checkpoint 3A work preserved | ✅ all 44 entries intact, none deleted |
+| `.env` / `dashboard.json` unchanged and still ignored | ✅ |
+| Protected paths unchanged | ✅ except `logging/redact.ts`, explicitly authorised |
+| Prototypes and instruction files unchanged | ✅ |
+| No secret, profile value, or image content exposed | ✅ |
+| No template capability removed | ✅ guarded by `templatePreservation.test.ts` |
+| No dependency added or removed | ✅ both frozen-lockfile installs pass |
+| No Country or Timezone field | ✅ asserted at runtime against the live schema |
+| No future product feature | ✅ |
 | No task-created process remains | ✅ |
 
 ---
 
-## 25. Recommended next action
+## 13. Recommended next action
 
-1. **Complete one real Google sign-in** (§20) — the only thing between this checkpoint and a
-   demonstrable Student flow.
-2. **Commit** Checkpoint 2B.
-3. **Decide S-19 and the `getSession` overlap** (§14, §12) — both are owner calls.
-4. **Start Checkpoint 4** (Complete Profile and Student dashboard). It needs OQ-2 and OQ-3 answered,
-   and the welcome page is the natural place its entry point will go.
-
----
-
-## 26. Closeout — Google privacy, authorized origins, and popup communication
-
-Applied after the implementation pass, in response to three browser errors: a Google 403, a
-`GSI_LOGGER` origin rejection, and a Cross-Origin-Opener-Policy warning.
-
-| # | Item | Outcome |
-|---|---|---|
-| 1 | **S-19 — Google subject in logs** | **Closed at every log level.** No `LOG_LEVEL` dependency. |
-| 2 | **Cross-Origin-Opener-Policy** | `same-origin-allow-popups` now sent by the dev server; the postMessage warning is **gone**. |
-| 3 | **Authorized JavaScript origin** | Diagnosed and documented. **Owner action — still pending.** |
-| 4 | Existing Checkpoint 2B behaviour | Unchanged; re-verified end to end. |
-
-### 26.1 S-19 — root cause and fix
-
-**Root cause.** Parse Server logs each trigger's `Input`/`Result` as a message string at `info`.
-Saving a `StudentAuthIdentity` therefore wrote `providerSubject` — the Google subject, a stable
-identifier for a real person — into the line. This repository's own authentication logging never
-emitted it; the leak was in Parse's generic trigger logging, which the redaction layer scrubs by key
-name.
-
-**Fix — the smallest possible change**, in `backend/src/cloudCode/utils/logging/redact.ts`
-(modification of this protected file was explicitly authorised for this task, and it is the **only**
-protected file touched):
-
-- added to the substring rules: `subject` — which covers `subject`, `providerSubject`,
-  `googleSubject`, and `oauthSubject` in one rule — plus `claims`, `authorizationcode`, and
-  `authentication`;
-- added a new **whole-word** rule list containing `sub`. `sub` is too short to be a substring rule:
-  it would also swallow `submission`, `subtotal`, and `subscription`. Exact matching keeps it
-  precise.
-
-Everything already covered stays covered: `credential`, `idtoken`, `accesstoken`, `refreshtoken`,
-`authdata`, `password`, `sessiontoken`, `email`, `masterkey`, `clientsecret`, database URIs. The
-change is additive; no existing rule was altered or removed.
-
-Because the rules live in `isSensitiveKey`, they apply through **every** path automatically:
-`redact()` (nested objects, arrays, `Map`, `Set`, `Error` metadata, Parse-like objects),
-`redactMeta()` (log field bags), and `redactMessage()` (Parse's embedded JSON) — and therefore
-through the Parse `loggerAdapter` as well.
-
-**`id` and `objectId` are untouched.** No rule matches them, which matters: they are what make a log
-line diagnosable.
-
-**32 focused tests** cover it: every OAuth key name recognised · direct and nested subjects · a claim
-bag containing `sub` · a bare `sub` · arrays · `Map` · `Set` · `Error` metadata · a Parse-like object
-· every token kind · `id` / `objectId` / `userId` / stable codes surviving · `submission` /
-`subtotal` / `subscription` surviving · every pre-existing rule still holding · the exact Parse
-trigger line · the sign-in call log · a provisioning-failure log.
-
-**Runtime, at the default `info` level with `LOG_LEVEL` unset:** the trigger line now reads
-`providerSubject":"[REDACTED]"` while `objectId` survives, and a scan of the whole log found **0**
-occurrences of the subject, the credential, the verified email, the internal username, and any bare
-session token.
-
-### 26.2 Cross-Origin-Opener-Policy
-
-**Observed origin:** `http://localhost:4200` — the Angular dev server's default, and the origin the
-browser actually reports.
-
-**Before:** the document carried no COOP header, and Chrome reported *"Cross-Origin-Opener-Policy
-policy would block the window.postMessage call"* when Google's popup tried to reach its opener.
-
-**After:** `frontend/angular.json` → `serve.options.headers` sets
-
-```
-Cross-Origin-Opener-Policy: same-origin-allow-popups
-```
-
-That is the supported Angular option (`@angular/build:dev-server`), so **no `node_modules` patch and
-no custom server**. Verified live on `http://localhost:4200`: the header is present, appears
-**exactly once**, no `Cross-Origin-Embedder-Policy` is set, and **0 postMessage/opener warnings**
-remain.
-
-> A dev server started **before** this change keeps the old behaviour — the option is read at
-> startup. Restart `ng serve` to pick it up.
-
-**Production hosting is outside this repository.** Whatever serves the built frontend must send the
-same header; nginx, Apache, and static-host equivalents are documented in
-[TEMPLATE_ARCHITECTURE.md §16d](TEMPLATE_ARCHITECTURE.md).
-
-**Backend CORS was not touched** — there was no evidence implicating it, and COOP governs the
-document, not the API. Re-verified: allow-listed origin echoed, foreign origin not echoed, no
-wildcard.
-
-### 26.3 Authorized JavaScript origin — still pending
-
-`accounts.google.com/gsi/button` returns **403** for `http://localhost:4200`, which is exactly the
-`GSI_LOGGER` origin rejection. The origin is not registered on the OAuth client.
-
-**Owner action, which the repository cannot perform:**
-
-> Google Cloud Console → **APIs & Services** → **Credentials** → select the Code Your Future
-> **OAuth 2.0 Web client** → **Authorized JavaScript origins** → **Add URI** →
-> `http://localhost:4200` → Save.
-
-Scheme + host + port only — no path, no hash, no query, no wildcard. Add `http://127.0.0.1:4200`
-only if the app is genuinely opened on that hostname.
-
-**Behaviour while unauthorised, confirmed in a real browser:** the button renders, no credential is
-ever issued, **no session and no cached user are created**, no navigation happens, and no raw GSI or
-403 text is rendered. Five focused tests lock that in.
-
-The backend and frontend Client IDs were confirmed identical by comparing SHA-256 fingerprints —
-**neither value was printed** — and the frontend carries no client secret.
-
-### 26.4 Final Google classification
-
-**Repository fixed; the Google Cloud origin change remains pending.** The COOP and privacy defects
-were repository-side and are closed. The 403 is a Google Cloud console setting, and **no real Google
-sign-in has been performed** — it needs the origin added and a human to choose an account.
-
-### 26.5 Closeout validation
-
-```
-backend   pnpm run compile                                    exit 0
-backend   pnpm run test                    347 pass / 0 fail  exit 0
-frontend  pnpm run build                   676.47 kB initial  exit 0
-frontend  pnpm run test                    310 pass / 0 fail  exit 0
-```
-
-Runtime, re-run in full: first sign-in, returning sign-in, three concurrent sign-ins (3 successes,
-1 account, 1 identity), Admin-email conflict refused, forged credential refused, logout, token reuse
-refused, role withdrawal, Admin login working, CORS restricted, every deny-by-default route still
-403.
-
-**Files changed in the closeout (5):** `backend/src/cloudCode/utils/logging/redact.ts` ·
-`backend/test/redaction.test.ts` · `backend/test/browserHeaders.test.ts` *(new)* ·
-`frontend/angular.json` · `frontend/src/app/pages/auth/student-auth.component.spec.ts` — plus the
-four documents listed in §26.6.
-
-Nothing else was altered: the verification flow, `StudentAuthIdentity`, provisioning, concurrency
-handling, session creation, routes, guards, Admin authentication, UI structure, safe DTOs, and every
-existing translation are exactly as they were. The `getCurrentUser` / `getSession` overlap remains
-**deliberately deferred**.
-
-### 26.6 Documentation updated in the closeout
-
-`docs/CURRENT_STATE.md` (S-19 moved to closed; COOP, postMessage, and origin rows added) ·
-`docs/TEMPLATE_ARCHITECTURE.md` (§16d — headers, the origin owner action, Client ID expectations) ·
-`docs/HANDOFF.md` (this section) · `README.md` (origin action, COOP, and the removal of the
-now-unnecessary `LOG_LEVEL=warn` advice).
+1. **Visual review**, especially light mode and a real photograph — the runtime
+   fixture is a 1×1 PNG, which renders as a flat colour circle. This is also
+   where the Google avatar import should be seen working end to end for the
+   first time (see §11.4).
+2. **Add real catalog data.** Cities, majors, and target roles are empty by
+   design; a Student cannot finish a profile until an Admin adds at least one of
+   each.
+3. **Commit** the two Checkpoint 3A bodies of work together.
+4. **Decide OQ-10 / S-20** before Checkpoint 7.
+5. **Finish the Checkpoint 2B closeout** — the Google Cloud authorized-origin
+   change is still outstanding, and no real Google sign-in has been demonstrated.
+6. **Start Checkpoint 5** (Batch management), which needs OQ-4 answered.

@@ -57,6 +57,16 @@ export class SessionService {
   isAdmin = computed(() => this.roles().includes(AppRole.ADMIN));
   isStudent = computed(() => this.roles().includes(AppRole.STUDENT));
 
+  /**
+   * Whether the signed-in Student has completed their profile ⟨CP3A⟩.
+   *
+   * Replaced by the server's answer on every restoration. The cached copy is a
+   * hint for rendering only: a tampered value routes somebody to a form they
+   * have already filled in, and the backend still refuses everything they are
+   * not entitled to.
+   */
+  profileComplete = computed(() => this.userSignal()?.profileComplete === true);
+
   userDisplayName = computed(() => this.userSignal()?.displayName ?? '');
 
   /** True when the user holds at least one of the supplied roles. */
@@ -103,6 +113,10 @@ export class SessionService {
       roles,
     };
     if (user.displayName) sanitized.displayName = String(user.displayName);
+    // Only ever a boolean, and only for a Student.
+    if (typeof user.profileComplete === 'boolean' && roles.includes(AppRole.STUDENT)) {
+      sanitized.profileComplete = user.profileComplete;
+    }
     return sanitized;
   }
 

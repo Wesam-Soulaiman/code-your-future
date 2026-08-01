@@ -20,13 +20,25 @@
 
 import {AppRole} from '../../utils/constants/roles';
 
-/** The routine authenticated-session shape. Carries **no** session token. */
+/** The routine authenticated-session shape. Carries **no** token. */
 export interface SessionDto {
   id: string;
   /** Live application role names only — never `_Role` objects. */
   roles: AppRole[];
   /** Safe name for greeting the user. Absent when nothing safe is available. */
   displayName?: string;
+  /**
+   * Whether the Student's profile is complete ⟨CP3A⟩.
+   *
+   * One boolean, calculated server-side from the stored profile — **not** the
+   * profile itself. Routing needs to know whether to send a Student to Complete
+   * Profile, and that is all it needs; shipping the whole profile on every
+   * session restoration would put a phone number and a date of birth on the
+   * wire for a question that a single bit answers.
+   *
+   * Absent for an Admin, who has no profile and never will.
+   */
+  profileComplete?: boolean;
 }
 
 /**
@@ -82,8 +94,19 @@ function displayNameFor(user: Parse.User, roles: AppRole[]): string | undefined 
   return undefined;
 }
 
-/** Build the routine session DTO. */
-export function toSessionDto(user: Parse.User, roles: AppRole[]): SessionDto {
+/**
+ * Build the routine session DTO.
+ *
+ * `profileComplete` is passed in by the caller, which has already resolved it
+ * from the stored profile. It is only meaningful for a Student, so it is omitted
+ * entirely for anyone else rather than reported as `false` — an Admin's profile
+ * is not incomplete, it does not exist.
+ */
+export function toSessionDto(
+  user: Parse.User,
+  roles: AppRole[],
+  profileComplete?: boolean
+): SessionDto {
   const dto: SessionDto = {
     id: user.id as string,
     roles: [...roles],
@@ -92,6 +115,10 @@ export function toSessionDto(user: Parse.User, roles: AppRole[]): SessionDto {
   const displayName = displayNameFor(user, roles);
   if (displayName) dto.displayName = displayName;
 
+  if (roles.includes(AppRole.STUDENT)) {
+    dto.profileComplete = profileComplete === true;
+  }
+
   return dto;
 }
 
@@ -99,7 +126,8 @@ export function toSessionDto(user: Parse.User, roles: AppRole[]): SessionDto {
 export function toSessionWithTokenDto(
   user: Parse.User,
   roles: AppRole[],
-  sessionToken: string
+  sessionToken: string,
+  profileComplete?: boolean
 ): SessionWithTokenDto {
-  return {...toSessionDto(user, roles), sessionToken};
+  return {...toSessionDto(user, roles, profileComplete), sessionToken};
 }

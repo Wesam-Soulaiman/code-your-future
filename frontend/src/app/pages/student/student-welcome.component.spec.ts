@@ -35,6 +35,7 @@ describe('StudentWelcomeComponent', () => {
   async function setup(
     lang: 'en' | 'ar' = 'en',
     displayName: string | null = 'Lina Haddad',
+    profileName: string | null = 'Lina Haddad',
   ): Promise<void> {
     localStorage.clear();
     localStorage.setItem('lang', lang);
@@ -57,12 +58,29 @@ describe('StudentWelcomeComponent', () => {
     http = TestBed.inject(HttpTestingController);
 
     TestBed.inject(SessionService).saveSession(
-      { id: 'u1', roles: [AppRole.STUDENT], ...(displayName ? { displayName } : {}) },
+      {
+        id: 'u1',
+        roles: [AppRole.STUDENT],
+        profileComplete: true,
+        ...(displayName ? { displayName } : {}),
+      },
       'r:token',
     );
 
     fixture = TestBed.createComponent(StudentWelcomeComponent);
     fixture.detectChanges();
+
+    // The page reads the real profile so it can greet the Student by the name
+    // they chose rather than the one Google supplied ⟨CP3A⟩.
+    const request = http.expectOne((req) => req.url.includes('getMyStudentProfile'));
+    request.flush({
+      id: 'p1',
+      fullName: profileName ?? '',
+      verifiedEmail: 'lina@example.com',
+      hasPhoto: false,
+      isComplete: true,
+    });
+
     await fixture.whenStable();
     fixture.detectChanges();
   }
@@ -80,7 +98,7 @@ describe('StudentWelcomeComponent', () => {
     });
 
     it('falls back to a nameless greeting rather than an identifier', async () => {
-      await setup('en', null);
+      await setup('en', null, null);
       const heading = fixture.nativeElement.querySelector('h1').textContent as string;
       expect(heading).toContain('Welcome to Code Your Future');
       expect(heading).not.toContain('u1');
@@ -91,11 +109,35 @@ describe('StudentWelcomeComponent', () => {
       expect(text()).toContain('student account is ready');
     });
 
-    it('names profile completion as the next step without offering it', () => {
-      expect(text()).toContain('Completing your profile is the next step');
+    it('confirms the profile is complete', () => {
+      expect(text()).toContain('profile is complete');
+    });
+
+    it('names joining a batch as the next step without offering it', () => {
       expect(text()).toContain('not available yet');
       expect(fixture.nativeElement.querySelectorAll('form').length).toBe(0);
       expect(fixture.nativeElement.querySelectorAll('input').length).toBe(0);
+    });
+
+    it('offers an Edit profile action ⟨CP3A⟩', () => {
+      const button = fixture.nativeElement.querySelector('.cyf-edit-profile-btn');
+      expect(button).toBeTruthy();
+      expect(text()).toContain('Edit profile');
+    });
+
+    it('Edit profile navigates to the form', () => {
+      const router = TestBed.inject(Router);
+      const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+      fixture.nativeElement.querySelector('.cyf-edit-profile-btn').click();
+      fixture.detectChanges();
+      expect(navigate).toHaveBeenCalledWith(['/student/profile']);
+    });
+
+    it('greets the Student by the name from their saved profile', async () => {
+      // Not the Google display name: the Student may have entered a different
+      // one, and this page should use the name they chose.
+      await setup('en', 'Google Name', 'Chosen Name');
+      expect(fixture.nativeElement.querySelector('h1').textContent).toContain('Chosen Name');
     });
 
     it('repeats the approved invitation copy verbatim', () => {
@@ -165,7 +207,9 @@ describe('StudentWelcomeComponent', () => {
       }
     });
 
-    it('issues no HTTP request when it loads', () => {
+    it('issues no HTTP request beyond reading the profile', () => {
+      // The profile read is expected and already flushed in setup; anything
+      // else would be an unexplained call.
       http.verify();
     });
 
@@ -224,9 +268,8 @@ describe('StudentWelcomeComponent', () => {
       logoutButton().click();
       fixture.detectChanges();
 
-      // expectOne fails if a second request was opened.
+      // expectOne fails if a second logout was opened.
       http.expectOne((req) => req.url.includes('logout')).flush({ success: true });
-      http.verify();
     });
   });
 
@@ -238,7 +281,7 @@ describe('StudentWelcomeComponent', () => {
     });
 
     it('renders the Arabic next-step copy', () => {
-      expect(text()).toContain('إكمال ملفك الشخصي هو الخطوة التالية');
+      expect(text()).toContain('الانضمام إلى دفعة هو الخطوة التالية');
     });
 
     it('repeats the approved Arabic invitation copy verbatim', () => {
@@ -250,6 +293,7 @@ describe('StudentWelcomeComponent', () => {
     it('leaves no untranslated English marker', () => {
       expect(text()).not.toContain('Welcome to Code Your Future');
       expect(text()).not.toContain('next step');
+      expect(text()).not.toContain('Edit profile');
     });
   });
 

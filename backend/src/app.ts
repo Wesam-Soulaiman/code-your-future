@@ -48,6 +48,8 @@ import {
 import {initializeParseServer} from './cloudCode/utils/config/parseConfig';
 import {buildCorsOptions, logCorsPolicy} from './cloudCode/utils/config/cors';
 import {googleAuthStatus} from './cloudCode/modules/StudentAuth/googleConfig';
+import {studentProfilePhotoRouter} from './cloudCode/modules/StudentProfile/photoRoute';
+import {seedInstitutionCatalog} from './cloudCode/modules/ProfileCatalog/seed';
 import './cloudCode/cron'; // Load cron job definitions before CronRegistry.initialize
 
 const PORT = Number(process.env.PORT) || 1337;
@@ -118,6 +120,22 @@ async function main() {
   // to them.
   app.use(process.env.mountPath as string, blockRawFileRoutes);
 
+  // The Student profile photo — a dedicated **authenticated binary** endpoint
+  // ⟨CP3A catalog⟩.
+  //
+  // Mounted here, ahead of validateEntityRoutes, because that middleware maps
+  // any path under a registered entity prefix onto a cloud function and answers
+  // 404 for the rest; this route terminates its own two paths and every other
+  // request falls through untouched.
+  //
+  // It exists because Parse Server logs each cloud-function call with its
+  // serialised input and result, which wrote a whole base64 image to the log on
+  // every upload. Raw multipart also lets the 5 MiB limit apply at the socket,
+  // before anything is decoded. It opens **no** file route: `/files/*` is still
+  // 403 above, `File` and `IMG` are untouched, and no public URL is created —
+  // the route serves the authenticated owner and nobody else.
+  app.use(process.env.mountPath as string, studentProfilePhotoRouter());
+
   // Validates entity-based routes: /api/{entity}/{action} → /functions/{name}
   app.use(process.env.mountPath as string, validateEntityRoutes as any);
 
@@ -175,6 +193,20 @@ async function main() {
 
     await applyUniqueIndexes(parseServer);
     await applyMongoValidators(parseServer);
+
+    // Move the Checkpoint 3A institution list into the catalog ⟨CP3A catalog⟩.
+    // Idempotent and keyed on the item code, so it creates nothing on a second
+    // boot and never overwrites an Admin's edits. Cities, majors, and target
+    // roles are deliberately NOT seeded: no authoritative list exists, and an
+    // invented one is worse than an empty one an Admin can fill in.
+    const [catalogSeedError] = await catchError(seedInstitutionCatalog());
+    if (catalogSeedError) {
+      safeLog.error('Institution catalog seeding failed', {
+        op: 'bootstrap',
+        ok: false,
+        stage: 'seedProfileCatalog',
+      });
+    }
 
     // Student Google sign-in is optional configuration. Report presence by key
     // name only — the value is never read into a log line — and never fail the

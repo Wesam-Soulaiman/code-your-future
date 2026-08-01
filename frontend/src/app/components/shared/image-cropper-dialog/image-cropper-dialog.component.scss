@@ -1,0 +1,46 @@
+/* Image cropper dialog — scoped styles.
+
+   The stylesheet was empty because nothing used the component yet. The Student
+   profile photo is its first consumer ⟨CP3A catalog⟩, which is what surfaced
+   the footer overlapping the image.
+
+   Composition only. Every colour, space, and radius comes from the Checkpoint
+   2A token layer, and all box properties are logical so one stylesheet serves
+   LTR and RTL. Nothing global is changed. */
+
+:host {
+  display: block;
+}
+
+/* Centred, and never wider than the dialog it sits in: without a bound the
+   canvas grows to the image's natural size and pushes the dialog off a narrow
+   viewport. */
+.cyf-cropper-canvas {
+  display: flex;
+  justify-content: center;
+  padding-block-end: var(--cyf-space-4);
+}
+
+.cyf-cropper-canvas image-cropper {
+  display: block;
+  max-inline-size: 100%;
+}
+
+/* The footer previously carried PrimeNG's own `.p-dialog-footer` class inside
+   the dialog *body*, where PrimeNG positions that class for the real footer
+   slot — which drew the buttons on top of the image. A plain row avoids
+   fighting a framework class for a job it is not doing here. */
+.cyf-cropper-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cyf-space-3);
+  padding-block-start: var(--cyf-space-4);
+  border-block-start: 1px solid var(--cyf-border);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .cyf-cropper-footer > * {
+    flex: 1;
+  }
+}

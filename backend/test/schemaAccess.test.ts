@@ -34,6 +34,8 @@ before(async () => {
   await import('../src/cloudCode/models/File');
   await import('../src/cloudCode/models/IMG');
   await import('../src/cloudCode/models/StudentAuthIdentity');
+  await import('../src/cloudCode/models/ProfileCatalogItem');
+  await import('../src/cloudCode/models/StudentProfile');
 
   const guard = await import('../src/cloudCode/utils/config/schemaGuard');
   hardenDefinitions = guard.hardenDefinitions as typeof hardenDefinitions;
@@ -44,12 +46,14 @@ before(async () => {
 });
 
 describe('registered class surface', () => {
-  test('contains exactly _Role, _User, File, IMG, and StudentAuthIdentity', () => {
+  test('contains exactly the six approved classes', () => {
     const names = definitions.map(definition => definition.className).sort();
     assert.deepEqual(names, [
       'File',
       'IMG',
+      'ProfileCatalogItem',
       'StudentAuthIdentity',
+      'StudentProfile',
       '_Role',
       '_User',
     ]);
@@ -69,7 +73,6 @@ describe('registered class surface', () => {
       'Batch',
       'BatchInvitation',
       'Enrollment',
-      'StudentProfile',
       'Resource',
       'Task',
       'Submission',
@@ -95,7 +98,14 @@ describe('_Role is Admin-scoped', () => {
 });
 
 describe('deny-by-default access', () => {
-  for (const className of ['_User', 'File', 'IMG', 'StudentAuthIdentity']) {
+  for (const className of [
+    '_User',
+    'File',
+    'IMG',
+    'StudentAuthIdentity',
+    'StudentProfile',
+    'ProfileCatalogItem',
+  ]) {
     test(`${className} denies every client operation`, () => {
       const definition = definitions.find(entry => entry.className === className);
       assert.ok(definition, `${className} definition must exist`);
@@ -157,6 +167,19 @@ describe('deny-by-default access', () => {
 
     const img = definitions.find(entry => entry.className === 'IMG');
     assert.ok(img!.classLevelPermissions!.protectedFields!['*'].includes('image'));
+  });
+
+  test('StudentProfile hides every personal column', () => {
+    const profile = definitions.find(entry => entry.className === 'StudentProfile');
+    const protectedFields = profile!.classLevelPermissions!.protectedFields!;
+    for (const audience of ['*', 'authenticated']) {
+      for (const field of ['user', 'verifiedEmail', 'phone', 'dateOfBirth', 'photoData']) {
+        assert.ok(
+          protectedFields[audience].includes(field),
+          `${field} must be hidden from '${audience}'`
+        );
+      }
+    }
   });
 
   test('StudentAuthIdentity hides every identity column', () => {

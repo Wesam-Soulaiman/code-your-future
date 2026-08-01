@@ -22,9 +22,9 @@ with hard-coded state, not application code.
 | Single pnpm version | `pnpm -v` → `10.33.0` in all three directories |
 | Backend type-check | `npx tsc --noEmit` → exit 0, zero diagnostics |
 | Backend compile | `pnpm run compile` → exit 0 (now cleans `build/` first) |
-| **Backend tests** | `pnpm run test` → **315 pass, 0 fail**, exits cleanly with no force-exit |
-| Frontend production build | `pnpm run build` → exit 0, initial bundle 676.47 kB |
-| **Frontend tests** | `pnpm run test` → **305 pass, 0 fail** (15 spec files) |
+| **Backend tests** | `pnpm run test` → **739 pass, 0 fail**, exits cleanly with no force-exit |
+| Frontend production build | `pnpm run build` → exit 0, initial bundle 701.83 kB |
+| **Frontend tests** | `pnpm run test` → **509 pass, 0 fail** (18 spec files) |
 | sharp | real WebP encode after install (44 bytes) |
 
 ### Runtime — observed against a clean isolated database
@@ -34,8 +34,8 @@ with hard-coded state, not application code.
 | Frontend dev server | `GET /` → 200, `<title>Code Your Future</title>` |
 | Swagger | `/api-docs/json` → 200, OpenAPI 3.0.3 |
 | **`AppSettings` absent** | 0 occurrences in the Swagger document; no model, no route |
-| Registered models | **exactly `_Role`, `_User`, `File`, `IMG`, `StudentAuthIdentity`** (schema guard log) |
-| Registered routes | **exactly 5** — `loginUser`, `getCurrentUser`, `logout`, `loginWithGoogle`, `getSession` |
+| Registered models | **exactly `_Role`, `_User`, `File`, `IMG`, `StudentAuthIdentity`, `StudentProfile`, `ProfileCatalogItem`** (schema guard log) |
+| Registered routes | **exactly 14** — five authentication functions, three `student-profile` operations, five `profile-catalogs` Admin operations, and one `student-catalog` Student read — plus one non-Parse binary route, `/api/profile-photo` |
 | Triggers | 4 (`File.beforeSave`, `IMG.beforeSave`/`afterSave`/`afterDelete`) |
 | Indexes | **2 unique compound indexes created** on `StudentAuthIdentity`: `(provider, providerSubject)` and `(provider, _p_user)` |
 | Roles on a clean DB | `{"created":["Admin","Student"]}` — exactly these two |
@@ -148,6 +148,7 @@ validation is not optional.
 ### Remaining gaps
 | # | Gap | Owner |
 |---|---|---|
+| **S-20** | **`Parse.File` cannot be written from cloud code while the raw file route is blocked** ⟨found in CP3A; **still open**⟩. The profile photo now has an authenticated binary route of its own (§16g), which is a photo answer rather than the general one — it stores bounded inline bytes and would not serve a PDF. Parse's `FilesRouter` is not part of the router `directAccess` uses, so `Parse.File.save()` falls back to an HTTP request to the server's own `serverURL` and is refused by `blockRawFileRoutes`; `getData()` fails the same way, and `IMG.beforeSave` re-downloads the file it just saved. The profile photo works around this by storing bounded, re-encoded bytes on its own private row — **no security control was changed**. Batch Resources (Checkpoint 7) will need a real answer, which is OQ-10. | Engineering, Checkpoint 7 (OQ-10) |
 | S-4 | Session token and user DTO in `localStorage` (XSS-readable) | Checkpoint 11 — storage decision |
 | S-6 | The kit's `extractMasterKey` still accepts a master key from the request **body**, and its `restrictRoutes` treats a match as a bypass. Not exploitable in this configuration (403 observed). Lives in `node_modules`; cannot be fixed here | Report upstream / Checkpoint 11 |
 | S-9 | No MIME / extension / size / magic-byte validation. Deliberately deferred: no client-reachable upload path exists today | Checkpoints 4 and 7 |
@@ -315,13 +316,156 @@ layer is genuine — Express, `restrictRoutes`, the cloud function, provisioning
 | **⟨closeout⟩ postMessage warning** | **gone** — 0 opener/postMessage warnings on `http://localhost:4200` |
 | **⟨closeout⟩ Google origin** | `gsi/button` returns **403** — `http://localhost:4200` is not yet an *Authorised JavaScript origin* for the client. **No session is created**, no navigation happens, and no raw GSI text is rendered |
 
+## 7d. Checkpoint 3A — Complete Student Profile ⟨implemented⟩
+
+**Backend.** `StudentProfile` (one row per Student behind a unique index on the
+user pointer) and five focused operations under `/api/student-profile`. The
+verified email is derived from the Google identity, completion is calculated
+server-side, and the graduation month is normalised to the first of the month at
+00:00 UTC. Full design in
+[TEMPLATE_ARCHITECTURE.md §16e](TEMPLATE_ARCHITECTURE.md).
+
+**Frontend.** Complete Profile — the first real product page — in four sections
+on the Checkpoint 2A design system, plus profile-aware routing and a welcome page
+that now shows the Student's real name and an Edit action.
+
+### Runtime — observed end to end against MongoDB
+
+| Check | Result |
+|---|---|
+| Admin login | still works; **no** `profileComplete` on an Admin session |
+| Admin reading a Student profile | `NOT_A_STUDENT` |
+| Visitor | refused |
+| New Student | `profileComplete: false`; empty profile carries the verified email |
+| Save | one row created; `isComplete: true` |
+| Refresh | session returns `profileComplete: true` |
+| Graduation date stored | `2027-06-01T00:00:00.000Z` |
+| Edit | same row; still one profile |
+| Request carrying `verifiedEmail` | `VALIDATION_FAILED`; stored email unchanged |
+| Current Student without a month | `VALIDATION_FAILED` |
+| `Other` without a custom name | `VALIDATION_FAILED`; with one, accepted |
+| Photo upload / read / replace / remove | all succeed; bytes stored inline, re-encoded to WebP |
+| A script disguised as a PNG | `PHOTO_REJECTED` |
+| Another Student | sees an empty profile and `PHOTO_NOT_FOUND` |
+| `/classes/StudentProfile`, `/classes/File`, `/classes/IMG`, `/schemas` | **403** each |
+| Raw file route | **403** — unchanged |
+| CORS | allow-listed origin echoed; foreign origin not; no wildcard |
+| Logs | `verifiedEmail` and `phone` appear as `[REDACTED]`; no profile value at any level |
+
+### Visual — 12 combinations inspected in a real browser
+
+Complete Profile and the welcome page at **1440 / 768 / 390 px** in **English and
+Arabic**. Zero horizontal overflow everywhere, exactly one `h1` per page, four
+labelled sections on the form, no percentage anywhere, and **no console errors**.
+Reviewed by eye at 1440 EN, 1440 AR, and 390 AR.
+
+## 7e. Checkpoint 3A — Profile Catalog ⟨implemented⟩
+
+**Backend.** `ProfileCatalogItem` — one closed, typed vocabulary restricted to `CITY`,
+`INSTITUTION`, `MAJOR`, and `TARGET_ROLE`, with a unique `(type, code)` index, an immutable
+category, deny-by-default CLP, and every column in `protectedFields`. Five Admin operations under
+`/api/profile-catalogs` and one Student read under `/api/student-catalog`. `StudentProfile`'s
+`city`, `institution`, and `major` became **pointers** into it, and `targetRole` /
+`targetRoleReason` were added as optional fields that never affect completion. Full design in
+[TEMPLATE_ARCHITECTURE.md §16f](TEMPLATE_ARCHITECTURE.md).
+
+**The photo moved off the cloud-function path.** Uploading and reading an image now use a dedicated
+authenticated binary route, `/api/profile-photo` — because Parse logs every cloud-function call with
+its serialised input and result, which wrote a whole photograph to the log on every upload. No file
+route was opened; see §16g.
+
+**Frontend.** Four searchable PrimeNG Selects, two polished DatePickers (a full date for the date of
+birth, month and year only for graduation), a save-then-upload photo flow with a partial-success
+message, and **Profile Catalogs** — one Admin page with four tabs at
+`/dashboard/profile-catalogs`, reachable from one new navigation item.
+
+### Runtime — 65 checks observed end to end against MongoDB
+
+| Check | Result |
+|---|---|
+| Admin login, and an Admin session carrying no `profileComplete` | works |
+| Admin creates, lists, edits, activates, deactivates, deletes across all four categories | works |
+| An unknown category, or a class name in its place | `CATALOG_VALIDATION_FAILED` |
+| A duplicate code within a category | `CATALOG_DUPLICATE` |
+| Student reads the catalog | active items only, all four categories |
+| Visitor reads the catalog; Student uses an Admin operation; Admin uses the Student read | each refused |
+| Photo uploaded **before** the profile exists | `PROFILE_UNAVAILABLE` — the reason the form saves first |
+| One Save: profile created, **then** photo uploaded, then read back | works; **no `PROFILE_UNAVAILABLE`** |
+| Base64, `data:` URIs, or any long blob in the log | **none** |
+| Any personal profile value in the log | **none** — name, email, and phone all `[REDACTED]` |
+| A photo log line | a byte count and nothing more |
+| City / institution / major stored | resolved catalog references, never raw pointers |
+| A name sent in place of an id, a wrong-category id, a newly chosen inactive item | each `VALIDATION_FAILED` |
+| Target role and its reason | optional; completion ignores both |
+| A reason over 500 characters | `VALIDATION_FAILED` |
+| Deleting a referenced item | `CATALOG_IN_USE`; the profile is untouched |
+| Deactivating it instead | stays on the profile, disappears from new options |
+| `Other` institution without a custom name | `VALIDATION_FAILED`; accepted with one |
+| Date of birth stored | `2001-05-09T00:00:00.000Z` |
+| Graduation stored | `2027-06-01T00:00:00.000Z`; cleared when switching to Graduate |
+| Photo replace / remove / read; a disguised script; a 6 MiB upload | works / works / works / rejected / rejected |
+| Another Student reading the photo or profile | `404` / their own empty profile |
+| `/classes/*`, `/schemas`, `/files/*` | **403** each |
+| CORS | allow-listed origin only; no wildcard; a foreign origin never echoed |
+| Country, timezone, remote-attendance, or evaluation column | **none exists** |
+| Classes in the database | only the eight approved |
+
+### Visual — 23 captures inspected in a real browser
+
+Complete Profile and Profile Catalogs at **1440 / 768 / 390 px** in **English and Arabic**, plus
+both date pickers open, and a searchable select open, in both languages. Zero horizontal overflow,
+zero clipped text, **no native date input or `<select>` anywhere**, no percentage, exactly one `h1`
+per page, and **no console errors**. Reviewed by eye at profile EN/AR 1440 and AR 390, the Arabic
+graduation picker, the Arabic institution select, and the Admin page at 1440 AR and 390 EN.
+
+## 7f. Checkpoint 3A — Google name and photo ⟨implemented⟩
+
+A Student's name and avatar are already known and verified at sign-in, so both
+are taken **once** and both are theirs to change. Full design in
+[TEMPLATE_ARCHITECTURE.md §16h](TEMPLATE_ARCHITECTURE.md).
+
+- The **name** is prefilled into the form from the verified claims and is never
+  written by itself; the form says where it came from until the Student edits it.
+- The **photo** is imported on the save that creates the profile: fetched
+  server-side from a host pinned to Google's own domains over HTTPS, with
+  redirects refused, no credentials, a 4-second timeout, and a 5 MiB bound
+  checked against both the declared and the actual length — then put through the
+  same MIME / extension / signature / `sharp` validation an upload gets, and
+  re-encoded to a bounded WebP.
+- The avatar URL lives on `StudentAuthIdentity` beside the provider subject, in
+  `protectedFields`. It reaches no DTO, no browser, and no log.
+- **Neither is ever re-applied.** A later edit or removal is permanent.
+- Choosing a photo by hand opens the template's `image-cropper-dialog`, so the
+  Student frames the square that becomes their circular avatar. Verified end to
+  end through the real cropper in a browser: pick, crop, save — what lands in
+  the database is a `RIFF...WEBP` the cropper produced.
+
+### Runtime — 20 checks observed end to end
+
+| Check | Result |
+|---|---|
+| The empty profile carries the Google name and says so | works |
+| The Student overrides it, and the override is stored | works |
+| The override survives a re-read **and a second sign-in** | works |
+| A pinned-host avatar URL is captured on the identity | works |
+| An avatar URL on an unpinned host | **never stored**; sign-in still succeeds |
+| An avatar that cannot be downloaded | no photo, **not** a failed save |
+| Any DTO carrying an avatar URL, provider field, or subject | **none** |
+| Any avatar URL or personal value in the log | **none** |
+| Removing the photo, then saving again | stays removed — the import runs only at creation |
+
+### Visual
+
+The prefilled name and its hint at 1440 px in **English and Arabic**, and the
+hint disappearing on edit. No horizontal overflow, no console errors, and **no
+Google URL anywhere in the rendered markup**.
+
 ## 8. Product features not implemented
 
 None of the following exists in any form — no model, no cloud function, no route, no page, no DTO:
 
-Apple OAuth · StudentProfile · institution list ·
-`expectedGraduationDate` normalisation · private profile photo · Complete Profile · Student
-dashboard · Batch · Batch lifecycle · BatchInvitation · invitation tokens · QR generation ·
+Apple OAuth ·
+Student dashboard · Batch · Batch lifecycle · BatchInvitation · invitation tokens · QR generation ·
 `/join/:token` · Enrollment · the pending-invitation flow · Resources · PDF validation · resource
 ordering · authorised file download · Live Slides · Tasks · Assignment · Final Task · Submission ·
 one-submission locking · Accept-for-publication · Pinned Students · Talent Reels · sanitised public

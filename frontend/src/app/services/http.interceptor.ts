@@ -9,6 +9,10 @@ import { environment } from '../../environments/environment';
 function convertParseDates(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;
   if (Array.isArray(obj)) return obj.map(convertParseDates);
+  // Binary responses are not JSON and have no enumerable keys: walking one
+  // would return an empty object and silently discard the payload. The profile
+  // photo arrives as a Blob, so this guard is load-bearing ⟨CP3A catalog⟩.
+  if (obj instanceof Blob || obj instanceof ArrayBuffer) return obj;
   if (typeof obj === 'object') {
     const record = obj as Record<string, unknown>;
     if (record['__type'] === 'Date' && typeof record['iso'] === 'string') {

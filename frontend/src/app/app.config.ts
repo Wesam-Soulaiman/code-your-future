@@ -16,6 +16,7 @@ import { httpInterceptor } from './services/http.interceptor';
 import { MyPreset } from './theme';
 import { StudentAuthApiService } from './services/dataService/student-auth-service';
 import { ChangeLangService } from './services/change-lang.service';
+import { PrimeNgLocaleService } from './services/primeng-locale.service';
 import { SwitchThemeService } from './services/switch-theme.service';
 
 export const appConfig: ApplicationConfig = {
@@ -41,6 +42,11 @@ export const appConfig: ApplicationConfig = {
     provideAppInitializer(() => {
       inject(ChangeLangService).initLang();
       inject(SwitchThemeService).initTheme();
+      // PrimeNG does not read @ngx-translate: its DatePicker draws month and
+      // day names from its own translation object, which defaults to English.
+      // Instantiating the service here wires the two together before the first
+      // paint and keeps them in step afterwards ⟨CP3A catalog⟩.
+      inject(PrimeNgLocaleService).apply(inject(ChangeLangService).currentLang());
     }),
 
     /**

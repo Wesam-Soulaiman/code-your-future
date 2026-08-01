@@ -103,27 +103,82 @@ Exactly one `StudentProfile` per Student.
 **Required:** `fullName`, verified read-only `email`, `phone`, `city`, `institution`, `major`,
 `educationStatus`.
 
-**Optional:** `photo`, `dateOfBirth`, career goal, GitHub URL, LinkedIn URL, Portfolio URL.
+**Optional:** `photo`, `dateOfBirth`, `careerGoal`, `targetRole`, `targetRoleReason`, GitHub URL,
+LinkedIn URL, Portfolio URL.
+
+### Catalog selections ⟨CP3A⟩
+
+Four fields are **selections from an Admin-managed catalog**, never free text and never a
+hard-coded list. Resolves OQ-2 and OQ-3.
+
+| Field | Required | Catalog category |
+|---|---|---|
+| `city` | Yes | `CITY` |
+| `institution` | Yes | `INSTITUTION` |
+| `major` | Yes | `MAJOR` |
+| `targetRole` | **No** | `TARGET_ROLE` |
+
+- Each is a **searchable Select** in the UI. There is no free-text fallback for any of them.
+- The request carries an **id**; the backend resolves the authoritative item and stores a pointer.
+  A name sent by a client is refused, never stored.
+- The catalog is closed to exactly these four categories. It is **not** a settings store and holds
+  no configuration or secret.
+- An Admin may **deactivate** an item: it stays valid on the profiles that already reference it and
+  stops being offered to anybody new. An item any profile references **cannot be deleted**.
+- Cities, majors, and target roles ship **empty**. Only the institution list is seeded, from the
+  list Checkpoint 3A already carried.
+
+### Target role and its reason ⟨CP3A⟩
+- `targetRole` is optional.
+- `targetRoleReason` answers, in these exact words:
+  - English — **Why did you choose this role?**
+  - Arabic — **لماذا اخترت هذا الدور؟**
+- Optional, **maximum 500 characters**, shown only when a target role is selected, and **cleared**
+  when the role is cleared.
+- **Neither affects profile completion.** Neither is an evaluation: nothing scores or ranks either.
+- `careerGoal` is unchanged and independent.
 
 ### Education
 - Exactly **one** education record.
-- Institution comes from a Syrian institution list, plus an **Other** option.
+- Institution comes from the `INSTITUTION` catalog, which includes an **Other** item (`isOther`).
 - **Other** requires a custom institution name.
 - `educationStatus` ∈ { `Current Student`, `Graduate` }.
 
-### Graduation date
-- Field name: `expectedGraduationDate`.
-- UI shows **month and year only**.
-- Backend stores a Parse `Date` normalised to the **first day of the selected month in UTC**.
-  Example: `June 2027` → `2027-06-01T00:00:00.000Z`.
-- `Current Student` **requires** `expectedGraduationDate`.
-- `Graduate` **clears** `expectedGraduationDate`.
+### Dates ⟨CP3A⟩
+Both date fields use a **polished DatePicker**, never a browser-native date input.
+
+- **`dateOfBirth`** — optional, full date, no future date selectable, clearable, with year
+  navigation so a birth year is reachable without paging through months.
+- **`expectedGraduationDate`** — **month and year only**; no day is ever offered.
+  - Backend stores a Parse `Date` normalised to the **first day of the selected month in UTC**.
+    Example: `June 2027` → `2027-06-01T00:00:00.000Z`.
+  - `Current Student` **requires** it.
+  - `Graduate` **clears** it.
+- Month and day names are localised; an Arabic page shows an Arabic calendar.
+
+### From Google, once ⟨CP3A⟩
+A Student signs in with Google, so their name and avatar are already known and
+verified. Both are taken **once** and both are theirs to change:
+
+- **`fullName`** is prefilled into the form from the verified Google claims. It
+  is a suggestion — whatever the Student submits is stored, and the form says
+  where it came from until they edit it.
+- **The photo** is imported on the save that creates the profile: fetched
+  server-side, validated and re-encoded exactly like an upload, stored privately.
+
+**Neither is ever re-applied.** A later edit or removal is permanent; no sign-in
+restores Google's version. The Google avatar URL is never shown to a browser,
+never stored on the profile, and never logged.
 
 ### Photo
 Optional. Supports keep / replace / remove. Image only, non-empty, **max 5 MiB**, **private**.
 
-**MUST NOT** add: CV, salary, work preferences, years of experience, skill self-ratings, or
-multiple education records.
+Selecting a photo before the first save is a **local preview**: one Save action creates the profile
+first and uploads the photo second, because a photo has nothing to attach to until the profile
+exists. If the profile saves and only the upload fails, the profile stands and the page says so.
+
+**MUST NOT** add: CV, salary, work preferences, years of experience, skill self-ratings, multiple
+education records, **country of residence, or timezone**.
 
 ## 6. Batches and lifecycle
 
@@ -215,6 +270,10 @@ A private PDF library inside each Batch.
 
 - Live Slides belong to a Batch. Admin controls the session; enrolled Students participate;
   Visitors have no access.
+- **Students and the Admin are physically in the same place during a session** ⟨confirmed CP3A⟩.
+  Live Slides is an in-room tool, not a remote-meeting one — which is why the product carries no
+  timezone, no country of residence, no remote-attendance field, and no scheduling model, and why
+  none may be added.
 - Phase 0 does **not** define final slide types or answer-persistence rules.
 - **MUST NOT** add: scores, grades, ratings, correct-answer grading, evaluation, feedback
   workflow, ranking, recommendations, AI evaluation.
@@ -308,9 +367,9 @@ document and MUST NOT be implemented**. In every row, this document wins.
 | P17 | Session statuses `draft` / `ready` / `live` / `completed`, presenter mode, question locking, duplicate-as-draft | `slides.html` `session.status` | Not confirmed; Live Slides behaviour is deliberately undefined in Phase 0 — OQ-5 |
 | P18 | Slide types Welcome / Information / Question / Closing; short vs long answer; required flag | `slides.html` `sampleSlides`, `openAddSlide` | Not confirmed — OQ-5 |
 | P19 | Batch nav omits **Resources** (tabs: Overview / Students / Tasks / Live Slides / Pinned Students) | `slides.html` `adminTabs()` | Batch navigation includes Resources |
-| P20 | Profile fields "Target role" (select list) and "Why did you choose this role?" | `index.html` `studentProfileForm` | Only a single optional *career goal* is confirmed — OQ-3 |
-| P21 | City chosen from a 14-item Syrian governorate list | `index.html` `governors` | `city` is required, but the source list is not confirmed — OQ-2 |
-| P22 | `Date of birth` uses a full date input; graduation uses `type="month"` | `index.html` `pfDob`, `pfGraduation` | Graduation month/year matches this document; DOB is optional |
+| P20 | Profile fields "Target role" (select list) and "Why did you choose this role?" | `index.html` `studentProfileForm` | **Adopted** in Checkpoint 3A. Both exist, both optional, neither affects completion, neither is an evaluation — OQ-3 resolved |
+| P21 | City chosen from a 14-item Syrian governorate list | `index.html` `governors` | **Superseded.** `city` is a required searchable Select over an Admin-managed catalog; no list is hard-coded anywhere — OQ-2 resolved |
+| P22 | `Date of birth` uses a full date input; graduation uses `type="month"` | `index.html` `pfDob`, `pfGraduation` | Shape confirmed; **implementation differs**. Both are PrimeNG DatePickers, not native inputs — full date for DOB, month/year only for graduation |
 | P23 | Profile save button reads "Save profile **and join** Summer 2026" — coupling profile completion to enrollment | `index.html` `saveProfile()` | Profile completion and enrollment are separate steps |
 | P24 | "File Upload" evidence accepts ZIP; free-text file name | `index.html` `submissionOptions` | File evidence limits are not confirmed — OQ-8 |
 | P25 | Custom skills can be added to a shared global list at task-creation time | `index.html` `addCustomSkill` | No skills model exists in this document |
@@ -354,33 +413,61 @@ exposes `createUser` / `updateUser` / `deleteUser`, all gated on
 
 ---
 
-### OQ-2 — Institution list and city input
+### OQ-2 — Institution list and city input ✅ RESOLVED
 **Question in full:** What is the authoritative Syrian institution list for `institution`, and is
 `city` a free-text field or a fixed list? If a fixed list, what is its authoritative source?
 
 **Source note (not authoritative):** the prototype hard-codes a 14-item governorate list
 (`index.html` `governors`) and a 10-item institution list ending in `Other`
 (`index.html` `universities`). Prototypes are references only — conflicts P21 and P20.
-The product rules confirm only that `city` is required and that `institution` comes from a Syrian
-list plus an `Other` option requiring a custom name (§5).
 
-**Answer required from:** product owner.
-**Classification:** **BLOCKS-CP4** (Complete Profile and Student dashboard).
+**Answer — product owner, Checkpoint 3A:** there is **no static authoritative list**, and the
+question is resolved by removing the need for one. `city`, `institution`, and `major` are all
+**required searchable Selects backed by an Admin-managed catalog** (`ProfileCatalogItem`), so the
+authoritative source is the Admin screen rather than a source file.
+
+- **`city`** — a required Select. No list ships; an Admin adds the cities the product serves.
+- **`institution`** — a required Select. The Checkpoint 3A hard-coded list of common Syrian
+  institutions was **migrated into the catalog** as seed data, including the `Other` escape hatch
+  (`isOther`), which still requires `customInstitutionName`. Institutions additionally carry a
+  kind: `UNIVERSITY`, `INSTITUTE`, or `OTHER`.
+- **`major`** — a required Select. No list ships.
+
+Nothing is invented: cities, majors, and target roles start **empty**, and both the Admin screen
+and the Student form say so plainly rather than offering plausible-looking options nobody approved.
+
+**Classification:** **RESOLVED-CP3A**.
 
 ---
 
-### OQ-3 — Career goal shape
+### OQ-3 — Career goal shape ✅ RESOLVED
 **Question in full:** Is the optional "career goal" free text or a selection from a fixed list of
 target roles? If free text, what is the maximum length? If a list, what are its values, and is a
 custom "Other" permitted?
 
 **Source note (not authoritative):** the prototype models this as *two* fields — a 10-item
 "Target role" select plus a free-text "Why did you choose this role?" (`index.html`
-`studentProfileForm`) — which exceeds the single optional career-goal field confirmed in §5
-(conflict P20).
+`studentProfileForm`).
 
-**Answer required from:** product owner.
-**Classification:** **BLOCKS-CP4**.
+**Answer — product owner, Checkpoint 3A:** **both**, and the prototype's shape is adopted here.
+Conflict P20 is therefore closed in the prototype's favour, which is the only P-conflict resolved
+that way so far.
+
+- **`careerGoal`** — unchanged. Optional free text, maximum 500 characters.
+- **`targetRole`** — a new **optional** searchable Select backed by the `TARGET_ROLE` catalog.
+  No values ship; an Admin adds them.
+- **`targetRoleReason`** — a new optional free-text answer to the question, worded exactly:
+  - English: **Why did you choose this role?**
+  - Arabic: **لماذا اخترت هذا الدور؟**
+
+  Maximum 500 characters. It is shown **only** when a target role is selected, and is cleared when
+  the role is cleared.
+
+**Neither the target role nor its reason affects profile completion**, and neither is an
+evaluation: nothing scores, ranks, or grades either one. This is a Student saying what they are
+aiming for.
+
+**Classification:** **RESOLVED-CP3A**.
 
 ---
 
@@ -475,9 +562,21 @@ function / Express route that streams the bytes, or a custom Parse `filesAdapter
   including `handleFileStream` with HTTP Range support, but is **never wired** into
   `parseConfig.ts` — no `filesAdapter` key is passed, so the default GridFS adapter is in use.
 
-**Still open:** which of the two mechanisms to adopt. This is a technical/architecture decision,
-not a product decision.
-**Answer required from:** engineering.
+**Narrowed further in Checkpoint 3A ⟨catalog⟩ — but still open.** The Student profile photo now
+has a working, authenticated answer: a dedicated Express route on the Parse mount path that
+resolves the caller from their session, verifies live `Student` membership, accepts a bounded
+multipart upload, and serves the bytes back to the owner alone with `Cache-Control: private,
+no-store`. It opens **no** file route — `/api/files/*` is still 403 — and creates no public URL.
+
+That route is a **profile-photo** answer, not the general one. It stores bounded, re-encoded bytes
+inline on the private profile row, which works for a ≤1 MiB WebP and will not work for a Batch
+Resource PDF. It also does not use `File`, `IMG`, or `fileAdapter.ts`, all of which remain unwired
+for the reason recorded in S-20.
+
+**Still open:** the general mechanism for private files that are too large to inline — an
+authorised streaming route reading from a `filesAdapter`, or a custom adapter that authorises per
+request. This is a technical/architecture decision, not a product decision.
+**Answer required from:** engineering, before Checkpoint 7 (Batch Resources).
 **Classification:** **BLOCKS-CP7** (Resources) — Resources cannot be made private without it.
 Also referenced by Checkpoint 11 and by Checkpoint 4's private photo.
 
@@ -595,15 +694,15 @@ a missing native binary.
 | # | Class | Blocks | Answer from |
 |---|---|---|---|
 | OQ-1 | BLOCKS-CP2 | Checkpoint 2 | product owner |
-| OQ-2, OQ-3 | BLOCKS-CP4 | Checkpoint 4 | product owner |
 | OQ-4 | BLOCKS-CP5 | Checkpoint 5 | product owner |
 | OQ-12 | BLOCKS-CP6 | Checkpoint 6 | engineering + product sign-off |
-| OQ-10 | BLOCKS-CP7 | Checkpoint 7 | engineering |
+| OQ-10 | BLOCKS-CP7 | Checkpoint 7 | engineering (narrowed in CP3A; still open) |
 | OQ-5 | BLOCKS-CP8 | Checkpoint 8 (deferred) | product owner |
 | OQ-6, OQ-7, OQ-8 | BLOCKS-CP9 | Checkpoint 9 | product owner |
 | OQ-9, OQ-11 | BLOCKS-CP10 | Checkpoint 10 | product owner |
 | OQ-14 | BLOCKS-CP12 | Checkpoint 12 | product owner / dev-ops |
 | OQ-16 | FOLLOW-UP | — | engineering |
+| OQ-2, OQ-3 | RESOLVED-CP3A | — | product owner: answered in Checkpoint 3A |
 | OQ-13 | RESOLVED-RULES | — | product owner: remove in Checkpoint 1 |
 | OQ-15 | RESOLVED-SRC | — | closed in closeout |
 

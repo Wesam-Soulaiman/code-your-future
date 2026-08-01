@@ -1,0 +1,237 @@
+/* Profile Catalogs — scoped styles.
+   Composition only. Every colour, space, radius, and size comes from the
+   Checkpoint 2A token layer, and all box properties are logical so one
+   stylesheet serves LTR and RTL. Nothing global is changed. */
+
+:host {
+  display: block;
+}
+
+.cyf-catalogs-intro {
+  margin-block-end: var(--cyf-space-5);
+
+  h1 {
+    margin: 0 0 var(--cyf-space-2);
+  }
+
+  p {
+    margin: 0;
+    max-inline-size: 46rem;
+  }
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────────────
+   Four categories. On a narrow screen they scroll sideways inside their own
+   strip rather than wrapping into a block that pushes the table down. */
+.cyf-catalogs-tabs {
+  display: flex;
+  gap: var(--cyf-space-1);
+  overflow-x: auto;
+  border-block-end: 1px solid var(--cyf-border);
+  margin-block-end: var(--cyf-space-5);
+  scrollbar-width: thin;
+}
+
+.cyf-catalogs-tab {
+  flex: 0 0 auto;
+  min-block-size: var(--cyf-touch-target);
+  padding-inline: var(--cyf-space-4);
+  font-size: var(--cyf-text-sm);
+  font-weight: var(--cyf-weight-medium);
+  color: var(--cyf-text-secondary);
+  background: none;
+  border: 0;
+  border-block-end: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--cyf-transition) var(--cyf-ease);
+
+  &:hover {
+    color: var(--cyf-text);
+  }
+
+  &:focus-visible {
+    outline: var(--cyf-focus-ring-width) solid var(--cyf-focus-ring);
+    outline-offset: calc(var(--cyf-focus-ring-offset) * -1);
+  }
+
+  /* The active tab is marked by weight and an underline, not colour alone. */
+  &.cyf-is-active {
+    color: var(--cyf-primary);
+    border-block-end-color: var(--cyf-primary);
+  }
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────── */
+.cyf-catalogs-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-3);
+  margin-block-end: var(--cyf-space-4);
+}
+
+.cyf-catalogs-search {
+  flex: 1 1 16rem;
+  max-inline-size: 24rem;
+}
+
+.cyf-catalogs-toolbar-actions {
+  display: flex;
+  gap: var(--cyf-space-2);
+  flex-wrap: wrap;
+}
+
+.cyf-catalogs-status {
+  min-block-size: var(--cyf-space-2);
+  margin-block-end: var(--cyf-space-4);
+}
+
+/* ── States ──────────────────────────────────────────────────────────── */
+.cyf-catalogs-state {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-3);
+  flex-wrap: wrap;
+}
+
+.cyf-catalogs-empty {
+  > i {
+    font-size: var(--cyf-text-2xl);
+    color: var(--cyf-text-muted);
+  }
+
+  p {
+    margin: 0;
+  }
+
+  > div {
+    flex: 1 1 16rem;
+  }
+}
+
+/* ── Table ───────────────────────────────────────────────────────────────
+   The wrapper scrolls, never the page: a wide table on a narrow screen is
+   the one case where horizontal scrolling is correct, and it belongs to the
+   table rather than to the document. */
+.cyf-catalogs-table-wrap {
+  overflow-x: auto;
+}
+
+.cyf-catalogs-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: var(--cyf-text-sm);
+
+  th,
+  td {
+    padding: var(--cyf-space-3);
+    text-align: start;
+    border-block-end: 1px solid var(--cyf-border);
+    vertical-align: middle;
+  }
+
+  th {
+    font-weight: var(--cyf-weight-medium);
+    color: var(--cyf-text-secondary);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td {
+    border-block-end: 0;
+  }
+
+  /* A retired row is dimmed *and* labelled, so the state survives greyscale. */
+  tbody tr.cyf-is-inactive td {
+    color: var(--cyf-text-muted);
+  }
+}
+
+.cyf-catalogs-order {
+  inline-size: 4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cyf-catalogs-code {
+  font-size: var(--cyf-text-2xs);
+  padding: 0 var(--cyf-space-1);
+  border-radius: var(--cyf-radius-sm);
+  background: var(--cyf-surface-subtle);
+  color: var(--cyf-text-secondary);
+}
+
+.cyf-catalogs-badge {
+  display: inline-block;
+  padding: 0 var(--cyf-space-2);
+  font-size: var(--cyf-text-2xs);
+  border-radius: var(--cyf-radius-full);
+  color: var(--cyf-success);
+  background: var(--cyf-success-subtle);
+
+  &.cyf-is-off {
+    color: var(--cyf-warning);
+    background: var(--cyf-warning-subtle);
+  }
+}
+
+.cyf-catalogs-actions {
+  display: flex;
+  gap: var(--cyf-space-1);
+  justify-content: flex-end;
+}
+
+/* ── Dialog form ─────────────────────────────────────────────────────── */
+.cyf-catalogs-form-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--cyf-space-4);
+
+  .cyf-field + .cyf-field {
+    margin-block-start: 0;
+  }
+}
+
+@media (min-width: 640px) {
+  .cyf-catalogs-form-row {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.cyf-catalogs-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cyf-space-3);
+  margin-block-start: var(--cyf-space-4);
+  cursor: pointer;
+
+  span {
+    display: block;
+  }
+
+  input {
+    margin-block-start: 0.2rem;
+    inline-size: 1rem;
+    block-size: 1rem;
+    accent-color: var(--cyf-primary);
+  }
+}
+
+.cyf-catalogs-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cyf-space-3);
+  margin-block-start: var(--cyf-space-6);
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .cyf-catalogs-toolbar-actions,
+  .cyf-catalogs-form-actions {
+    inline-size: 100%;
+
+    > * {
+      flex: 1;
+    }
+  }
+}

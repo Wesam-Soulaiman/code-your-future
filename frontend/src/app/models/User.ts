@@ -20,6 +20,14 @@ export interface CurrentUser {
    * Student, the login name for an Admin. Absent when nothing safe exists.
    */
   displayName?: string;
+  /**
+   * Whether the Student's profile is complete ⟨CP3A⟩.
+   *
+   * One boolean, calculated server-side and refreshed on every session
+   * restoration — never the profile itself, and never something the client
+   * decides. Absent for an Admin, who has no profile.
+   */
+  profileComplete?: boolean;
 }
 
 /**

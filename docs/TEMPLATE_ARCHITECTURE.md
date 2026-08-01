@@ -1262,6 +1262,397 @@ printed. A test asserts the frontend value is either empty or a bare
 `NNN-xxxx.apps.googleusercontent.com` — an origin or a route in that field would mean the two
 settings had been confused. **No Google client secret exists in Angular**, also asserted by test.
 
+## 16e. Student profile ⟨CP3A⟩
+
+### `StudentProfile`
+
+One row per Student, enforced by a **unique index on the user pointer**
+(`_p_user`), confirmed present in MongoDB at startup. Columns:
+
+| Column | Notes |
+|---|---|
+| `user` | Pointer to `_User`. **Immutable** after creation. |
+| `fullName` | Trimmed, whitespace-collapsed, required |
+| `verifiedEmail` | Derived from the Google identity. Never accepted from a request. |
+| `phone`, `city` | Required |
+| `dateOfBirth` | Optional, stored at 00:00 UTC |
+| `institution`, `customInstitutionName`, `major`, `educationStatus` | One education record |
+| `expectedGraduationDate` | First of the selected month, 00:00:00 UTC |
+| `careerGoal`, `githubUrl`, `linkedinUrl`, `portfolioUrl` | Optional |
+| `photoData`, `photoUpdatedAt` | Private photo, see below |
+| `isComplete` | **Calculated server-side** on every save |
+
+Deny-by-default CLP on all six operations, an empty default class ACL, and a
+per-record ACL granting **read to the owning Student only** — not write, because
+a Student changes their profile by calling an operation, never by writing the
+row. `protectedFields` covers every personal column for both `*` and
+`authenticated`. A `beforeSave` refuses any non-master write, refuses to make a
+profile public, and freezes the `user` pointer after creation.
+
+Provider identity stays in `StudentAuthIdentity`: this class holds no provider
+name, no subject, and no token. The only thing it inherits is the verified email.
+
+### Privacy boundaries
+
+The DTO is a hand-built allow-list. It carries the Student's own personal data —
+which is the point, since it is only ever returned to them — and never the `user`
+pointer, the photo bytes, an ACL, a raw Parse object, or anything from the
+identity class.
+
+**Logging accepts a fixed shape** rather than redacting one: `op`, `stage`, `ok`,
+`code`, `userId`, `profileId`, `created`, `complete`, `fieldCount`, `bytes`.
+Anything else is dropped, so a future edit cannot start logging an email or a
+phone number by adding a field to a call. A validation failure logs a **count**,
+never the field names — which answers a person got wrong is theirs.
+
+Errors are stable codes: `NOT_A_STUDENT`, `VALIDATION_FAILED`,
+`PROFILE_UNAVAILABLE`, `PHOTO_REJECTED`, `PHOTO_NOT_FOUND`,
+`PROFILE_SAVE_FAILED`. A validation failure additionally carries a map of **field
+name → reason code** (`REQUIRED`, `TOO_SHORT`, `INVALID`, `WRONG_DOMAIN`, …) —
+fixed vocabulary this repository defines, never a submitted value.
+
+### Field decisions
+
+Validation constants live once, in
+`modules/StudentProfile/constants.ts`, mirrored by
+`frontend/src/app/utils/student-profile-constants.ts`. **A test asserts the two
+stay in step**, because a frontend that validates differently either blocks
+something the server accepts or promises something it rejects. The backend is
+always the authority; the browser copy exists for fast feedback.
+
+- **Phone** — digits and the punctuation people actually type, with an optional
+  leading `+`, 6–15 digits. Deliberately **not** country-specific: the product
+  serves people who may hold a Syrian number, a number where they now live, or
+  both, and guessing a country gets it wrong for exactly the people least able to
+  work around it. The value is stored as entered.
+- **City, institution, major, target role** — **superseded by the catalog**; see §16f. All four
+  became Admin-managed selections rather than free text or a hard-coded array, which is how OQ-2 and
+  OQ-3 were finally resolved. The reasoning that produced the original decision still holds — there
+  is no authoritative list, and a wrong list is worse than none — the answer is simply that the list
+  is now owned by an Admin rather than by a source file.
+- **Career goal** — optional free text, bounded at 500 characters.
+- **URLs** — parsed with `new URL()`, `http:`/`https:` only, so `javascript:`,
+  `data:`, and `file:` are refused. GitHub and LinkedIn are pinned to their real
+  hostnames — matched on the parsed hostname, so `github.com.evil.test` fails —
+  and must carry a path, because a bare domain is not a profile.
+
+> **OQ-2** and **OQ-3** are now resolved and recorded in
+> `docs/PRODUCT_REQUIREMENTS.md`, which the product owner authorised amending
+> during the Checkpoint 3A catalog work. See §16f for the shape they resolved to.
+
+### Graduation date
+
+The UI works in months; the database stores a date. `YYYY-MM` normalises to the
+**first day of that month at 00:00:00.000 UTC** using `Date.UTC` — not a
+local-time constructor, which in a UTC+3 deployment would store the previous
+month. `June 2027` → `2027-06-01T00:00:00.000Z`, verified at runtime.
+
+A **Current Student** must supply it. A **Graduate** does not, and any value they
+send is cleared — the product says the status clears the date, and keeping it
+would contradict the status they just chose.
+
+### Completion
+
+`isComplete` is calculated from the **stored** values on every save:
+`fullName`, `verifiedEmail`, `phone`, `city`, `institution`, `major`,
+`educationStatus`, plus `customInstitutionName` when the institution is `Other`
+and `expectedGraduationDate` when the status is Current Student. Optional fields
+never block it.
+
+The session DTO carries **one boolean**, `profileComplete`, read live on every
+restoration. The profile itself never travels on a session response: routing
+needs one bit, and shipping a phone number and a date of birth to answer it would
+be careless. The field is omitted entirely for an Admin, whose profile does not
+exist rather than being incomplete.
+
+### Photo security
+
+Optional, ≤ 5 MiB, JPEG/PNG/WebP. Three independent checks, because each alone is
+forgeable: the declared MIME type, the filename extension, and the **actual byte
+signature** — then `sharp` must be able to decode it. Every upload is re-encoded
+to a WebP capped at 1024px, which also strips EXIF, including the GPS coordinates
+phone cameras attach.
+
+**Stored inline on the profile, not as a `Parse.File`.** Checkpoint 1 closed
+Parse's raw file endpoint, and Parse's `FilesRouter` is not part of the router
+`directAccess` uses — so `Parse.File.save()` inside cloud code falls back to a
+real HTTP request to the server's own `serverURL` and is refused by that block;
+`getData()` hits the same wall coming back. `IMG` is worse still: its
+`beforeSave` re-downloads the file it just saved. Re-opening the endpoint would
+undo a security control, and `models/File.ts`, `models/IMG.ts`, and `utils/` are
+protected paths. **Found by runtime validation, not by any unit test** — the unit
+suite passed with doubles in place.
+
+The bytes therefore live on the already-private, owner-ACL'd, deny-by-default
+profile row, bounded to 1 MiB after processing. **No URL exists anywhere**, so
+none can leak. The image comes back only through `getMyProfilePhoto`, which
+resolves the profile from the session — there is no id to substitute.
+
+### Operations
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/api/student-profile/getMyStudentProfile` | GET | The caller's profile, or the empty shape carrying their verified email |
+| `/api/student-profile/saveMyStudentProfile` | POST | Create or update |
+| `/api/student-profile/uploadMyProfilePhoto` | POST (10/min) | Validate, re-encode, store |
+| `/api/student-profile/removeMyProfilePhoto` | POST | Remove |
+| `/api/student-profile/getMyProfilePhoto` | GET | Inline bytes for the owner |
+
+Every one requires a session, verifies **live** Student membership, refuses an
+Admin and a Visitor, resolves the profile from the session, and returns a stable
+code. There is no generic CRUD, no operation that takes a profile id, and no
+Admin editing path.
+
+### Routes and guards
+
+| Route | Guards | Visitor | Incomplete Student | Complete Student | Admin |
+|---|---|---|---|---|---|
+| `/student/profile` | `studentGuard` | → `/auth/student` | shown | shown (edit) | → `/dashboard` |
+| `/student/welcome` | `studentGuard`, `profileCompleteGuard` | → `/auth/student` | → `/student/profile` | shown | → `/dashboard` |
+| `/dashboard` | `authGuard` | → `/auth/admin` | → `/student/profile` | → `/student/welcome` | shown |
+
+`profileCompleteGuard` deliberately does **not** guard the form itself — guarding
+the page it redirects to would loop. Route decisions run after session
+restoration, which the app initializer awaits, so no guard acts on unproven
+cached roles and no protected content flashes. Every target is a fixed internal
+path from `guards/home-route.ts`.
+
+## 16f. The profile catalog ⟨CP3A catalog⟩
+
+### `ProfileCatalogItem`
+
+One typed, closed vocabulary behind four profile selections. **Not** an `AppSettings` table and not
+a generic key/value store — the difference is enforced, not merely intended:
+
+- `type` is restricted to exactly `CITY`, `INSTITUTION`, `MAJOR`, `TARGET_ROLE`, checked at the
+  cloud-function boundary before any query exists;
+- `type` is **immutable** after creation, because retyping an item would silently reinterpret every
+  profile pointing at it;
+- there is no `key`, `value`, `config`, `json`, or `data` column, and a test asserts there never
+  will be;
+- no operation takes a class name, a `where`, or any free-form query.
+
+| Column | Notes |
+|---|---|
+| `type` | One of the four. Immutable. |
+| `code` | Normalised (`A-Z0-9_`), **unique within its type** by database index |
+| `nameEn`, `nameAr` | Both required — a half-bilingual list silently falls back to the wrong language |
+| `active` | Inactive items stay on the profiles that hold them; never offered to anybody new |
+| `sortOrder` | Ascending within the type; seeded ten apart so a row can be slotted between two |
+| `institutionKind` | `UNIVERSITY` / `INSTITUTE` / `OTHER`. Required for, and only for, an institution |
+| `isOther` | The escape hatch that demands a typed name. **Only** institutions support it |
+
+Deny-by-default CLP on all six operations, an empty default class ACL, no per-record grant to
+anybody, and every column in `protectedFields`. Every read and write goes through an authorised
+operation using the master key.
+
+### Why one model rather than four
+
+Cities, institutions, majors, and target roles are the same shape: a code, two names, an order, and
+an active flag. Four near-identical classes would be four places to get the access rules wrong, four
+schemas to keep in step, and four sets of CRUD to review. One closed model with a `type` allow-list
+is the same amount of typing at the call site and a quarter of the surface to secure.
+
+### The four selections on `StudentProfile`
+
+`city`, `institution`, `major`, and `targetRole` are **pointers**, not names. A request names them
+with an `Id` suffix (`cityId`, …); a bare `city` in a payload is refused outright, because it is
+somebody writing a name straight into the record.
+
+Two consequences worth stating:
+
+1. **A rename corrects every profile at once.** Fixing a misspelt city is an Admin edit, not a
+   migration.
+2. **A retired value keeps working.** An inactive item may stay on a profile that already chose it —
+   otherwise an Admin tidying a list would silently invalidate somebody's answer — but may never be
+   *newly* selected. The check is therefore "active, **or** unchanged from what was stored", which is
+   why `catalogRefs.ts` is given the existing profile.
+
+### Deleting versus deactivating
+
+An unused item is deleted outright. An item any profile references is refused with
+`CATALOG_IN_USE`, counted across **every** reference column rather than just the matching one.
+Cascading or nulling would blank a field in somebody's profile without their knowledge;
+deactivation is the supported way to retire a value that is in use, and the Admin page says so
+rather than leaving it to be discovered.
+
+### Seeding
+
+Only institutions, and only the list Checkpoint 3A already shipped as a constant — a migration of
+data that already existed, so nobody's stored answer changes meaning. Keyed on the normalised code,
+so it is safe on every boot and safe concurrently, and it **does not overwrite an Admin's edits**: a
+renamed or deactivated institution stays renamed and deactivated.
+
+Cities, majors, and target roles are deliberately **not** seeded. No authoritative source exists,
+and a plausible-looking invented list is worse than an empty one, because an empty list is obviously
+empty. Both the Admin page and the Student form say so.
+
+### Completion, revisited
+
+`isComplete` now requires the three catalog selections to resolve, plus the scalar fields. The
+target role and its reason are **absent** from that calculation by product decision — a profile is
+finished without them.
+
+## 16g. The profile photo endpoint ⟨CP3A catalog⟩
+
+### The defect this replaced
+
+Parse Server logs every cloud-function call at `info` as a message containing the serialised input
+and result. The photo upload was a cloud function taking base64, so **a whole photograph of a
+Student was written to the log** the moment they picked one — and again on the way back out. That
+is the privacy defect; redaction can mask the shape, but masking a 6 MB string on every upload is a
+workaround for sending it down that path at all.
+
+### What replaced it
+
+A dedicated Express route mounted on the Parse mount path, **before** the entity-route middleware so
+it terminates its own two paths and everything else falls through untouched:
+
+| | |
+|---|---|
+| `POST {mountPath}/profile-photo` | multipart, field `photo` |
+| `GET {mountPath}/profile-photo` | the owner's bytes, `image/webp` |
+
+- The image never enters Parse's cloud-function pipeline, so there is no `Input: {...}` line at all.
+- It travels as raw multipart rather than base64 — a third smaller.
+- **The size limit applies at the socket**, before anything is decoded or buffered whole. A cloud
+  function had already parsed the entire payload before the first check could run.
+- Authorisation resolves the caller from `X-Parse-Session-Token` against `_Session`, rejects an
+  expired session explicitly, and then reads **live** `Student` membership. No user id, profile id,
+  or class name is accepted from the client.
+- The response carries `Cache-Control: private, no-store` and `X-Content-Type-Options: nosniff`. A
+  photograph of a person served over a shared path must not sit in a proxy or a disk cache.
+- The 10-per-minute bound moved with the endpoint rather than being dropped.
+
+### What did not change
+
+`blockRawFileRoutes` still answers `/api/files/*` with 403. `File`, `IMG`, and `fileAdapter.ts` are
+untouched and unwired. `fileUpload` stays disabled. **No public URL exists.** The bytes still live
+inline on the private, owner-ACL'd, deny-by-default profile row for the reason recorded in S-20, and
+**OQ-10 / S-20 stay open** — this is a profile-photo answer, not the general private-file
+architecture.
+
+### Image content in logs
+
+Two layers, and the second exists because the first could be undone by a future edit:
+
+1. the bytes do not travel a logged path;
+2. redaction treats file and image keys as **content**: `data`, `base64`, `photo`, `image`, `file`,
+   `buffer`, `bytes`, `binary`, `contents`, `payload`, `blob`, `attachment`, `thumbnail`, `avatar`,
+   `picture` — plus `filename`, because people name photographs after themselves.
+
+A matching key survives **only** when its value is a number or a boolean, which no image can be. A
+byte count is genuinely useful (`bytes: 48213` says the upload worked); the bytes are not, at any
+length. **No truncated prefix is ever kept** — the first characters of a JPEG are still the first
+characters of a JPEG, and a "safe" 64-character preview leaks the moment somebody raises the limit.
+
+Two details in that pass are load-bearing and easy to undo by accident:
+
+- **`profile` is stripped before matching**, because `profileId` contains `file`. Without it every
+  profile id in every log line would read `[REDACTED]`, losing the one identifier that lets an
+  operator follow a request.
+- **`{` is excluded from the unquoted value class.** Parse writes `Input: {"data":"…"}`; with `{`
+  allowed, the first match is the pair `Input` → `{"data":"…`, which is not a sensitive key, so it
+  is kept — and the scanner has already consumed the `data` pair it was supposed to mask.
+
+Runtime validation confirms both: no base64 blob, no `data:` URI, and no personal profile value
+appears in the server log at any level.
+
+### A name is personal data too
+
+Found while validating this work: Parse's `beforeSave` and result lines serialised a Student's
+`fullName` and their Google `displayName` verbatim, in the same lines where the email beside them
+was already `[REDACTED]`. That is incoherent — a name identifies a person as well as an address
+does — so `fullname`, `displayname`, `givenname`, and `familyname` joined the personal-data list. No
+log call site anywhere passes a field with those names, so nothing useful was lost.
+
+## 16h. Importing the Google name and photo ⟨CP3A catalog⟩
+
+A Student signs in with Google, so their name and avatar are already known and
+verified. Making them retype one and re-upload the other is friction for no
+benefit — so both are taken, **once**, and both are theirs to change.
+
+### Once, and only once
+
+The name is prefilled into the form on the empty-profile shape; the photo is
+imported on the save that **creates** the profile. Neither is ever re-applied.
+
+That is the whole design, and it is what makes "you can change it" true. A
+Student who corrects the spelling of their own name, or removes a photo they did
+not choose, has made a decision — and a product that quietly re-imposes Google's
+version on the next sign-in has not let them change anything, it has only let
+them watch the change disappear.
+
+Two consequences fall out of it for free:
+
+- an import can never overwrite an image a Student chose, because it only runs
+  when the profile is created and nothing is attached;
+- removing the imported photo is permanent, with no flag to track and no
+  "suppressed" state to get wrong.
+
+### The name is a suggestion, never a write
+
+`toEmptyProfileDto` returns `fullName` prefilled from the verified `firstName`
+and `lastName` on `_User`, plus `nameFromProvider: true` so the form can say
+where it came from. **Nothing writes that name by itself**: whatever the Student
+submits is what gets stored, and the hint disappears the moment they edit the
+field. A saved profile never carries `nameFromProvider` at all.
+
+The internal, server-generated username is never a fallback. A Student whose
+Google account supplies no name gets an empty field, which is honest, rather than
+`gid_a1b2c3`.
+
+### Fetching an image named by a token
+
+The avatar URL arrives inside a Google ID token. It is verified and therefore
+trustworthy in practice — but *"the backend fetches a URL that a request named"*
+is the shape of a server-side request forgery whatever the source, and the
+consequence of getting it wrong is a request forwarder pointed at anything
+reachable from the server, including cloud metadata endpoints.
+
+So it is treated as untrusted, at four points:
+
+1. **At capture.** `isGooglePictureUrl` requires `https:` and pins the hostname
+   to `googleusercontent.com`, `google.com`, or `gstatic.com`, matched exactly or
+   as a sub-domain — so `googleusercontent.com.evil.test` and
+   `evilgoogleusercontent.com` both fail. A URL that fails is **dropped, not
+   refused**: a bad avatar must never cost somebody their sign-in.
+2. **At read.** The stored value is re-checked before use, because the check that
+   admitted it and this read are separated by time and a database.
+3. **At request.** `redirect: 'error'` — following one would let a pinned host
+   hand off to an unpinned one, which defeats the pinning entirely. No
+   credentials, no cookies, and a 4-second timeout.
+4. **At the body.** `Content-Type` must be one of the three accepted image types;
+   the declared `Content-Length` is refused over 5 MiB **before a byte is read**;
+   and the bytes actually received are checked again, because a header is a claim
+   rather than a guarantee.
+
+What comes back then goes through **exactly** the upload validation — declared
+MIME, filename extension, real byte signature, and a `sharp` decode — and is
+re-encoded to a bounded WebP. Google is a trustworthy source of a photograph, not
+a reason to skip checking that what arrived is one. A PNG magic-byte prefix on a
+PHP script is refused at runtime, same as an upload.
+
+### Where the URL lives, and where it does not
+
+On `StudentAuthIdentity`, beside the provider subject, because that is what it
+is: provider identity data. It is in `protectedFields`, appears in **no** DTO and
+**no** log — redaction masks it because `providerPictureUrl` contains `picture` —
+and a test asserts that neither DTO builder so much as mentions it.
+
+It is deliberately **not** on the profile. A Google avatar URL is a stable,
+unauthenticated address for a photograph of a person; putting it on the object
+that gets serialised to a browser would be one careless field away from undoing
+the reason the image is stored privately at all.
+
+### Best effort, always
+
+Nothing in the import throws to its caller. A Student whose avatar is missing,
+slow, malformed, or served from a host that no longer resolves gets a profile
+with no photo and an Add button — never a failed save. Verified at runtime
+against a pinned host that does not resolve: the save completes, the profile is
+complete, and no photo is stored.
+
 ## 17. Known limitations of the template
 
 1. No environment validation; missing `.env` keys fail at runtime.

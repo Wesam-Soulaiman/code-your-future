@@ -5,14 +5,17 @@
  *   /auth/admin        — Admin sign-in (public, guest-only)
  *   /auth/student      — Student sign-in with Google (public, guest-only)
  *   /auth/**           — any unknown auth sub-route resolves to /auth/admin
- *   /student           — redirects to /student/welcome
- *     /student/welcome — the Student area (Students only)
+ *   /student           — redirects to the Student's current home
+ *     /student/profile — Complete Profile (Students only)
+ *     /student/welcome — the Student area (Students with a complete profile)
  *   /                  — Admin shell (Admins only)
  *     /dashboard       — Admin landing page
+ *     /dashboard/profile-catalogs — the four profile vocabularies (Admins only)
  *
  * Guards:
  *   authGuard    — Admin workspace; Visitor → /auth/admin, Student → their own area
  *   studentGuard — Student area; Visitor → /auth/student, Admin → the dashboard
+ *   profileCompleteGuard — sends a Student with an unfinished profile to the form
  *   guestGuard   — sends an authenticated user away from the auth pages, to the
  *                  landing route for the role they actually hold
  *   roleGuard    — restricts a route to the supplied application roles
@@ -21,13 +24,15 @@
  * in `guards/home-route.ts`. No target is ever read from a query parameter or
  * from user input, so none of these can become an open redirect.
  *
- * Future checkpoints add Complete Profile (4), `/join/:token` (6), and the public
- * Talent Reels route (10). None of them exists yet.
+ * Future checkpoints add `/join/:token` (6) and the public Talent Reels route
+ * (10). Neither exists yet.
  */
 
 import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
+import { profileCompleteGuard } from './guards/profile-complete.guard';
+import { adminGuard } from './guards/role.guard';
 import { studentGuard } from './guards/student.guard';
 
 export const routes: Routes = [
@@ -69,10 +74,24 @@ export const routes: Routes = [
     children: [
       { path: '', redirectTo: 'welcome', pathMatch: 'full' },
       {
+        path: 'profile',
+        title: 'Code Your Future — Complete your profile',
+        // Deliberately NOT behind profileCompleteGuard: this is where an
+        // incomplete Student is sent, and guarding it would loop. A Student who
+        // has already finished may open it any time to edit.
+        canActivate: [studentGuard],
+        loadComponent: () =>
+          import('./pages/student/student-profile.component').then(
+            (m) => m.StudentProfileComponent,
+          ),
+      },
+      {
         path: 'welcome',
         title: 'Code Your Future — Welcome',
         // Guarded on the child as well, for the same reason as the auth branch.
-        canActivate: [studentGuard],
+        // The profile guard runs second, so an unfinished Student lands on the
+        // form rather than on a page that assumes their details exist.
+        canActivate: [studentGuard, profileCompleteGuard],
         loadComponent: () =>
           import('./pages/student/student-welcome.component').then(
             (m) => m.StudentWelcomeComponent,
@@ -95,6 +114,17 @@ export const routes: Routes = [
         title: 'Code Your Future — Dashboard',
         loadComponent: () =>
           import('./pages/dashboard/dashboard.component').then((m) => m.DashboardComponent),
+      },
+      {
+        // Profile Catalogs ⟨CP3A catalog⟩ — the four vocabularies behind the
+        // Student profile's selects. Admin-only, enforced again on every call.
+        path: 'dashboard/profile-catalogs',
+        title: 'Code Your Future — Profile Catalogs',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./pages/admin/profile-catalogs.component').then(
+            (m) => m.ProfileCatalogsComponent,
+          ),
       },
     ],
   },

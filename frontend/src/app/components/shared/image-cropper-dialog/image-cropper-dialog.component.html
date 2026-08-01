@@ -1,4 +1,4 @@
-<div>
+<div class="cyf-cropper-canvas">
   <image-cropper
     [imageFile]="config.imageFile"
     [style.max-width.px]="config.max_image_width"
@@ -10,13 +10,11 @@
     output="base64"
   ></image-cropper>
 </div>
-<div class="p-dialog-footer custom-footer py-4">
-  <div class="flex justify-end gap-2">
-    <p-button [outlined]="true" [label]="'Close' | translate" (onClick)="close()"></p-button>
-    <p-button [label]="'Save' | translate" (onClick)="doneCropping()">
-      <ng-template pTemplate="icon">
-        <i class="fa-solid fa-floppy-disk fa-lg"></i>
-      </ng-template>
-    </p-button>
-  </div>
+<div class="cyf-cropper-footer">
+  <p-button [outlined]="true" [label]="'actions.cancel' | translate" (onClick)="close()"></p-button>
+  <p-button [label]="'actions.save' | translate" (onClick)="doneCropping()">
+    <ng-template pTemplate="icon">
+      <i class="fa-solid fa-floppy-disk fa-lg"></i>
+    </ng-template>
+  </p-button>
 </div>

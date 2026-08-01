@@ -327,12 +327,17 @@ async function createStudentUser(
 /** Create the identity record. Returns `undefined` when a rival won the race. */
 async function createIdentity(
   subject: string,
-  user: Parse.User
+  user: Parse.User,
+  pictureUrl?: string
 ): Promise<StudentAuthIdentity | undefined> {
   const identity = new StudentAuthIdentity();
   identity.set('provider', GOOGLE_PROVIDER);
   identity.set('providerSubject', subject);
   identity.set('user', user);
+  // Captured once, on the sign-in that creates the account. It is read exactly
+  // once more — by the first profile save — and never refreshed, so a Student
+  // who later replaces or removes their photo keeps that decision.
+  if (pictureUrl) identity.set('providerPictureUrl', pictureUrl);
   // Explicit empty ACL: readable and writable by nobody but the master key.
   identity.setACL(new Parse.ACL());
 
@@ -433,7 +438,7 @@ export async function provisionStudentFromGoogle(
   const user = outcome;
   await ensureStudentRole(user);
 
-  const identity = await createIdentity(claims.subject, user);
+  const identity = await createIdentity(claims.subject, user, claims.pictureUrl);
 
   if (!identity) {
     // A concurrent request created the identity first. Remove the account this

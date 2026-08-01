@@ -288,30 +288,87 @@ browser and the backend `GOOGLE_CLIENT_ID` set. See [HANDOFF.md](HANDOFF.md).
 
 ---
 
-## Checkpoint 4 — Complete Profile and Student dashboard
+## Checkpoint 3A / 4 — Complete Student Profile ✅ COMPLETE
 
-**Prerequisites:** Checkpoint 3; OQ-2 (institution list, city), OQ-3 (career goal) answered.
+Delivered as **Checkpoint 3A**, then completed by the **Profile Catalog** work.
+Same scope the plan listed as Checkpoint 4's profile half; the Student dashboard
+is explicitly **not** part of it.
 
-**Backend scope:** `StudentProfile` model (one per Student, enforced by a unique index on the user
-pointer); create/update/read functions resolving the Student from the session only; month/year
-normalisation for `expectedGraduationDate` (first of month, UTC); `Graduate` clears it,
-`Current Student` requires it; institution list + `Other` requiring a custom name; private photo
-upload (image-only, non-empty, ≤ 5 MiB) with keep / replace / remove.
-**Frontend scope:** single-page Complete Profile form (**typed reactive forms** — the template has
-none); month/year picker; read-only email; photo uploader reusing `image-uploader`; Student
-dashboard; profile-completeness gate.
-**Data-model scope:** `StudentProfile` with exactly the fields in PRODUCT_REQUIREMENTS §5 —
-one education record, no CV, no salary, no work preferences, no experience, no self-ratings.
-**Authorization and security:** a Student reads/writes only their own profile; an Admin reads;
-Visitors have no access. The photo must not be publicly readable — this collides with the
-template's unauthenticated file URLs (OQ-10, security gap S-2).
-**Tests:** required-field validation; `June 2027` → `2027-06-01T00:00:00.000Z`; `Graduate` clears
-the date; `Other` requires a name; photo type/size/emptiness rejection; one-profile-per-Student.
-**Manual flow:** sign in → complete profile → reload → dashboard shows the saved profile.
-**Documentation:** `PROJECT.md`, `CURRENT_STATE.md`, `HANDOFF.md`.
-**Out of scope:** Batches, enrollment.
-**Definition of done:** a Student can complete and edit a profile with correct UTC month
-normalisation and a private photo, with no invitation involved.
+**OQ-2 and OQ-3 are now resolved and recorded** in
+`docs/PRODUCT_REQUIREMENTS.md`, which the product owner authorised amending.
+The first cut answered them with a free-text city and a hard-coded institution
+array; the catalog work replaced both with the shape the owner finally chose:
+
+- `city`, `institution`, and `major` are **required searchable Selects** over an
+  Admin-managed catalog — the authoritative source is a screen, not a source file;
+- `targetRole` is an **optional** Select, with an optional 500-character
+  "Why did you choose this role?" that is shown only alongside it, cleared with
+  it, and excluded from completion;
+- `careerGoal` is unchanged: optional, bounded free text.
+
+**Delivered**
+- `StudentProfile` — one row per Student behind a unique index on the user
+  pointer, deny-by-default CLP, empty class ACL, owner-read record ACL, every
+  personal column in `protectedFields`, and a `beforeSave` that refuses client
+  writes and freezes the owner.
+- `ProfileCatalogItem` — one closed, typed vocabulary for the four selections,
+  restricted to `CITY` / `INSTITUTION` / `MAJOR` / `TARGET_ROLE`, with a unique
+  `(type, code)` index and an immutable category. Five Admin operations and one
+  Student read; **no generic CRUD and no settings store**.
+- Three focused profile operations under `/api/student-profile` plus a dedicated
+  **authenticated binary photo endpoint**, each requiring live Student
+  membership and resolving the profile from the session.
+- Server-side completion, UTC month normalisation, and two shared constants
+  modules mirrored on the browser with tests that keep each pair in step.
+- Complete Profile — the first real product page — in four sections on the
+  Checkpoint 2A design system, with searchable PrimeNG Selects, polished
+  DatePickers, conditional fields, inline validation, unsaved-change protection,
+  a save-then-upload photo flow, and full RTL.
+- **Profile Catalogs** — one Admin page at `/dashboard/profile-catalogs` with
+  four tabs, search, create / edit / activate / deactivate / delete, loading,
+  empty, and error states, and one visible navigation item.
+- Profile-aware routing: an unfinished Student is directed to the form; a
+  finished one reaches the welcome page, which now shows their real name and an
+  Edit action.
+
+**Defects found by running the system, none caught by a unit test:**
+1. **The profile photo could not be stored at all** ⟨first cut⟩.
+   `Parse.File.save()` in cloud code falls back to an HTTP request to the
+   server's own `serverURL`, which Checkpoint 1's raw-file block answers with
+   403. `IMG` fails the same way and worse. The bytes live on the private
+   profile row; **no security control was changed**, and a first attempt that
+   narrowed the block was reverted once runtime evidence showed the master key
+   never travels with that request. S-20 / OQ-10 stay open.
+2. **A whole photograph was written to the log on every upload** ⟨catalog⟩.
+   Parse logs each cloud-function call with its serialised input and result, and
+   the upload was a cloud function taking base64. Fixed at the cause — the bytes
+   moved to a binary route — and again in redaction as a second layer.
+3. **`PROFILE_UNAVAILABLE` on a first save with a photo** ⟨catalog⟩. Choosing an
+   image uploaded it immediately, against a profile that did not exist yet. The
+   selection is now a local preview and one Save writes the profile first.
+4. **A Student's name survived in the log** ⟨found while validating the catalog
+   work⟩, in the same lines where their email was already redacted.
+5. **PrimeNG's calendar spoke English on an Arabic page** ⟨catalog⟩. It does not
+   read `@ngx-translate`; its DatePicker has its own translation object. Found
+   by looking at a screenshot.
+6. **A language `effect` that reloaded forever** ⟨catalog⟩, because it read the
+   loading signal it set. Found by a test that would not go green.
+7. A `maxlength` property binding that Angular rejects on a plain input ⟨first
+   cut⟩ — caught by the build rather than by a passing test.
+
+**Tests:** 683 backend and 483 frontend, zero new dependencies.
+**Runtime:** 65 checks against an isolated database — Admin catalog CRUD across
+all four categories, Student active-only reads, the first-save-with-photo order,
+no image bytes in any log, catalog references, the optional target role,
+deletion versus deactivation, UTC date normalisation, the photo lifecycle,
+cross-Student denial, and every Checkpoint 1 and 2B boundary still closed.
+**Visual:** 23 captures — both pages at 1440/768/390 in EN and AR, both date
+pickers open in both languages, a searchable select open in both, and the Admin
+page at desktop and mobile. Zero horizontal overflow, zero clipped text, no
+native date field anywhere, no console errors.
+
+**Explicitly not implemented:** Student dashboard data, Batches, invitations,
+enrollment, Tasks, and everything else listed as out of scope.
 
 ---
 

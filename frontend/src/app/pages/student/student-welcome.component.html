@@ -35,7 +35,7 @@
         <h1 class="cyf-page-title">{{ 'student.welcome.title' | translate }}</h1>
       }
 
-      <p class="cyf-lead cyf-student-lead">{{ 'student.welcome.accountReady' | translate }}</p>
+      <p class="cyf-lead cyf-student-lead">{{ 'student.welcome.profileReady' | translate }}</p>
 
       <div class="cyf-surface-subtle cyf-student-next">
         <p class="cyf-label">{{ 'student.welcome.nextStepTitle' | translate }}</p>
@@ -46,6 +46,19 @@
       <p class="cyf-body-sm cyf-student-invitation">
         {{ 'auth.studentInvitationNotice' | translate }}
       </p>
+
+      <div class="cyf-student-card-actions">
+        <p-button
+          type="button"
+          [outlined]="true"
+          severity="secondary"
+          (onClick)="editProfile()"
+          styleClass="cyf-btn cyf-edit-profile-btn"
+        >
+          <i class="fa-solid fa-pen" aria-hidden="true"></i>
+          <span>{{ 'student.welcome.editProfile' | translate }}</span>
+        </p-button>
+      </div>
     </div>
   </main>
 </div>

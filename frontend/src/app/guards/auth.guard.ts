@@ -2,7 +2,7 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AppRole } from '../config/user-roles';
 import { SessionService } from '../services/session.service';
-import { ADMIN_SIGN_IN, STUDENT_HOME } from './home-route';
+import { ADMIN_SIGN_IN, studentHome } from './home-route';
 
 /**
  * Guard the Admin workspace.
@@ -26,7 +26,7 @@ export const authGuard: CanActivateFn = () => {
   }
 
   if (session.roles().includes(AppRole.STUDENT)) {
-    return router.createUrlTree([STUDENT_HOME]);
+    return router.createUrlTree([studentHome(session)]);
   }
 
   // A token with no recognised role authorises nothing.

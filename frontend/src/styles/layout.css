@@ -265,6 +265,35 @@
 /* Room for the trailing visibility toggle. Logical padding mirrors under RTL. */
 .cyf-input-with-affix { padding-inline-end: var(--cyf-touch-target); }
 
+/* Select and multi-line text, sharing the input primitive's box so a form of
+   mixed control types still reads as one set of fields. ⟨CP3A⟩ */
+.cyf-select {
+  appearance: none;
+  padding-inline-end: var(--cyf-space-8);
+  /* The caret is drawn with a gradient pair — no image asset — and is placed
+     logically, so it mirrors with the writing direction. */
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--cyf-text-muted) 50%),
+    linear-gradient(135deg, var(--cyf-text-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.15rem) calc(50% - 2px),
+    calc(100% - 0.85rem) calc(50% - 2px);
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+}
+
+[dir='rtl'] .cyf-select {
+  background-position:
+    0.85rem calc(50% - 2px),
+    1.15rem calc(50% - 2px);
+}
+
+.cyf-textarea {
+  min-block-size: 6rem;
+  resize: vertical;
+  line-height: var(--cyf-leading-normal);
+}
+
 .cyf-input-affix {
   position: absolute;
   inset-block: 0;
@@ -466,6 +495,383 @@ button:focus-visible,
 }
 @keyframes cyf-spin {
   to { transform: rotate(360deg); }
+}
+
+/* -----------------------------------------------------------------------------
+   PrimeNG Select and DatePicker, dressed in the Checkpoint 2A design system
+   ⟨CP3A catalog⟩
+   -----------------------------------------------------------------------------
+   These live here rather than in a component stylesheet for one reason: both
+   controls render their panel through `appendTo="body"`, outside every
+   component's style scope. A scoped rule simply would not reach the overlay,
+   and the overlay is where most of the polish lives.
+
+   Every value below is a token. Nothing here restyles the design system — it
+   teaches two third-party controls to speak it, so a form of mixed control
+   types still reads as one set of fields in both themes and both directions.
+   ----------------------------------------------------------------------------- */
+
+/* ── Trigger: the same box as .cyf-input ──────────────────────────────────── */
+.cyf-select-control.p-select,
+.cyf-datepicker-control.p-datepicker .p-inputtext {
+  inline-size: 100%;
+  min-block-size: var(--cyf-control-height);
+  font-size: var(--cyf-text-base);
+  color: var(--cyf-text);
+  background-color: var(--cyf-surface);
+  border: 1px solid var(--cyf-border-strong);
+  border-radius: var(--cyf-radius-md);
+  transition: border-color var(--cyf-transition) var(--cyf-ease),
+    box-shadow var(--cyf-transition) var(--cyf-ease);
+}
+
+.cyf-datepicker-control.p-datepicker {
+  inline-size: 100%;
+}
+
+.cyf-select-control.p-select:not(.p-disabled):hover,
+.cyf-datepicker-control.p-datepicker .p-inputtext:not(:disabled):hover {
+  border-color: var(--cyf-primary-border);
+}
+
+/* One focus treatment for every control on the page, keyboard included. */
+.cyf-select-control.p-select:focus,
+.cyf-select-control.p-select.p-focus,
+.cyf-datepicker-control.p-datepicker .p-inputtext:focus {
+  outline: none;
+  border-color: var(--cyf-primary);
+  box-shadow: 0 0 0 3px var(--cyf-primary-subtle);
+}
+
+.cyf-select-control.p-select[aria-invalid='true'],
+.cyf-datepicker-control.p-datepicker .p-inputtext[aria-invalid='true'] {
+  border-color: var(--cyf-error);
+}
+
+.cyf-select-control.p-select.p-disabled,
+.cyf-datepicker-control.p-datepicker .p-inputtext:disabled {
+  background-color: var(--cyf-disabled-bg);
+  color: var(--cyf-disabled-text);
+  border-color: var(--cyf-disabled-border);
+  cursor: not-allowed;
+}
+
+.cyf-select-control .p-select-label {
+  padding: 0 var(--cyf-space-3);
+  display: flex;
+  align-items: center;
+  min-block-size: var(--cyf-control-height);
+  color: var(--cyf-text);
+}
+.cyf-select-control .p-select-label.p-placeholder {
+  color: var(--cyf-text-muted);
+}
+
+.cyf-select-control .p-select-dropdown,
+.cyf-select-control .p-select-clear-icon {
+  color: var(--cyf-text-muted);
+}
+
+/* ── Overlay panel ────────────────────────────────────────────────────────── */
+.p-select-overlay,
+.p-datepicker-panel {
+  background-color: var(--cyf-surface-raised);
+  color: var(--cyf-text);
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-lg);
+  box-shadow: var(--cyf-shadow-lg);
+  /* Never wider than the viewport, whatever the longest option says. */
+  max-inline-size: calc(100vw - var(--cyf-space-6));
+}
+
+.p-select-list-container {
+  /* Long lists scroll inside the panel, so the page never does. */
+  max-block-size: 16rem;
+}
+
+.p-select-option {
+  padding: var(--cyf-space-2) var(--cyf-space-3);
+  min-block-size: var(--cyf-touch-target);
+  display: flex;
+  align-items: center;
+  color: var(--cyf-text);
+  /* Long Arabic institution names wrap instead of being clipped. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.p-select-option:hover,
+.p-select-option.p-focus {
+  background-color: var(--cyf-surface-subtle);
+}
+.p-select-option.p-select-option-selected {
+  background-color: var(--cyf-primary-subtle);
+  color: var(--cyf-text);
+}
+
+.p-select-header {
+  padding: var(--cyf-space-2);
+  border-block-end: 1px solid var(--cyf-border);
+}
+.p-select-filter {
+  inline-size: 100%;
+  min-block-size: var(--cyf-control-height-sm);
+  padding-inline: var(--cyf-space-3);
+  color: var(--cyf-text);
+  background-color: var(--cyf-surface);
+  border: 1px solid var(--cyf-border-strong);
+  border-radius: var(--cyf-radius-md);
+}
+.p-select-filter:focus {
+  outline: none;
+  border-color: var(--cyf-primary);
+  box-shadow: 0 0 0 3px var(--cyf-primary-subtle);
+}
+
+.p-select-empty-message {
+  padding: var(--cyf-space-3);
+  color: var(--cyf-text-muted);
+}
+
+/* Option row: the name, then any context, then a retired marker. */
+.cyf-select-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  flex-wrap: wrap;
+}
+.cyf-select-tag,
+.cyf-select-retired {
+  font-size: var(--cyf-text-2xs);
+  padding: 0 var(--cyf-space-2);
+  border-radius: var(--cyf-radius-full);
+  white-space: nowrap;
+}
+.cyf-select-tag {
+  color: var(--cyf-text-muted);
+  background-color: var(--cyf-surface-subtle);
+}
+/* Never colour alone: the word itself says the value has been retired. */
+.cyf-select-retired {
+  color: var(--cyf-warning);
+  background-color: var(--cyf-warning-subtle);
+}
+
+/* ── DatePicker panel ─────────────────────────────────────────────────────── */
+.p-datepicker-panel {
+  padding: var(--cyf-space-3);
+}
+
+.p-datepicker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cyf-space-2);
+  padding-block-end: var(--cyf-space-2);
+  margin-block-end: var(--cyf-space-2);
+  border-block-end: 1px solid var(--cyf-border);
+}
+
+/* The month and year are buttons, so a reader can jump years without paging
+   through twelve months at a time. */
+.p-datepicker-select-month,
+.p-datepicker-select-year {
+  padding: var(--cyf-space-1) var(--cyf-space-2);
+  font-weight: var(--cyf-weight-medium);
+  color: var(--cyf-text);
+  background: none;
+  border: 0;
+  border-radius: var(--cyf-radius-md);
+  cursor: pointer;
+}
+.p-datepicker-select-month:hover,
+.p-datepicker-select-year:hover {
+  background-color: var(--cyf-surface-subtle);
+}
+
+.p-datepicker-prev-button,
+.p-datepicker-next-button {
+  inline-size: var(--cyf-touch-target);
+  min-block-size: var(--cyf-touch-target);
+  display: grid;
+  place-items: center;
+  color: var(--cyf-text-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--cyf-radius-md);
+  cursor: pointer;
+}
+.p-datepicker-prev-button:hover,
+.p-datepicker-next-button:hover {
+  background-color: var(--cyf-surface-subtle);
+  color: var(--cyf-text);
+}
+
+.p-datepicker-weekday {
+  padding: var(--cyf-space-1);
+  font-size: var(--cyf-text-2xs);
+  font-weight: var(--cyf-weight-medium);
+  color: var(--cyf-text-muted);
+}
+
+.p-datepicker-day,
+.p-datepicker-month,
+.p-datepicker-year {
+  min-inline-size: 2.25rem;
+  min-block-size: 2.25rem;
+  display: grid;
+  place-items: center;
+  color: var(--cyf-text);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--cyf-radius-md);
+  cursor: pointer;
+  transition: background-color var(--cyf-transition) var(--cyf-ease);
+}
+.p-datepicker-month,
+.p-datepicker-year {
+  min-inline-size: 4.5rem;
+  min-block-size: var(--cyf-touch-target);
+}
+
+.p-datepicker-day:hover,
+.p-datepicker-month:hover,
+.p-datepicker-year:hover {
+  background-color: var(--cyf-surface-subtle);
+}
+
+/* Today is outlined; the selection is filled. Two distinct signals, so the
+   two never read as the same state. */
+.p-datepicker-today > .p-datepicker-day,
+.p-datepicker-day.p-datepicker-day-today {
+  border-color: var(--cyf-primary-border);
+  font-weight: var(--cyf-weight-medium);
+}
+
+.p-datepicker-day-selected,
+.p-datepicker-month-selected,
+.p-datepicker-year-selected {
+  background-color: var(--cyf-primary);
+  color: var(--cyf-text-on-primary);
+  border-color: var(--cyf-primary);
+}
+
+.p-datepicker-day:focus-visible,
+.p-datepicker-month:focus-visible,
+.p-datepicker-year:focus-visible,
+.p-select-option:focus-visible {
+  outline: var(--cyf-focus-ring-width) solid var(--cyf-focus-ring);
+  outline-offset: calc(var(--cyf-focus-ring-offset) * -1);
+}
+
+.p-datepicker-day.p-disabled,
+.p-datepicker-month.p-disabled,
+.p-datepicker-year.p-disabled {
+  color: var(--cyf-disabled-text);
+  cursor: not-allowed;
+}
+
+/* The calendar icon sits inside the field, mirrored under RTL by logical
+   inset — PrimeNG positions it absolutely, so this has to be stated. */
+.cyf-datepicker-control .p-datepicker-input-icon-container {
+  inset-inline-end: var(--cyf-space-3);
+  inset-inline-start: auto;
+  color: var(--cyf-text-muted);
+}
+.cyf-datepicker-control .p-datepicker-input {
+  padding-inline-end: var(--cyf-touch-target);
+}
+.cyf-datepicker-control .p-datepicker-clear-icon {
+  inset-inline-end: calc(var(--cyf-touch-target) + var(--cyf-space-2));
+  inset-inline-start: auto;
+  color: var(--cyf-text-muted);
+}
+
+/* -----------------------------------------------------------------------------
+   Avatar — a circular image with a fallback glyph. ⟨CP3A catalog⟩
+   ----------------------------------------------------------------------------- */
+.cyf-avatar {
+  flex: 0 0 auto;
+  inline-size: 5.5rem;
+  block-size: 5.5rem;
+  border-radius: var(--cyf-radius-full);
+  overflow: hidden;
+  background-color: var(--cyf-surface-subtle);
+  border: 1px solid var(--cyf-border);
+  display: grid;
+  place-items: center;
+}
+.cyf-avatar-img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+.cyf-avatar-empty {
+  font-size: var(--cyf-text-2xl);
+  color: var(--cyf-text-muted);
+}
+
+/* -----------------------------------------------------------------------------
+   Icon-only button — a full touch target with an accessible name in markup.
+   ----------------------------------------------------------------------------- */
+.cyf-icon-button {
+  inline-size: var(--cyf-touch-target);
+  min-block-size: var(--cyf-touch-target);
+  display: grid;
+  place-items: center;
+  color: var(--cyf-text-secondary);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--cyf-radius-md);
+  cursor: pointer;
+  transition: background-color var(--cyf-transition) var(--cyf-ease);
+}
+.cyf-icon-button:hover:not(:disabled) {
+  background-color: var(--cyf-surface-subtle);
+  color: var(--cyf-text);
+}
+.cyf-icon-button:focus-visible {
+  outline: var(--cyf-focus-ring-width) solid var(--cyf-focus-ring);
+  outline-offset: var(--cyf-focus-ring-offset);
+}
+.cyf-icon-button:disabled {
+  opacity: var(--cyf-disabled-opacity);
+  cursor: not-allowed;
+}
+.cyf-icon-button.cyf-is-danger:hover:not(:disabled) {
+  color: var(--cyf-error);
+  background-color: var(--cyf-error-subtle);
+}
+
+/* A field message that also carries a counter, one at each end. */
+.cyf-field-message-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cyf-space-3);
+}
+.cyf-field-count {
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+
+/* -----------------------------------------------------------------------------
+   A button that reads as a link — used inside a sentence, e.g. "try again".
+   ----------------------------------------------------------------------------- */
+.cyf-link-button {
+  padding: 0;
+  margin-inline-start: var(--cyf-space-2);
+  font: inherit;
+  color: var(--cyf-primary);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.cyf-link-button:hover:not(:disabled) { color: var(--cyf-primary-hover); }
+.cyf-link-button:disabled {
+  color: var(--cyf-disabled-text);
+  cursor: not-allowed;
+  text-decoration: none;
 }
 
 /* -----------------------------------------------------------------------------

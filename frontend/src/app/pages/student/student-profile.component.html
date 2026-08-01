@@ -1,0 +1,824 @@
+<div class="cyf-page cyf-profile-page">
+  <a class="cyf-skip-link" href="#cyf-profile-main">{{ 'a11y.skipToContent' | translate }}</a>
+
+  <header class="cyf-profile-header">
+    <cyf-brand-mark size="md" />
+    <cyf-language-switch />
+  </header>
+
+  <main id="cyf-profile-main" class="cyf-container cyf-container-content cyf-profile-main">
+    <!-- ── Page heading ─────────────────────────────────────────────────── -->
+    <div class="cyf-profile-intro">
+      <h1 class="cyf-page-title">
+        {{ (isEditing() ? 'student.profile.editTitle' : 'student.profile.title') | translate }}
+      </h1>
+      <p class="cyf-lead cyf-profile-lead">
+        {{ (isEditing() ? 'student.profile.editLead' : 'student.profile.lead') | translate }}
+      </p>
+    </div>
+
+    @if (loading()) {
+      <div class="cyf-card cyf-card-padded cyf-profile-loading" role="status" aria-live="polite">
+        <span class="cyf-spinner" aria-hidden="true"></span>
+        <span>{{ 'student.profile.loading' | translate }}</span>
+      </div>
+    } @else {
+      <!-- Status region. Always present, so a message causes no layout shift. -->
+      <div class="cyf-profile-status" aria-live="polite">
+        @if (partialSuccess()) {
+          <!--
+            The details saved and the photo did not. A warning, not an error:
+            twelve correct fields are stored, and only the image needs retrying.
+          -->
+          <cyf-alert variant="warning" [prefix]="'a11y.noticePrefix' | translate">
+            <span>{{ 'student.profile.photoPartial' | translate }}</span>
+            <button
+              type="button"
+              class="cyf-link-button cyf-profile-retry"
+              [disabled]="saving() || photoBusy()"
+              (click)="retryPhoto()"
+            >
+              {{ 'student.profile.actions.retryPhoto' | translate }}
+            </button>
+          </cyf-alert>
+        } @else if (errorKey()) {
+          <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+            {{ errorKey()! | translate }}
+          </cyf-alert>
+        } @else if (saved()) {
+          <cyf-alert variant="success" [prefix]="'a11y.noticePrefix' | translate">
+            {{ 'student.profile.saved' | translate }}
+          </cyf-alert>
+        } @else if (missingRequiredCount() > 0) {
+          <cyf-alert variant="info" [prefix]="'a11y.noticePrefix' | translate">
+            {{
+              'student.profile.remaining'
+                | translate: { count: missingRequiredCount() }
+            }}
+          </cyf-alert>
+        }
+      </div>
+
+      <form class="cyf-profile-form" (ngSubmit)="save()" novalidate>
+        <!-- ── 1. Identity ────────────────────────────────────────────────── -->
+        <section class="cyf-card cyf-card-padded cyf-profile-section" aria-labelledby="section-identity">
+          <div class="cyf-profile-section-head">
+            <h2 id="section-identity" class="cyf-section-title">
+              {{ 'student.profile.sections.identity' | translate }}
+            </h2>
+            <p class="cyf-helper">{{ 'student.profile.sections.identityHelp' | translate }}</p>
+          </div>
+
+          <!-- Photo -->
+          <div class="cyf-profile-photo-row">
+            <div class="cyf-avatar" aria-hidden="true">
+              @if (photoPreview()) {
+                <img [src]="photoPreview()!" alt="" class="cyf-avatar-img" />
+              } @else {
+                <span class="cyf-avatar-empty"><i class="fa-solid fa-user"></i></span>
+              }
+            </div>
+
+            <div class="cyf-profile-photo-actions">
+              <p class="cyf-label" id="photo-label">
+                {{ 'student.profile.fields.photo' | translate }}
+                <span class="cyf-profile-optional">{{ 'student.profile.optional' | translate }}</span>
+              </p>
+              <p class="cyf-helper" id="photo-help">
+                {{ 'student.profile.fields.photoHelp' | translate: { size: maxPhotoMb } }}
+              </p>
+
+              @if (pendingPhoto()) {
+                <p class="cyf-helper cyf-profile-photo-pending" role="status">
+                  <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                  {{ 'student.profile.fields.photoPending' | translate }}
+                </p>
+              }
+
+              <div class="cyf-profile-photo-buttons">
+                <label class="cyf-btn-outline cyf-profile-photo-btn" [class.cyf-is-busy]="photoBusy()">
+                  <input
+                    type="file"
+                    class="cyf-sr-only"
+                    [accept]="photoAccept"
+                    [disabled]="photoBusy() || saving()"
+                    aria-describedby="photo-help"
+                    (change)="onPhotoSelected($event)"
+                  />
+                  <i class="fa-solid fa-camera" aria-hidden="true"></i>
+                  <span>
+                    {{
+                      (photoPreview()
+                        ? 'student.profile.actions.replacePhoto'
+                        : 'student.profile.actions.addPhoto'
+                      ) | translate
+                    }}
+                  </span>
+                </label>
+
+                @if (photoPreview()) {
+                  <button
+                    type="button"
+                    class="cyf-btn-outline cyf-profile-photo-btn"
+                    [disabled]="photoBusy() || saving()"
+                    (click)="removePhoto()"
+                  >
+                    <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+                    <span>{{ 'student.profile.actions.removePhoto' | translate }}</span>
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Full name -->
+          <div class="cyf-field">
+            <label class="cyf-field-label cyf-label" for="fullName">
+              {{ 'student.profile.fields.fullName' | translate }}
+              <span class="cyf-profile-required" aria-hidden="true">*</span>
+            </label>
+            <input
+              id="fullName"
+              name="fullName"
+              type="text"
+              class="cyf-input"
+              autocomplete="name"
+              [attr.aria-invalid]="hasError('fullName')"
+              [attr.aria-describedby]="hasError('fullName') ? 'fullName-error' : null"
+              [value]="form().fullName"
+              [attr.maxlength]="limits.fullName.max"
+              (input)="update('fullName', $any($event.target).value)"
+              (blur)="markTouched('fullName')"
+            />
+            <p class="cyf-field-message" id="fullName-error">
+              @if (fieldError('fullName')) {
+                <span class="cyf-error-text">{{ fieldError('fullName')! | translate }}</span>
+              } @else if (showNameFromGoogle()) {
+                <!-- Says where the name came from and that it is theirs to
+                     change. Disappears the moment they edit it. -->
+                <span class="cyf-helper">
+                  {{ 'student.profile.fields.fullNameFromGoogle' | translate }}
+                </span>
+              }
+            </p>
+          </div>
+
+          <!-- Verified email — read-only by design -->
+          <div class="cyf-field">
+            <label class="cyf-field-label cyf-label" for="verifiedEmail">
+              {{ 'student.profile.fields.verifiedEmail' | translate }}
+            </label>
+            <div class="cyf-field-control">
+              <input
+                id="verifiedEmail"
+                type="email"
+                class="cyf-input cyf-input-with-affix"
+                [value]="verifiedEmail()"
+                readonly
+                disabled
+                aria-describedby="verifiedEmail-help"
+              />
+              <span class="cyf-input-affix cyf-profile-verified" aria-hidden="true">
+                <i class="fa-solid fa-circle-check"></i>
+              </span>
+            </div>
+            <p class="cyf-helper" id="verifiedEmail-help">
+              {{ 'student.profile.fields.verifiedEmailHelp' | translate }}
+            </p>
+          </div>
+        </section>
+
+        <!-- ── 2. Personal information ────────────────────────────────────── -->
+        <section class="cyf-card cyf-card-padded cyf-profile-section" aria-labelledby="section-personal">
+          <div class="cyf-profile-section-head">
+            <h2 id="section-personal" class="cyf-section-title">
+              {{ 'student.profile.sections.personal' | translate }}
+            </h2>
+            <p class="cyf-helper">{{ 'student.profile.sections.personalHelp' | translate }}</p>
+          </div>
+
+          <div class="cyf-profile-grid">
+            <div class="cyf-field">
+              <label class="cyf-field-label cyf-label" for="phone">
+                {{ 'student.profile.fields.phone' | translate }}
+                <span class="cyf-profile-required" aria-hidden="true">*</span>
+              </label>
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                class="cyf-input"
+                autocomplete="tel"
+                dir="ltr"
+                [attr.aria-invalid]="hasError('phone')"
+                [attr.aria-describedby]="hasError('phone') ? 'phone-error' : 'phone-help'"
+                [value]="form().phone"
+                [attr.maxlength]="limits.phone.max"
+                (input)="update('phone', $any($event.target).value)"
+                (blur)="markTouched('phone')"
+              />
+              <p class="cyf-field-message" id="phone-error">
+                @if (fieldError('phone')) {
+                  <span class="cyf-error-text">{{ fieldError('phone')! | translate }}</span>
+                } @else {
+                  <span class="cyf-helper" id="phone-help">
+                    {{ 'student.profile.fields.phoneHelp' | translate }}
+                  </span>
+                }
+              </p>
+            </div>
+
+            <!-- City — a searchable catalog select -->
+            <div class="cyf-field">
+              <label class="cyf-field-label cyf-label" for="cityId">
+                {{ 'student.profile.fields.city' | translate }}
+                <span class="cyf-profile-required" aria-hidden="true">*</span>
+              </label>
+              <p-select
+                inputId="cityId"
+                styleClass="cyf-select-control"
+                appendTo="body"
+                [options]="cityOptions()"
+                optionLabel="label"
+                optionValue="value"
+                [ngModel]="form().cityId"
+                [ngModelOptions]="{ standalone: true }"
+                [filter]="true"
+                filterBy="label"
+                [loading]="catalogLoading()"
+                [disabled]="cityEmpty()"
+                [placeholder]="
+                  (cityEmpty()
+                    ? 'student.profile.catalog.empty'
+                    : 'student.profile.fields.cityPlaceholder'
+                  ) | translate
+                "
+                [filterPlaceholder]="'actions.search' | translate"
+                [emptyMessage]="'student.profile.catalog.empty' | translate"
+                [emptyFilterMessage]="'student.profile.catalog.noMatch' | translate"
+                [ariaLabel]="'student.profile.fields.city' | translate"
+                [attr.aria-invalid]="hasError('cityId')"
+                [attr.aria-describedby]="hasError('cityId') ? 'cityId-error' : null"
+                (onChange)="update('cityId', $any($event).value)"
+                (onBlur)="markTouched('cityId')"
+              >
+                <ng-template let-option #item>
+                  <span class="cyf-select-option">
+                    <span>{{ option.label }}</span>
+                    @if (option.retired) {
+                      <span class="cyf-select-retired">
+                        {{ 'student.profile.catalog.retired' | translate }}
+                      </span>
+                    }
+                  </span>
+                </ng-template>
+              </p-select>
+              <p class="cyf-field-message" id="cityId-error">
+                @if (fieldError('cityId')) {
+                  <span class="cyf-error-text">{{ fieldError('cityId')! | translate }}</span>
+                } @else if (cityEmpty() && !catalogLoading()) {
+                  <span class="cyf-helper">{{ 'student.profile.catalog.emptyHelp' | translate }}</span>
+                }
+              </p>
+            </div>
+
+            <!-- Date of birth — PrimeNG DatePicker, never a native date field -->
+            <div class="cyf-field">
+              <label class="cyf-field-label cyf-label" for="dateOfBirth">
+                {{ 'student.profile.fields.dateOfBirth' | translate }}
+                <span class="cyf-profile-optional">{{ 'student.profile.optional' | translate }}</span>
+              </label>
+              <p-datepicker
+                inputId="dateOfBirth"
+                styleClass="cyf-datepicker-control"
+                appendTo="body"
+                [ngModel]="form().dateOfBirth"
+                [ngModelOptions]="{ standalone: true }"
+                dateFormat="dd/mm/yy"
+                [showIcon]="true"
+                iconDisplay="input"
+                [showClear]="true"
+                [showOnFocus]="false"
+                [maxDate]="maxBirthDate"
+                [readonlyInput]="false"
+                [touchUI]="false"
+                [placeholder]="'student.profile.fields.dateOfBirthPlaceholder' | translate"
+                [ariaLabel]="'student.profile.fields.dateOfBirth' | translate"
+                [attr.aria-invalid]="hasError('dateOfBirth')"
+                [attr.aria-describedby]="'dateOfBirth-help'"
+                (onSelect)="update('dateOfBirth', $any($event))"
+                (onClear)="update('dateOfBirth', null)"
+                (onBlur)="markTouched('dateOfBirth')"
+              />
+              <p class="cyf-field-message" id="dateOfBirth-help">
+                @if (fieldError('dateOfBirth')) {
+                  <span class="cyf-error-text">{{ fieldError('dateOfBirth')! | translate }}</span>
+                } @else {
+                  <span class="cyf-helper">
+                    {{ 'student.profile.fields.dateOfBirthHelp' | translate }}
+                  </span>
+                }
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── 3. Education ───────────────────────────────────────────────── -->
+        <section class="cyf-card cyf-card-padded cyf-profile-section" aria-labelledby="section-education">
+          <div class="cyf-profile-section-head">
+            <h2 id="section-education" class="cyf-section-title">
+              {{ 'student.profile.sections.education' | translate }}
+            </h2>
+            <p class="cyf-helper">{{ 'student.profile.sections.educationHelp' | translate }}</p>
+          </div>
+
+          <div class="cyf-profile-grid">
+            <!-- Institution — a searchable catalog select -->
+            <div class="cyf-field">
+              <label class="cyf-field-label cyf-label" for="institutionId">
+                {{ 'student.profile.fields.institution' | translate }}
+                <span class="cyf-profile-required" aria-hidden="true">*</span>
+              </label>
+              <p-select
+                inputId="institutionId"
+                styleClass="cyf-select-control"
+                appendTo="body"
+                [options]="institutionOptions()"
+                optionLabel="label"
+                optionValue="value"
+                [ngModel]="form().institutionId"
+                [ngModelOptions]="{ standalone: true }"
+                [filter]="true"
+                filterBy="label"
+                [loading]="catalogLoading()"
+                [disabled]="institutionEmpty()"
+                [placeholder]="
+                  (institutionEmpty()
+                    ? 'student.profile.catalog.empty'
+                    : 'student.profile.fields.institutionPlaceholder'
+                  ) | translate
+                "
+                [filterPlaceholder]="'actions.search' | translate"
+                [emptyMessage]="'student.profile.catalog.empty' | translate"
+                [emptyFilterMessage]="'student.profile.catalog.noMatch' | translate"
+                [ariaLabel]="'student.profile.fields.institution' | translate"
+                [attr.aria-invalid]="hasError('institutionId')"
+                [attr.aria-describedby]="'institutionId-error'"
+                (onChange)="update('institutionId', $any($event).value)"
+                (onBlur)="markTouched('institutionId')"
+              >
+                <ng-template let-option #item>
+                  <span class="cyf-select-option">
+                    <span>{{ option.label }}</span>
+                    <!-- University / Institute context, where it helps tell two apart -->
+                    @if (option.kind === 'UNIVERSITY') {
+                      <span class="cyf-select-tag">
+                        {{ 'student.profile.institutionKind.university' | translate }}
+                      </span>
+                    } @else if (option.kind === 'INSTITUTE') {
+                      <span class="cyf-select-tag">
+                        {{ 'student.profile.institutionKind.institute' | translate }}
+                      </span>
+                    }
+                    @if (option.retired) {
+                      <span class="cyf-select-retired">
+                        {{ 'student.profile.catalog.retired' | translate }}
+                      </span>
+                    }
+                  </span>
+                </ng-template>
+              </p-select>
+              <p class="cyf-field-message" id="institutionId-error">
+                @if (fieldError('institutionId')) {
+                  <span class="cyf-error-text">{{ fieldError('institutionId')! | translate }}</span>
+                } @else if (institutionEmpty() && !catalogLoading()) {
+                  <span class="cyf-helper">{{ 'student.profile.catalog.emptyHelp' | translate }}</span>
+                } @else {
+                  <span class="cyf-helper">
+                    {{ 'student.profile.fields.institutionHelp' | translate }}
+                  </span>
+                }
+              </p>
+            </div>
+
+            @if (needsCustomInstitution()) {
+              <div class="cyf-field">
+                <label class="cyf-field-label cyf-label" for="customInstitutionName">
+                  {{ 'student.profile.fields.customInstitutionName' | translate }}
+                  <span class="cyf-profile-required" aria-hidden="true">*</span>
+                </label>
+                <input
+                  id="customInstitutionName"
+                  name="customInstitutionName"
+                  type="text"
+                  class="cyf-input"
+                  [attr.aria-invalid]="hasError('customInstitutionName')"
+                  [attr.aria-describedby]="
+                    hasError('customInstitutionName') ? 'customInstitutionName-error' : null
+                  "
+                  [value]="form().customInstitutionName"
+                  [attr.maxlength]="limits.customInstitutionName.max"
+                  (input)="update('customInstitutionName', $any($event.target).value)"
+                  (blur)="markTouched('customInstitutionName')"
+                />
+                <p class="cyf-field-message" id="customInstitutionName-error">
+                  @if (fieldError('customInstitutionName')) {
+                    <span class="cyf-error-text">
+                      {{ fieldError('customInstitutionName')! | translate }}
+                    </span>
+                  }
+                </p>
+              </div>
+            }
+
+            <!-- Major — a searchable catalog select -->
+            <div class="cyf-field">
+              <label class="cyf-field-label cyf-label" for="majorId">
+                {{ 'student.profile.fields.major' | translate }}
+                <span class="cyf-profile-required" aria-hidden="true">*</span>
+              </label>
+              <p-select
+                inputId="majorId"
+                styleClass="cyf-select-control"
+                appendTo="body"
+                [options]="majorOptions()"
+                optionLabel="label"
+                optionValue="value"
+                [ngModel]="form().majorId"
+                [ngModelOptions]="{ standalone: true }"
+                [filter]="true"
+                filterBy="label"
+                [loading]="catalogLoading()"
+                [disabled]="majorEmpty()"
+                [placeholder]="
+                  (majorEmpty()
+                    ? 'student.profile.catalog.empty'
+                    : 'student.profile.fields.majorPlaceholder'
+                  ) | translate
+                "
+                [filterPlaceholder]="'actions.search' | translate"
+                [emptyMessage]="'student.profile.catalog.empty' | translate"
+                [emptyFilterMessage]="'student.profile.catalog.noMatch' | translate"
+                [ariaLabel]="'student.profile.fields.major' | translate"
+                [attr.aria-invalid]="hasError('majorId')"
+                [attr.aria-describedby]="'majorId-error'"
+                (onChange)="update('majorId', $any($event).value)"
+                (onBlur)="markTouched('majorId')"
+              >
+                <ng-template let-option #item>
+                  <span class="cyf-select-option">
+                    <span>{{ option.label }}</span>
+                    @if (option.retired) {
+                      <span class="cyf-select-retired">
+                        {{ 'student.profile.catalog.retired' | translate }}
+                      </span>
+                    }
+                  </span>
+                </ng-template>
+              </p-select>
+              <p class="cyf-field-message" id="majorId-error">
+                @if (fieldError('majorId')) {
+                  <span class="cyf-error-text">{{ fieldError('majorId')! | translate }}</span>
+                } @else if (majorEmpty() && !catalogLoading()) {
+                  <span class="cyf-helper">{{ 'student.profile.catalog.emptyHelp' | translate }}</span>
+                }
+              </p>
+            </div>
+
+            <!-- Education status -->
+            <fieldset class="cyf-field cyf-profile-fieldset">
+              <legend class="cyf-field-label cyf-label">
+                {{ 'student.profile.fields.educationStatus' | translate }}
+                <span class="cyf-profile-required" aria-hidden="true">*</span>
+              </legend>
+              <div class="cyf-profile-choices">
+                @for (status of educationStatuses; track status) {
+                  <label class="cyf-profile-choice" [class.cyf-is-selected]="form().educationStatus === status">
+                    <input
+                      type="radio"
+                      name="educationStatus"
+                      class="cyf-sr-only"
+                      [value]="status"
+                      [checked]="form().educationStatus === status"
+                      (change)="update('educationStatus', status)"
+                    />
+                    <span class="cyf-profile-choice-dot" aria-hidden="true"></span>
+                    <span>
+                      {{
+                        (status === currentStudentStatus
+                          ? 'student.profile.status.currentStudent'
+                          : 'student.profile.status.graduate'
+                        ) | translate
+                      }}
+                    </span>
+                  </label>
+                }
+              </div>
+              <p class="cyf-field-message">
+                @if (fieldError('educationStatus')) {
+                  <span class="cyf-error-text">{{ fieldError('educationStatus')! | translate }}</span>
+                }
+              </p>
+            </fieldset>
+
+            <!--
+              Expected graduation — month and year only. A day would be a
+              precision nobody has, so the picker never offers one.
+            -->
+            @if (needsGraduationMonth()) {
+              <div class="cyf-field">
+                <label class="cyf-field-label cyf-label" for="expectedGraduationMonth">
+                  {{ 'student.profile.fields.expectedGraduation' | translate }}
+                  <span class="cyf-profile-required" aria-hidden="true">*</span>
+                </label>
+                <p-datepicker
+                  inputId="expectedGraduationMonth"
+                  styleClass="cyf-datepicker-control"
+                  appendTo="body"
+                  [ngModel]="form().expectedGraduationMonth"
+                  [ngModelOptions]="{ standalone: true }"
+                  view="month"
+                  dateFormat="mm/yy"
+                  [showIcon]="true"
+                  iconDisplay="input"
+                  [showClear]="true"
+                  [showOnFocus]="false"
+                  [readonlyInput]="true"
+                  [placeholder]="'student.profile.fields.expectedGraduationPlaceholder' | translate"
+                  [ariaLabel]="'student.profile.fields.expectedGraduation' | translate"
+                  [attr.aria-invalid]="hasError('expectedGraduationMonth')"
+                  [attr.aria-describedby]="'expectedGraduationMonth-error'"
+                  (onSelect)="update('expectedGraduationMonth', $any($event))"
+                  (onClear)="update('expectedGraduationMonth', null)"
+                  (onBlur)="markTouched('expectedGraduationMonth')"
+                />
+                <p class="cyf-field-message" id="expectedGraduationMonth-error">
+                  @if (fieldError('expectedGraduationMonth')) {
+                    <span class="cyf-error-text">
+                      {{ fieldError('expectedGraduationMonth')! | translate }}
+                    </span>
+                  } @else {
+                    <span class="cyf-helper">
+                      {{ 'student.profile.fields.expectedGraduationHelp' | translate }}
+                    </span>
+                  }
+                </p>
+              </div>
+            }
+          </div>
+        </section>
+
+        <!-- ── 4. Career and links ────────────────────────────────────────── -->
+        <section class="cyf-card cyf-card-padded cyf-profile-section" aria-labelledby="section-career">
+          <div class="cyf-profile-section-head">
+            <h2 id="section-career" class="cyf-section-title">
+              {{ 'student.profile.sections.career' | translate }}
+            </h2>
+            <p class="cyf-helper">{{ 'student.profile.sections.careerHelp' | translate }}</p>
+          </div>
+
+          <!-- Target role — optional, and clearable because it is optional -->
+          <div class="cyf-field">
+            <label class="cyf-field-label cyf-label" for="targetRoleId">
+              {{ 'student.profile.fields.targetRole' | translate }}
+              <span class="cyf-profile-optional">{{ 'student.profile.optional' | translate }}</span>
+            </label>
+            <p-select
+              inputId="targetRoleId"
+              styleClass="cyf-select-control"
+              appendTo="body"
+              [options]="targetRoleOptions()"
+              optionLabel="label"
+              optionValue="value"
+              [ngModel]="form().targetRoleId"
+              [ngModelOptions]="{ standalone: true }"
+              [filter]="true"
+              filterBy="label"
+              [showClear]="true"
+              [loading]="catalogLoading()"
+              [disabled]="targetRoleEmpty()"
+              [placeholder]="
+                (targetRoleEmpty()
+                  ? 'student.profile.catalog.empty'
+                  : 'student.profile.fields.targetRolePlaceholder'
+                ) | translate
+              "
+              [filterPlaceholder]="'actions.search' | translate"
+              [emptyMessage]="'student.profile.catalog.empty' | translate"
+              [emptyFilterMessage]="'student.profile.catalog.noMatch' | translate"
+              [ariaLabel]="'student.profile.fields.targetRole' | translate"
+              [attr.aria-describedby]="'targetRoleId-help'"
+              (onChange)="update('targetRoleId', $any($event).value ?? '')"
+              (onClear)="update('targetRoleId', '')"
+              (onBlur)="markTouched('targetRoleId')"
+            >
+              <ng-template let-option #item>
+                <span class="cyf-select-option">
+                  <span>{{ option.label }}</span>
+                  @if (option.retired) {
+                    <span class="cyf-select-retired">
+                      {{ 'student.profile.catalog.retired' | translate }}
+                    </span>
+                  }
+                </span>
+              </ng-template>
+            </p-select>
+            <p class="cyf-field-message" id="targetRoleId-help">
+              @if (targetRoleEmpty() && !catalogLoading()) {
+                <span class="cyf-helper">{{ 'student.profile.catalog.emptyHelp' | translate }}</span>
+              } @else {
+                <span class="cyf-helper">{{ 'student.profile.fields.targetRoleHelp' | translate }}</span>
+              }
+            </p>
+          </div>
+
+          <!--
+            "Why did you choose this role?" — shown only once a role is chosen,
+            and cleared with it. Never scored, never ranked.
+          -->
+          @if (showTargetRoleReason()) {
+            <div class="cyf-field">
+              <label class="cyf-field-label cyf-label" for="targetRoleReason">
+                {{ 'student.profile.fields.targetRoleReason' | translate }}
+                <span class="cyf-profile-optional">{{ 'student.profile.optional' | translate }}</span>
+              </label>
+              <textarea
+                id="targetRoleReason"
+                name="targetRoleReason"
+                class="cyf-input cyf-textarea"
+                rows="3"
+                [attr.aria-invalid]="hasError('targetRoleReason')"
+                [attr.aria-describedby]="'targetRoleReason-message'"
+                [value]="form().targetRoleReason"
+                [attr.maxlength]="limits.targetRoleReason.max"
+                (input)="update('targetRoleReason', $any($event.target).value)"
+                (blur)="markTouched('targetRoleReason')"
+              ></textarea>
+              <p class="cyf-field-message cyf-field-message-row" id="targetRoleReason-message">
+                @if (fieldError('targetRoleReason')) {
+                  <span class="cyf-error-text">{{ fieldError('targetRoleReason')! | translate }}</span>
+                }
+                <!-- Only once it is worth knowing, not from the first keystroke. -->
+                @if (targetRoleReasonLength() > 0) {
+                  <span class="cyf-helper cyf-field-count">
+                    {{
+                      'student.profile.fields.characterCount'
+                        | translate: { used: targetRoleReasonLength(), max: limits.targetRoleReason.max }
+                    }}
+                  </span>
+                }
+              </p>
+            </div>
+          }
+
+          <div class="cyf-field">
+            <label class="cyf-field-label cyf-label" for="careerGoal">
+              {{ 'student.profile.fields.careerGoal' | translate }}
+              <span class="cyf-profile-optional">{{ 'student.profile.optional' | translate }}</span>
+            </label>
+            <textarea
+              id="careerGoal"
+              name="careerGoal"
+              class="cyf-input cyf-textarea"
+              rows="3"
+              [attr.aria-invalid]="hasError('careerGoal')"
+              [attr.aria-describedby]="hasError('careerGoal') ? 'careerGoal-error' : null"
+              [value]="form().careerGoal"
+              [attr.maxlength]="limits.careerGoal.max"
+              (input)="update('careerGoal', $any($event.target).value)"
+              (blur)="markTouched('careerGoal')"
+            ></textarea>
+            <p class="cyf-field-message" id="careerGoal-error">
+              @if (fieldError('careerGoal')) {
+                <span class="cyf-error-text">{{ fieldError('careerGoal')! | translate }}</span>
+              }
+            </p>
+          </div>
+
+          <div class="cyf-profile-grid">
+            <div class="cyf-field">
+              <label class="cyf-field-label cyf-label" for="githubUrl">
+                {{ 'student.profile.fields.github' | translate }}
+                <span class="cyf-profile-optional">{{ 'student.profile.optional' | translate }}</span>
+              </label>
+              <input
+                id="githubUrl"
+                name="githubUrl"
+                type="url"
+                class="cyf-input"
+                dir="ltr"
+                placeholder="https://github.com/..."
+                [attr.aria-invalid]="hasError('githubUrl')"
+                [attr.aria-describedby]="hasError('githubUrl') ? 'githubUrl-error' : null"
+                [value]="form().githubUrl"
+                [attr.maxlength]="limits.url.max"
+                (input)="update('githubUrl', $any($event.target).value)"
+                (blur)="markTouched('githubUrl')"
+              />
+              <p class="cyf-field-message" id="githubUrl-error">
+                @if (fieldError('githubUrl')) {
+                  <span class="cyf-error-text">{{ fieldError('githubUrl')! | translate }}</span>
+                }
+              </p>
+            </div>
+
+            <div class="cyf-field">
+              <label class="cyf-field-label cyf-label" for="linkedinUrl">
+                {{ 'student.profile.fields.linkedin' | translate }}
+                <span class="cyf-profile-optional">{{ 'student.profile.optional' | translate }}</span>
+              </label>
+              <input
+                id="linkedinUrl"
+                name="linkedinUrl"
+                type="url"
+                class="cyf-input"
+                dir="ltr"
+                placeholder="https://linkedin.com/in/..."
+                [attr.aria-invalid]="hasError('linkedinUrl')"
+                [attr.aria-describedby]="hasError('linkedinUrl') ? 'linkedinUrl-error' : null"
+                [value]="form().linkedinUrl"
+                [attr.maxlength]="limits.url.max"
+                (input)="update('linkedinUrl', $any($event.target).value)"
+                (blur)="markTouched('linkedinUrl')"
+              />
+              <p class="cyf-field-message" id="linkedinUrl-error">
+                @if (fieldError('linkedinUrl')) {
+                  <span class="cyf-error-text">{{ fieldError('linkedinUrl')! | translate }}</span>
+                }
+              </p>
+            </div>
+
+            <div class="cyf-field">
+              <label class="cyf-field-label cyf-label" for="portfolioUrl">
+                {{ 'student.profile.fields.portfolio' | translate }}
+                <span class="cyf-profile-optional">{{ 'student.profile.optional' | translate }}</span>
+              </label>
+              <input
+                id="portfolioUrl"
+                name="portfolioUrl"
+                type="url"
+                class="cyf-input"
+                dir="ltr"
+                placeholder="https://"
+                [attr.aria-invalid]="hasError('portfolioUrl')"
+                [attr.aria-describedby]="hasError('portfolioUrl') ? 'portfolioUrl-error' : null"
+                [value]="form().portfolioUrl"
+                [attr.maxlength]="limits.url.max"
+                (input)="update('portfolioUrl', $any($event.target).value)"
+                (blur)="markTouched('portfolioUrl')"
+              />
+              <p class="cyf-field-message" id="portfolioUrl-error">
+                @if (fieldError('portfolioUrl')) {
+                  <span class="cyf-error-text">{{ fieldError('portfolioUrl')! | translate }}</span>
+                }
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ── Actions ────────────────────────────────────────────────────── -->
+        <div class="cyf-profile-actions">
+          @if (hasUnsavedChanges()) {
+            <p class="cyf-helper cyf-profile-unsaved" role="status">
+              <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+              {{ 'student.profile.unsaved' | translate }}
+            </p>
+          }
+
+          <div class="cyf-profile-buttons">
+            @if (isEditing()) {
+              <p-button
+                type="button"
+                severity="secondary"
+                [outlined]="true"
+                [disabled]="saving()"
+                (onClick)="backToWelcome()"
+                styleClass="cyf-btn cyf-profile-back-btn"
+              >
+                <span>{{ 'actions.back' | translate }}</span>
+              </p-button>
+            }
+
+            <p-button
+              type="submit"
+              [disabled]="saving() || photoBusy()"
+              [loading]="saving()"
+              styleClass="cyf-btn cyf-profile-save-btn"
+            >
+              <span>
+                {{
+                  (saving()
+                    ? 'student.profile.actions.saving'
+                    : isEditing()
+                      ? 'student.profile.actions.saveChanges'
+                      : 'student.profile.actions.save'
+                  ) | translate
+                }}
+              </span>
+            </p-button>
+          </div>
+        </div>
+      </form>
+    }
+  </main>
+</div>

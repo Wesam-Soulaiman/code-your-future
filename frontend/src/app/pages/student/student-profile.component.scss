@@ -1,0 +1,265 @@
+/* Complete Profile — scoped styles.
+   Composition only. Every colour, space, radius, and size comes from the
+   Checkpoint 2A token layer, and all box properties are logical so one
+   stylesheet serves LTR and RTL. Nothing global is changed. */
+
+:host {
+  display: block;
+}
+
+.cyf-profile-page {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+}
+
+.cyf-profile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cyf-space-4);
+  flex-wrap: wrap;
+  padding: var(--cyf-space-4) var(--cyf-space-6);
+  border-block-end: 1px solid var(--cyf-border);
+  background: var(--cyf-surface);
+}
+
+.cyf-profile-main {
+  flex: 1;
+  padding-block: var(--cyf-space-8);
+}
+
+.cyf-profile-intro {
+  margin-block-end: var(--cyf-space-6);
+
+  h1 {
+    margin: 0 0 var(--cyf-space-2);
+  }
+}
+
+.cyf-profile-lead {
+  margin: 0;
+  max-inline-size: 46rem;
+}
+
+/* Reserved status space so a message never pushes the form down. */
+.cyf-profile-status {
+  min-block-size: var(--cyf-space-2);
+  margin-block-end: var(--cyf-space-5);
+}
+
+.cyf-profile-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-3);
+}
+
+/* ── Sections ─────────────────────────────────────────────────────────────
+   Each section is a card, so the four groups read as four steps rather than
+   as one long list of inputs. */
+
+.cyf-profile-section + .cyf-profile-section {
+  margin-block-start: var(--cyf-space-6);
+}
+
+.cyf-profile-section-head {
+  margin-block-end: var(--cyf-space-5);
+  padding-block-end: var(--cyf-space-4);
+  border-block-end: 1px solid var(--cyf-border);
+
+  h2 {
+    margin: 0 0 var(--cyf-space-1);
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+/* Two columns on wide screens, one on narrow. Fields keep their own spacing. */
+.cyf-profile-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--cyf-space-5);
+
+  .cyf-field + .cyf-field {
+    margin-block-start: 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .cyf-profile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* A fieldset of choices reads better across the full width. */
+  .cyf-profile-fieldset {
+    grid-column: 1 / -1;
+  }
+}
+
+.cyf-profile-required {
+  margin-inline-start: var(--cyf-space-1);
+  color: var(--cyf-error);
+}
+
+.cyf-profile-optional {
+  margin-inline-start: var(--cyf-space-2);
+  font-size: var(--cyf-text-2xs);
+  font-weight: var(--cyf-weight-regular);
+  color: var(--cyf-text-muted);
+}
+
+/* ── Photo ────────────────────────────────────────────────────────────── */
+
+.cyf-profile-photo-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cyf-space-5);
+  flex-wrap: wrap;
+  margin-block-end: var(--cyf-space-6);
+}
+
+.cyf-profile-photo-actions {
+  flex: 1 1 16rem;
+
+  p {
+    margin: 0 0 var(--cyf-space-1);
+  }
+}
+
+.cyf-profile-photo-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-2);
+  margin-block-start: var(--cyf-space-3);
+}
+
+/* The file input is visually hidden inside its label, so the label *is* the
+   control — it stays keyboard reachable and correctly announced. */
+.cyf-profile-photo-btn {
+  inline-size: auto;
+  cursor: pointer;
+
+  &.cyf-is-busy {
+    opacity: var(--cyf-disabled-opacity);
+    pointer-events: none;
+  }
+
+  &:focus-within {
+    outline: 2px solid var(--cyf-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+.cyf-profile-verified {
+  color: var(--cyf-success);
+  pointer-events: none;
+}
+
+/* A photo chosen but not yet sent — it goes with the next Save. */
+.cyf-profile-photo-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  color: var(--cyf-info);
+}
+
+
+/* ── Education status choices ─────────────────────────────────────────── */
+
+.cyf-profile-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+
+  legend {
+    padding: 0;
+  }
+}
+
+.cyf-profile-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-3);
+  margin-block-start: var(--cyf-space-2);
+}
+
+.cyf-profile-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  min-block-size: var(--cyf-touch-target);
+  padding-inline: var(--cyf-space-4);
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-md);
+  background: var(--cyf-surface);
+  color: var(--cyf-text);
+  font-size: var(--cyf-text-sm);
+  cursor: pointer;
+  transition: border-color var(--cyf-transition), background var(--cyf-transition);
+
+  &:hover {
+    border-color: var(--cyf-primary-border);
+  }
+
+  &:focus-within {
+    outline: 2px solid var(--cyf-focus-ring);
+    outline-offset: 2px;
+  }
+
+  &.cyf-is-selected {
+    border-color: var(--cyf-primary);
+    background: var(--cyf-primary-subtle);
+  }
+}
+
+.cyf-profile-choice-dot {
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  border-radius: var(--cyf-radius-full);
+  border: 2px solid var(--cyf-border-strong);
+
+  .cyf-is-selected & {
+    border-color: var(--cyf-primary);
+    background: var(--cyf-primary);
+  }
+}
+
+/* ── Actions ──────────────────────────────────────────────────────────── */
+
+.cyf-profile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-4);
+  margin-block-start: var(--cyf-space-6);
+}
+
+.cyf-profile-unsaved {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  margin: 0;
+}
+
+.cyf-profile-buttons {
+  display: flex;
+  gap: var(--cyf-space-3);
+  margin-inline-start: auto;
+}
+
+@media (max-width: 480px) {
+  .cyf-profile-header {
+    padding-inline: var(--cyf-space-4);
+  }
+
+  .cyf-profile-buttons {
+    inline-size: 100%;
+
+    > * {
+      flex: 1;
+    }
+  }
+}

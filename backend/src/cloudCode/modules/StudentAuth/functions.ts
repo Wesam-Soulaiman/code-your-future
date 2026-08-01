@@ -28,6 +28,7 @@ import {verifyGoogleCredential} from './googleVerifier';
 import {issueStudentSession, provisionStudentFromGoogle} from './provisioning';
 import {toSessionDto, toSessionWithTokenDto} from './dto';
 import {authLog} from './logging';
+import {isProfileComplete} from '../StudentProfile/completion';
 
 /**
  * Re-throw a stable code, or collapse anything unexpected into
@@ -137,6 +138,7 @@ class StudentAuthFunctions {
     }
 
     const roles = await getAppRoles(provisioned.user);
+    const profileComplete = await isProfileComplete(provisioned.user, roles);
 
     authLog.info('Student signed in with Google', {
       op: 'loginWithGoogle',
@@ -147,7 +149,7 @@ class StudentAuthFunctions {
       created: provisioned.userCreated,
     });
 
-    return toSessionWithTokenDto(provisioned.user, roles, sessionToken);
+    return toSessionWithTokenDto(provisioned.user, roles, sessionToken, profileComplete);
   }
 
   /**
@@ -182,6 +184,9 @@ class StudentAuthFunctions {
     const user = requireUser(req);
     const roles = await getAppRoles(user);
 
+    // One boolean, read live. The profile itself never travels on this call.
+    const profileComplete = await isProfileComplete(user, roles);
+
     authLog.info('Session restored', {
       op: 'getSession',
       stage: 'restore',
@@ -189,7 +194,7 @@ class StudentAuthFunctions {
       userId: user.id,
     });
 
-    return toSessionDto(user, roles);
+    return toSessionDto(user, roles, profileComplete);
   }
 }
 

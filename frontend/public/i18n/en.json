@@ -84,7 +84,8 @@
     "dashboard": "Dashboard",
     "settings": "Settings",
     "management": "Management",
-    "pinned": "Pinned"
+    "pinned": "Pinned",
+    "profileCatalogs": "Profile Catalogs"
   },
   "actions": {
     "login": "Login",
@@ -163,7 +164,185 @@
       "titleNamed": "Welcome, {{name}}",
       "accountReady": "Your student account is ready.",
       "nextStepTitle": "What happens next",
-      "nextStepText": "Completing your profile is the next step. It is not available yet — we will let you know as soon as it is."
+      "nextStepText": "Joining a batch is the next step. It is not available yet — we will let you know as soon as it is.",
+      "profileReady": "Your profile is complete and your student account is ready.",
+      "editProfile": "Edit profile"
+    },
+    "profile": {
+      "title": "Complete your profile",
+      "lead": "Tell us a little about yourself. You can change any of this later.",
+      "editTitle": "Your profile",
+      "editLead": "Update your details whenever you need to.",
+      "loading": "Loading your profile...",
+      "saved": "Your profile has been saved.",
+      "remaining": "{{count}} required field(s) still to fill in.",
+      "unsaved": "You have unsaved changes.",
+      "optional": "(optional)",
+      "sections": {
+        "identity": "Identity",
+        "identityHelp": "How you appear across Code Your Future.",
+        "personal": "Personal information",
+        "personalHelp": "How we reach you. These details are never shown publicly.",
+        "education": "Education",
+        "educationHelp": "Where you study or studied.",
+        "career": "Career and links",
+        "careerHelp": "Optional. Share the work you want people to see."
+      },
+      "fields": {
+        "photo": "Profile photo",
+        "photoHelp": "JPG, PNG or WebP, up to {{size}} MB. You choose which part of it is shown. Only you and Code Your Future staff can see it.",
+        "fullName": "Full name",
+        "verifiedEmail": "Email address",
+        "verifiedEmailHelp": "Verified through your Google account. This cannot be changed here.",
+        "phone": "Phone number",
+        "phoneHelp": "Include your country code, for example +963 or +49.",
+        "city": "City",
+        "dateOfBirth": "Date of birth",
+        "institution": "Institution",
+        "institutionPlaceholder": "Search and select your institution",
+        "institutionOther": "Other — not listed",
+        "institutionHelp": "Not listed? Choose the \"Other\" option and type the name.",
+        "customInstitutionName": "Institution name",
+        "major": "Major or field of study",
+        "educationStatus": "Education status",
+        "expectedGraduation": "Expected graduation",
+        "expectedGraduationHelp": "Month and year only.",
+        "careerGoal": "Career goal",
+        "github": "GitHub",
+        "linkedin": "LinkedIn",
+        "portfolio": "Portfolio or website",
+        "cityPlaceholder": "Search and select your city",
+        "majorPlaceholder": "Search and select your major",
+        "dateOfBirthPlaceholder": "dd/mm/yyyy",
+        "dateOfBirthHelp": "Pick a date, or leave this empty.",
+        "expectedGraduationPlaceholder": "mm/yyyy",
+        "targetRole": "Target role",
+        "targetRolePlaceholder": "Search and select a role",
+        "targetRoleHelp": "The kind of work you are aiming for. This is never scored or ranked.",
+        "targetRoleReason": "Why did you choose this role?",
+        "characterCount": "{{used}} / {{max}} characters",
+        "photoPending": "This photo will be uploaded when you save.",
+        "fullNameFromGoogle": "Taken from your Google account. Change it if you prefer a different name."
+      },
+      "status": {
+        "currentStudent": "Current student",
+        "graduate": "Graduate"
+      },
+      "actions": {
+        "save": "Save and continue",
+        "saveChanges": "Save changes",
+        "saving": "Saving...",
+        "addPhoto": "Add photo",
+        "replacePhoto": "Replace photo",
+        "removePhoto": "Remove photo",
+        "retryPhoto": "Try uploading it again"
+      },
+      "errors": {
+        "notAStudent": "This account cannot edit a student profile.",
+        "validation": "Please check the highlighted fields and try again.",
+        "unavailable": "We cannot reach the server right now. Please check your connection and try again.",
+        "photoRejected": "That image could not be used. Please choose a JPG, PNG or WebP under the size limit.",
+        "photoMissing": "There is no photo to show.",
+        "unexpected": "Something went wrong. Please try again.",
+        "photoTooLarge": "That image is too large. Please choose one under the size limit.",
+        "photoPartial": "Your details were saved, but the photo could not be uploaded.",
+        "catalogUnavailable": "We could not load the options for this form. Please refresh and try again."
+      },
+      "fieldErrors": {
+        "required": "This field is required.",
+        "tooShort": "This is too short.",
+        "tooLong": "This is too long.",
+        "invalid": "Please check this value.",
+        "notAllowed": "This value is not accepted.",
+        "outOfRange": "Please choose a value in the accepted range.",
+        "wrongDomain": "Please use a link from the expected website."
+      },
+      "catalog": {
+        "empty": "No options available yet",
+        "emptyHelp": "Code Your Future has not added any options for this field yet. Please try again later.",
+        "noMatch": "Nothing matches your search.",
+        "retired": "no longer offered"
+      },
+      "institutionKind": {
+        "university": "University",
+        "institute": "Institute"
+      },
+      "photoPartial": "Your details were saved. The photo could not be uploaded.",
+      "cropper": {
+        "title": "Position your photo"
+      }
+    }
+  },
+  "admin": {
+    "catalogs": {
+      "title": "Profile Catalogs",
+      "lead": "The options Students choose from on their profile. Changing a name here updates every profile that uses it.",
+      "loading": "Loading items...",
+      "searchPlaceholder": "Search by name or code",
+      "noMatch": "Nothing matches your search.",
+      "otherFlag": "Other",
+      "tabs": {
+        "cities": "Cities",
+        "institutions": "Universities & Institutes",
+        "majors": "Majors",
+        "targetRoles": "Target Roles"
+      },
+      "columns": {
+        "order": "Order",
+        "nameEn": "Name (English)",
+        "nameAr": "Name (Arabic)",
+        "code": "Code",
+        "kind": "Kind",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "kind": {
+        "university": "University",
+        "institute": "Institute",
+        "other": "Other"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "actions": {
+        "add": "Add item",
+        "activate": "Activate",
+        "deactivate": "Deactivate"
+      },
+      "empty": {
+        "title": "No items yet",
+        "body": "Nothing has been added to this list. Students will see \"No options available\" until you add the first item."
+      },
+      "dialog": {
+        "createTitle": "Add item",
+        "editTitle": "Edit item",
+        "codeHelp": "Stored as:",
+        "activeHelp": "Inactive items stay on the profiles that already use them, but are not offered to anyone new.",
+        "isOther": "This is the \"Other\" option",
+        "isOtherHelp": "Choosing it asks the Student to type their institution name."
+      },
+      "delete": {
+        "title": "Delete this item?",
+        "body": "Permanently delete \"{{name}}\"? This cannot be undone.",
+        "hint": "An item any Student has already chosen cannot be deleted. Deactivate it instead."
+      },
+      "notices": {
+        "created": "Item added.",
+        "updated": "Item saved.",
+        "activated": "Item activated.",
+        "deactivated": "Item deactivated.",
+        "deleted": "Item deleted."
+      },
+      "errors": {
+        "validation": "Please check the highlighted fields and try again.",
+        "notFound": "That item no longer exists. Refresh and try again.",
+        "duplicate": "Another item in this list already uses that code.",
+        "inUse": "This item cannot be deleted because a Student profile uses it. Deactivate it instead — it will stay on those profiles and stop being offered to anyone new.",
+        "forbidden": "This account cannot manage profile catalogs.",
+        "unavailable": "We cannot reach the server right now. Please check your connection and try again.",
+        "unexpected": "Something went wrong. Please try again."
+      }
     }
   }
 }
