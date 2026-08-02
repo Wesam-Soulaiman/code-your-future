@@ -1,7 +1,7 @@
 /* Batches — the Admin list. Scoped styles.
    The page frame, the heading rhythm, the toolbar, the table, and the paginator
    are all shared now: the layout layer supplies `.cyf-page-*` and `.cyf-toolbar`,
-   and `cyf-record-table` supplies the table surface and the template's
+   and `app-data-table` supplies the table surface and the template's
    paginator. Only what is genuinely unique to this page remains here. */
 
 :host {

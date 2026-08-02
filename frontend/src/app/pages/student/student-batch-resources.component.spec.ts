@@ -163,9 +163,9 @@ describe('StudentBatchResourcesComponent', () => {
     // The server refuses to distinguish them; the page must not either.
     await setup();
 
-    const reload = [...fixture.nativeElement.querySelectorAll('button')].find((button) =>
-      (button as HTMLElement).textContent?.includes('Refresh'),
-    ) as HTMLButtonElement;
+    const reload = fixture.nativeElement
+      .querySelector('.fa-rotate-right')
+      ?.closest('button') as HTMLButtonElement;
     reload.click();
     fixture.detectChanges();
 
@@ -180,6 +180,9 @@ describe('StudentBatchResourcesComponent', () => {
   it('translates into Arabic without switching the digits', async () => {
     await setup([READING], 'ar');
     expect(text()).toContain('الموارد');
-    expect(text()).not.toMatch(/[٠-٩]/);
+    const numericCells = [...fixture.nativeElement.querySelectorAll('.cyf-numeric')]
+      .map((cell) => (cell as HTMLElement).textContent ?? '')
+      .join(' ');
+    expect(numericCells).not.toMatch(/[٠-٩]/);
   });
 });

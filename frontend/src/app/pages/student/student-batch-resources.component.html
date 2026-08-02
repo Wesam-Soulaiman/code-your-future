@@ -15,19 +15,6 @@
       </p>
     </div>
 
-    <div class="cyf-toolbar-actions">
-      <p-button
-        type="button"
-        severity="secondary"
-        [outlined]="true"
-        [disabled]="loading()"
-        (onClick)="reload()"
-        styleClass="cyf-btn"
-      >
-        <i class="fa-solid fa-rotate" aria-hidden="true"></i>
-        <span>{{ 'actions.refresh' | translate }}</span>
-      </p-button>
-    </div>
   </div>
 
   <div class="cyf-page-status" aria-live="polite">
@@ -50,12 +37,18 @@
     </div>
   } @else {
     <!-- Unpaged: the list arrives whole, in the order the Admin chose. -->
-    <cyf-record-table
+    <app-data-table
+      [title]="'resources.title' | translate"
+      [stateKey]="'student-batch-resources-' + batchId()"
+      rowKey="id"
+      [showPreview]="true"
+      [previewKey]="'title'"
       [data]="rows()"
-      [columns]="columns"
+      [columns]="columns()"
       [loading]="loading()"
-      emptyMessage="resources.student.empty.title"
-      emptyIcon="fa-solid fa-folder-open"
+      [totalRecords]="totalRecords()"
+      [searchPlaceholder]="'actions.search' | translate"
+      (loadData)="onLoadData($event)"
     >
       <ng-template appColTemplate="title" let-row>
         <div class="cyf-resource-title">
@@ -92,6 +85,54 @@
           <span>{{ 'resources.actions.download' | translate }}</span>
         </p-button>
       </ng-template>
-    </cyf-record-table>
+      <ng-template appPreviewTemplate let-row>
+        <div class="flex flex-col gap-4">
+          <div class="flex items-start gap-2">
+            <span class="cyf-resource-icon" aria-hidden="true"><i [class]="row.icon"></i></span>
+            <div>
+              <h3 class="cyf-card-title">{{ row.resource.title }}</h3>
+              <span class="text-sm text-surface-500" dir="auto">{{ row.resource.filename }}</span>
+            </div>
+          </div>
+          @if (row.resource.description) {
+            <p class="cyf-body-sm">{{ row.resource.description }}</p>
+          }
+          <span>{{ 'resources.kinds.' + row.resource.kind | translate }}</span>
+          <span class="cyf-numeric">{{ row.size }} {{ row.sizeUnitKey | translate }}</span>
+          <p-button
+            size="small"
+            icon="fa-solid fa-download"
+            [label]="'resources.actions.download' | translate"
+            [loading]="downloadingId() === row.resource.id"
+            (onClick)="download(row.resource)"
+          />
+        </div>
+      </ng-template>
+
+      <ng-template appGridCardTemplate let-row>
+        <div class="flex flex-col gap-4">
+          <div class="flex items-start gap-2">
+            <span class="cyf-resource-icon" aria-hidden="true"><i [class]="row.icon"></i></span>
+            <div class="min-w-0">
+              <h3 class="font-semibold truncate">{{ row.resource.title }}</h3>
+              <span class="text-sm text-surface-500 truncate" dir="auto">
+                {{ row.resource.filename }}
+              </span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-2 text-sm text-surface-500">
+            <span>{{ row.size }} {{ row.sizeUnitKey | translate }}</span>
+            <button
+              type="button"
+              class="cyf-icon-button"
+              [attr.aria-label]="'resources.actions.download' | translate"
+              (click)="$event.stopPropagation(); download(row.resource)"
+            >
+              <i class="fa-solid fa-download" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+      </ng-template>
+    </app-data-table>
   }
 </div>

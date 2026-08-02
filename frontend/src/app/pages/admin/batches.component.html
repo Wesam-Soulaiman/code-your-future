@@ -4,48 +4,35 @@
       <h1 class="cyf-page-title">{{ 'admin.batches.title' | translate }}</h1>
       <p class="cyf-lead">{{ 'admin.batches.lead' | translate }}</p>
     </div>
-
-    <div class="cyf-page-head-actions">
-      <p-button
-        type="button"
-        severity="secondary"
-        [outlined]="true"
-        [disabled]="loading()"
-        (onClick)="load()"
-        styleClass="cyf-btn"
-      >
-        <i class="fa-solid fa-rotate" aria-hidden="true"></i>
-        <span>{{ 'actions.refresh' | translate }}</span>
-      </p-button>
-
-      <p-button type="button" (onClick)="create()" styleClass="cyf-btn">
-        <i class="fa-solid fa-plus" aria-hidden="true"></i>
-        <span>{{ 'admin.batches.actions.create' | translate }}</span>
-      </p-button>
-    </div>
   </div>
 
-  <!-- ── Toolbar ──────────────────────────────────────────────────────── -->
-  <div class="cyf-toolbar">
-    <div class="cyf-field cyf-toolbar-grow">
-      <label class="cyf-sr-only" for="batch-search">{{ 'actions.search' | translate }}</label>
-      <input
-        id="batch-search"
-        type="search"
-        class="cyf-input"
-        [attr.maxlength]="limits.search.max"
-        [placeholder]="'admin.batches.searchPlaceholder' | translate"
-        (input)="updateSearch($any($event.target).value)"
-      />
-    </div>
+  <div class="cyf-page-status" aria-live="polite">
+    @if (errorKey()) {
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ errorKey()! | translate }}
+      </cyf-alert>
+    }
+  </div>
 
-    <div class="cyf-field cyf-batches-filter">
-      <label class="cyf-sr-only" for="batch-status">
-        {{ 'admin.batches.filters.status' | translate }}
-      </label>
+  <app-data-table
+    [title]="'admin.batches.title' | translate"
+    stateKey="admin-batches-table"
+    rowKey="id"
+    [showPreview]="true"
+    [showAdd]="true"
+    [addLabel]="'admin.batches.actions.create' | translate"
+    [previewKey]="'name'"
+    [data]="rows()"
+    [columns]="columns()"
+    [loading]="loading()"
+    [totalRecords]="total()"
+    [searchPlaceholder]="'admin.batches.searchPlaceholder' | translate"
+    (loadData)="onLoadData($event)"
+    (add)="create()"
+  >
+    <ng-template appCustomTemplate>
       <p-select
-        inputId="batch-status"
-        styleClass="cyf-select-control"
+        size="small"
         appendTo="body"
         [options]="statusOptions"
         [ngModel]="status()"
@@ -60,78 +47,95 @@
           <span>{{ option.labelKey | translate }}</span>
         </ng-template>
       </p-select>
-    </div>
-  </div>
+    </ng-template>
 
-  <!-- ── Status ───────────────────────────────────────────────────────── -->
-  <div class="cyf-page-status" aria-live="polite">
-    @if (errorKey()) {
-      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
-        {{ errorKey()! | translate }}
-      </cyf-alert>
-    }
-  </div>
+    <ng-template appColTemplate="name" let-row>
+      <button
+        type="button"
+        class="cyf-table-link"
+        (click)="$event.stopPropagation(); open(row.batch)"
+      >
+        {{ row.batch.name }}
+      </button>
+    </ng-template>
 
-  <!-- ── List ─────────────────────────────────────────────────────────── -->
-  @if (isEmpty()) {
-    <!-- No Batches at all, as opposed to none matching a filter. -->
-    <div class="cyf-card cyf-empty">
-      <span class="cyf-empty-icon" aria-hidden="true">
-        <i class="fa-solid fa-layer-group"></i>
+    <ng-template appColTemplate="startDate" let-row>
+      <span class="cyf-numeric">{{ row.startDate }}</span>
+    </ng-template>
+
+    <ng-template appColTemplate="endDate" let-row>
+      <span class="cyf-numeric">{{ row.endDate || '—' }}</span>
+    </ng-template>
+
+    <ng-template appColTemplate="status" let-row>
+      <span class="cyf-status-chip cyf-status-{{ row.tone }}">
+        {{ 'batch.status.' + row.batch.status | translate }}
       </span>
-      <h2 class="cyf-card-title cyf-empty-title">{{ 'admin.batches.empty.title' | translate }}</h2>
-      <p class="cyf-body-sm cyf-empty-text">{{ 'admin.batches.empty.body' | translate }}</p>
-      <p-button type="button" (onClick)="create()" styleClass="cyf-btn">
-        <span>{{ 'admin.batches.actions.create' | translate }}</span>
-      </p-button>
-    </div>
-  } @else {
-    <cyf-record-table
-      [data]="rows()"
-      [columns]="columns"
-      [loading]="loading()"
-      [totalRecords]="total()"
-      [page]="page()"
-      [rows]="pageSize()"
-      emptyMessage="admin.batches.noMatch"
-      emptyIcon="fa-solid fa-layer-group"
-      (pageChange)="onPageChange($event)"
-    >
-      <ng-template appColTemplate="name" let-row>
-        <button type="button" class="cyf-table-link" (click)="open(row.batch)">
-          {{ row.batch.name }}
-        </button>
-      </ng-template>
+    </ng-template>
 
-      <ng-template appColTemplate="startDate" let-row>
-        <span class="cyf-numeric">{{ row.startDate }}</span>
-      </ng-template>
+    <ng-template appColTemplate="students" let-row>
+      <span class="cyf-numeric">{{ row.students | number }}</span>
+    </ng-template>
 
-      <ng-template appColTemplate="endDate" let-row>
-        <span class="cyf-numeric">{{ row.endDate || '—' }}</span>
-      </ng-template>
+    <ng-template appColTemplate="actions" let-row>
+      <button
+        type="button"
+        class="cyf-icon-button"
+        [attr.aria-label]="('actions.view' | translate) + ' — ' + row.batch.name"
+        (click)="$event.stopPropagation(); open(row.batch)"
+      >
+        <i class="fa-solid fa-arrow-right cyf-flip-rtl" aria-hidden="true"></i>
+      </button>
+    </ng-template>
 
-      <ng-template appColTemplate="status" let-row>
-        <!-- Never colour alone: the status is a word. -->
+    <ng-template appPreviewTemplate let-row>
+      <div class="flex flex-col gap-4">
+        <div>
+          <h2 class="cyf-card-title">{{ row.batch.name }}</h2>
+          @if (row.batch.description) {
+            <p class="cyf-body-sm">{{ row.batch.description }}</p>
+          }
+        </div>
+        <div class="flex flex-col gap-2 text-sm">
+          <span><i class="fa-solid fa-calendar me-2"></i>{{ row.startDate }}</span>
+          <span><i class="fa-solid fa-calendar-check me-2"></i>{{ row.endDate || '—' }}</span>
+          <span><i class="fa-solid fa-user-group me-2"></i>{{ row.students | number }}</span>
+        </div>
         <span class="cyf-status-chip cyf-status-{{ row.tone }}">
           {{ 'batch.status.' + row.batch.status | translate }}
         </span>
-      </ng-template>
+        <p-button
+          size="small"
+          icon="fa-solid fa-arrow-right"
+          [label]="'actions.view' | translate"
+          (onClick)="open(row.batch)"
+        />
+      </div>
+    </ng-template>
 
-      <ng-template appColTemplate="students" let-row>
-        <span class="cyf-numeric">{{ row.batch.enrollmentCount ?? 0 }}</span>
-      </ng-template>
-
-      <ng-template appColTemplate="actions" let-row>
-        <button
-          type="button"
-          class="cyf-icon-button"
-          [attr.aria-label]="('actions.view' | translate) + ' — ' + row.batch.name"
-          (click)="open(row.batch)"
-        >
-          <i class="fa-solid fa-arrow-right cyf-flip-rtl" aria-hidden="true"></i>
-        </button>
-      </ng-template>
-    </cyf-record-table>
-  }
+    <ng-template appGridCardTemplate let-row>
+      <div class="flex flex-col gap-4">
+        <div class="flex items-start justify-between gap-2">
+          <div>
+            <h3 class="font-semibold">{{ row.batch.name }}</h3>
+            <span class="text-sm text-surface-500">{{ row.startDate }}</span>
+          </div>
+          <span class="cyf-status-chip cyf-status-{{ row.tone }}">
+            {{ 'batch.status.' + row.batch.status | translate }}
+          </span>
+        </div>
+        <div class="flex items-center justify-between text-sm text-surface-500">
+          <span><i class="fa-solid fa-user-group me-2"></i>{{ row.students | number }}</span>
+          <button
+            type="button"
+            class="cyf-icon-button"
+            [attr.aria-label]="('actions.view' | translate) + ' — ' + row.batch.name"
+            (click)="$event.stopPropagation(); open(row.batch)"
+          >
+            <i class="fa-solid fa-arrow-right cyf-flip-rtl" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    </ng-template>
+  </app-data-table>
 </div>

@@ -7,16 +7,22 @@ import {
   inject,
   input,
   signal,
+  viewChild,
 } from '@angular/core';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { finalize } from 'rxjs';
 
 import { AlertComponent } from '../../components/shared/alert.component';
-import { ColTemplateDirective } from '../../components/shared/data-table/col-template.directive';
-import { TableColumn } from '../../components/shared/data-table/data-table.component';
-import { RecordTableComponent } from '../../components/shared/record-table/record-table.component';
+import {
+  ColTemplateDirective,
+  DataTableComponent,
+  GridCardTemplateDirective,
+  LoadDataEvent,
+  PreviewTemplateDirective,
+  TableColumn,
+} from '../../components/shared/data-table';
 import { BatchResource, ResourceUploadRules } from '../../models/BatchResource';
 import { ChangeLangService } from '../../services/change-lang.service';
 import { BatchResourceApiService } from '../../services/dataService/batch-resource-service';
@@ -33,7 +39,10 @@ import { saveBlob } from '../../utils/save-blob';
 
 /** A row with its size, date, and icon already rendered. */
 interface ResourceRow {
+  id: string;
   resource: BatchResource;
+  title: string;
+  kind: string;
   icon: string;
   size: string;
   sizeUnitKey: string;
@@ -73,8 +82,10 @@ interface ResourceRow {
     ButtonModule,
     DialogModule,
     AlertComponent,
-    RecordTableComponent,
+    DataTableComponent,
     ColTemplateDirective,
+    GridCardTemplateDirective,
+    PreviewTemplateDirective,
   ],
   templateUrl: './batch-resources.component.html',
   styleUrl: './batch-resources.component.scss',
@@ -83,6 +94,8 @@ interface ResourceRow {
 export class BatchResourcesComponent {
   private resourceApi = inject(BatchResourceApiService);
   private changeDetector = inject(ChangeDetectorRef);
+  private translate = inject(TranslateService);
+  private table = viewChild(DataTableComponent);
   protected langService = inject(ChangeLangService);
 
   /** The Batch these Resources belong to. */
@@ -99,17 +112,21 @@ export class BatchResourcesComponent {
 
   protected readonly limits = RESOURCE_LIMITS;
 
-  protected readonly columns: TableColumn[] = [
-    { field: 'title', header: 'resources.columns.title', template: 'title' },
-    { field: 'kind', header: 'resources.columns.type', template: 'kind' },
-    { field: 'size', header: 'resources.columns.size', template: 'size' },
-    { field: 'addedAt', header: 'resources.columns.added', template: 'addedAt' },
-    { field: 'actions', header: 'resources.columns.actions', template: 'actions' },
-  ];
+  protected columns = computed<TableColumn[]>(() => {
+    this.langService.currentLang();
+    return [
+      { field: 'title', header: this.translate.instant('resources.columns.title'), template: 'title' },
+      { field: 'kind', header: this.translate.instant('resources.columns.type'), template: 'kind' },
+      { field: 'size', header: this.translate.instant('resources.columns.size'), template: 'size' },
+      { field: 'addedAt', header: this.translate.instant('resources.columns.added'), template: 'addedAt' },
+      { field: 'actions', header: this.translate.instant('resources.columns.actions'), template: 'actions' },
+    ];
+  });
 
   // ── State ─────────────────────────────────────────────────────────────────
 
   protected items = signal<BatchResource[]>([]);
+  protected lastLoadEvent = signal<LoadDataEvent | null>(null);
   protected rules = signal<ResourceUploadRules | null>(null);
   protected serverReadOnly = signal(false);
 
@@ -165,11 +182,14 @@ export class BatchResourcesComponent {
     return `resources.units.${fileSizeUnit(file?.size ?? 0)}`;
   });
 
-  protected rows = computed<ResourceRow[]>(() => {
+  protected allRows = computed<ResourceRow[]>(() => {
     const lang = this.langService.currentLang();
     const all = this.items();
     return all.map((resource, index) => ({
+      id: resource.id,
       resource,
+      title: resource.title,
+      kind: resource.kind,
       icon: resourceIcon(resource.kind),
       size: formatFileSize(resource.fileSize, lang),
       sizeUnitKey: `resources.units.${fileSizeUnit(resource.fileSize)}`,
@@ -178,6 +198,23 @@ export class BatchResourcesComponent {
       last: index === all.length - 1,
     }));
   });
+
+  protected filteredRows = computed(() => {
+    const term = (this.lastLoadEvent()?.search ?? '').trim().toLowerCase();
+    if (!term) return this.allRows();
+    return this.allRows().filter(({ resource }) =>
+      [resource.title, resource.description, resource.filename, resource.kind]
+        .filter((value): value is string => typeof value === 'string')
+        .some((value) => value.toLowerCase().includes(term)),
+    );
+  });
+
+  protected rows = computed(() => {
+    const event = this.lastLoadEvent() ?? { skip: 0, limit: 25, search: '' };
+    return this.filteredRows().slice(event.skip, event.skip + event.limit);
+  });
+
+  protected totalRecords = computed(() => this.filteredRows().length);
 
   protected isEmpty = computed(() => !this.loading() && this.items().length === 0);
 
@@ -203,6 +240,19 @@ export class BatchResourcesComponent {
 
   protected reload(): void {
     this.load(this.batchId());
+  }
+
+  protected onLoadData(event: LoadDataEvent): void {
+    const previous = this.lastLoadEvent();
+    this.lastLoadEvent.set(event);
+    if (
+      previous &&
+      previous.skip === event.skip &&
+      previous.limit === event.limit &&
+      previous.search === event.search
+    ) {
+      this.reload();
+    }
   }
 
   private load(batchId: string): void {
@@ -438,6 +488,7 @@ export class BatchResourcesComponent {
       .subscribe({
         next: () => {
           this.items.update((current) => current.filter((item) => item.id !== resource.id));
+          this.table()?.closePreview();
           this.deleting.set(null);
           this.noticeKey.set('resources.notices.deleted');
           this.changeDetector.markForCheck();

@@ -11,31 +11,6 @@
       <p class="cyf-body-sm cyf-resources-lead">{{ 'resources.lead' | translate }}</p>
     </div>
 
-    <div class="cyf-toolbar-actions">
-      <p-button
-        type="button"
-        severity="secondary"
-        [outlined]="true"
-        [disabled]="loading()"
-        (onClick)="reload()"
-        styleClass="cyf-btn"
-      >
-        <i class="fa-solid fa-rotate" aria-hidden="true"></i>
-        <span>{{ 'actions.refresh' | translate }}</span>
-      </p-button>
-
-      @if (!readOnly()) {
-        <p-button
-          type="button"
-          [disabled]="busy() || loading()"
-          (onClick)="openUpload()"
-          styleClass="cyf-btn"
-        >
-          <i class="fa-solid fa-upload" aria-hidden="true"></i>
-          <span>{{ 'resources.actions.upload' | translate }}</span>
-        </p-button>
-      }
-    </div>
   </div>
 
   <!-- ── Panel status ──────────────────────────────────────────────────── -->
@@ -79,12 +54,22 @@
       whole of it arrives in one response. `totalRecords` is left at zero
       deliberately, which is what tells the table there is nothing to page.
     -->
-    <cyf-record-table
+    <app-data-table
+      [title]="'resources.title' | translate"
+      [stateKey]="'admin-batch-resources-' + batchId()"
+      rowKey="id"
+      [showPreview]="true"
+      [showAdd]="!readOnly()"
+      [addLabel]="'resources.actions.upload' | translate"
+      [previewKey]="'title'"
       [data]="rows()"
-      [columns]="columns"
+      [columns]="columns()"
       [loading]="loading()"
-      emptyMessage="resources.empty.title"
-      emptyIcon="fa-solid fa-folder-open"
+      [totalRecords]="totalRecords()"
+      [searchPlaceholder]="'actions.search' | translate"
+      editMode="dialog"
+      (loadData)="onLoadData($event)"
+      (add)="openUpload()"
     >
       <ng-template appColTemplate="title" let-row>
         <div class="cyf-resource-title">
@@ -176,7 +161,66 @@
           }
         </div>
       </ng-template>
-    </cyf-record-table>
+      <ng-template appPreviewTemplate let-row>
+        <div class="flex flex-col gap-4">
+          <div class="flex items-start gap-2">
+            <span class="cyf-resource-icon" aria-hidden="true"><i [class]="row.icon"></i></span>
+            <div>
+              <h3 class="cyf-card-title">{{ row.resource.title }}</h3>
+              <span class="text-sm text-surface-500" dir="auto">{{ row.resource.filename }}</span>
+            </div>
+          </div>
+          @if (row.resource.description) {
+            <p class="cyf-body-sm">{{ row.resource.description }}</p>
+          }
+          <span>{{ 'resources.kinds.' + row.resource.kind | translate }}</span>
+          <span class="cyf-numeric">{{ row.size }} {{ row.sizeUnitKey | translate }}</span>
+          <div class="flex flex-wrap gap-2">
+            <p-button
+              size="small"
+              icon="fa-solid fa-download"
+              [label]="'resources.actions.download' | translate"
+              [loading]="downloadingId() === row.resource.id"
+              (onClick)="download(row.resource)"
+            />
+            @if (!readOnly()) {
+              <p-button
+                size="small"
+                severity="secondary"
+                icon="fa-solid fa-pen"
+                [label]="'resources.actions.edit' | translate"
+                (onClick)="openEdit(row.resource)"
+              />
+            }
+          </div>
+        </div>
+      </ng-template>
+
+      <ng-template appGridCardTemplate let-row>
+        <div class="flex flex-col gap-4">
+          <div class="flex items-start gap-2">
+            <span class="cyf-resource-icon" aria-hidden="true"><i [class]="row.icon"></i></span>
+            <div class="min-w-0">
+              <h3 class="font-semibold truncate">{{ row.resource.title }}</h3>
+              <span class="text-sm text-surface-500 truncate" dir="auto">
+                {{ row.resource.filename }}
+              </span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-2 text-sm text-surface-500">
+            <span>{{ row.size }} {{ row.sizeUnitKey | translate }}</span>
+            <button
+              type="button"
+              class="cyf-icon-button"
+              [attr.aria-label]="'resources.actions.download' | translate"
+              (click)="$event.stopPropagation(); download(row.resource)"
+            >
+              <i class="fa-solid fa-download" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+      </ng-template>
+    </app-data-table>
   }
 </div>
 

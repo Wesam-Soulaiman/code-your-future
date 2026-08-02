@@ -9,16 +9,21 @@ import {
   untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { SelectModule } from 'primeng/select';
 import { finalize } from 'rxjs';
 
 import { AlertComponent } from '../../components/shared/alert.component';
-import { ColTemplateDirective } from '../../components/shared/data-table/col-template.directive';
-import { TableColumn } from '../../components/shared/data-table/data-table.component';
-import { RecordTableComponent } from '../../components/shared/record-table/record-table.component';
+import {
+  ColTemplateDirective,
+  DataTableComponent,
+  GridCardTemplateDirective,
+  LoadDataEvent,
+  PreviewTemplateDirective,
+  TableColumn,
+} from '../../components/shared/data-table';
 import {
   ProfileCatalogItem,
   ProfileCatalogItemInput,
@@ -90,8 +95,10 @@ const EMPTY_FORM: CatalogForm = {
     FormsModule,
     ButtonModule,
     DialogModule,
-    RecordTableComponent,
+    DataTableComponent,
     ColTemplateDirective,
+    GridCardTemplateDirective,
+    PreviewTemplateDirective,
     SelectModule,
     AlertComponent,
   ],
@@ -102,6 +109,7 @@ const EMPTY_FORM: CatalogForm = {
 export class ProfileCatalogsComponent {
   private catalogApi = inject(ProfileCatalogApiService);
   private changeDetector = inject(ChangeDetectorRef);
+  private translate = inject(TranslateService);
   protected langService = inject(ChangeLangService);
 
   protected readonly tabs = CATALOG_TABS;
@@ -117,6 +125,7 @@ export class ProfileCatalogsComponent {
   protected loading = signal(true);
   protected busy = signal(false);
   protected search = signal('');
+  protected lastLoadEvent = signal<LoadDataEvent | null>(null);
 
   protected errorKey = signal<CatalogErrorKey | null>(null);
   protected noticeKey = signal<string | null>(null);
@@ -150,7 +159,7 @@ export class ProfileCatalogsComponent {
   protected codePreview = computed(() => normaliseCatalogCode(this.form().code));
 
   /** Client-side filtering of the loaded list, so typing feels instant. */
-  protected visibleItems = computed(() => {
+  protected filteredItems = computed(() => {
     const term = this.search().trim().toLowerCase();
     const all = this.items();
     if (!term) return all;
@@ -162,6 +171,13 @@ export class ProfileCatalogsComponent {
     );
   });
 
+  protected visibleItems = computed(() => {
+    const event = this.lastLoadEvent() ?? { skip: 0, limit: 25, search: '' };
+    return this.filteredItems().slice(event.skip, event.skip + event.limit);
+  });
+
+  protected totalRecords = computed(() => this.filteredItems().length);
+
   /**
    * The columns, in the template table's own shape.
    *
@@ -169,24 +185,49 @@ export class ProfileCatalogsComponent {
    * the other three do not.
    */
   protected columns = computed<TableColumn[]>(() => {
+    this.langService.currentLang();
     const columns: TableColumn[] = [
-      { field: 'sortOrder', header: 'admin.catalogs.columns.order', template: 'order' },
-      { field: 'nameEn', header: 'admin.catalogs.columns.nameEn', template: 'nameEn' },
-      { field: 'nameAr', header: 'admin.catalogs.columns.nameAr', template: 'nameAr' },
-      { field: 'code', header: 'admin.catalogs.columns.code', template: 'code' },
+      {
+        field: 'sortOrder',
+        header: this.translate.instant('admin.catalogs.columns.order'),
+        template: 'order',
+      },
+      {
+        field: 'nameEn',
+        header: this.translate.instant('admin.catalogs.columns.nameEn'),
+        template: 'nameEn',
+      },
+      {
+        field: 'nameAr',
+        header: this.translate.instant('admin.catalogs.columns.nameAr'),
+        template: 'nameAr',
+      },
+      {
+        field: 'code',
+        header: this.translate.instant('admin.catalogs.columns.code'),
+        template: 'code',
+      },
     ];
 
     if (this.isInstitutionTab()) {
       columns.push({
         field: 'institutionKind',
-        header: 'admin.catalogs.columns.kind',
+        header: this.translate.instant('admin.catalogs.columns.kind'),
         template: 'kind',
       });
     }
 
     columns.push(
-      { field: 'active', header: 'admin.catalogs.columns.status', template: 'status' },
-      { field: 'actions', header: 'admin.catalogs.columns.actions', template: 'actions' },
+      {
+        field: 'active',
+        header: this.translate.instant('admin.catalogs.columns.status'),
+        template: 'status',
+      },
+      {
+        field: 'actions',
+        header: this.translate.instant('admin.catalogs.columns.actions'),
+        template: 'actions',
+      },
     );
 
     return columns;
@@ -201,8 +242,6 @@ export class ProfileCatalogsComponent {
   private languageWatched = false;
 
   constructor() {
-    this.reload();
-
     // The server sorts by the localised name, so a language change reorders the
     // list — not just its labels.
     //
@@ -228,6 +267,7 @@ export class ProfileCatalogsComponent {
     if (this.activeType() === type) return;
     this.activeType.set(type);
     this.search.set('');
+    this.lastLoadEvent.set(null);
     this.errorKey.set(null);
     this.noticeKey.set(null);
     this.reload();
@@ -256,6 +296,21 @@ export class ProfileCatalogsComponent {
     this.errorKey.set(null);
     this.noticeKey.set(null);
     this.reload();
+  }
+
+  protected onLoadData(event: LoadDataEvent): void {
+    const previous = this.lastLoadEvent();
+    this.lastLoadEvent.set(event);
+    this.search.set(event.search.slice(0, CATALOG_LIMITS.search.max));
+
+    if (
+      !previous ||
+      (previous.skip === event.skip &&
+        previous.limit === event.limit &&
+        previous.search === event.search)
+    ) {
+      this.refresh();
+    }
   }
 
   protected updateSearch(value: string): void {

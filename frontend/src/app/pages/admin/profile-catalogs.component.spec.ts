@@ -161,9 +161,7 @@ describe('ProfileCatalogsComponent', () => {
     });
 
     it('filters as you type, without a server round trip', () => {
-      const search = fixture.nativeElement.querySelector('#catalog-search') as HTMLInputElement;
-      search.value = 'aleppo';
-      search.dispatchEvent(new Event('input'));
+      fixture.componentInstance['onLoadData']({ skip: 0, limit: 25, search: 'aleppo' });
       fixture.detectChanges();
 
       expect(rows().length).toBe(1);
@@ -172,12 +170,10 @@ describe('ProfileCatalogsComponent', () => {
     });
 
     it('says so when nothing matches', () => {
-      const search = fixture.nativeElement.querySelector('#catalog-search') as HTMLInputElement;
-      search.value = 'nowhere';
-      search.dispatchEvent(new Event('input'));
+      fixture.componentInstance['onLoadData']({ skip: 0, limit: 25, search: 'nowhere' });
       fixture.detectChanges();
 
-      expect(text()).toContain('Nothing matches your search');
+      expect(text()).toContain('No records found');
     });
 
     it('gives every row action an accessible name', () => {
@@ -535,8 +531,8 @@ describe('ProfileCatalogsComponent', () => {
 
     it('lets a wide table scroll inside itself, never the page', () => {
       // The scroller belongs to the restored table component now.
-      expect(fixture.nativeElement.querySelector('cyf-record-table')).toBeTruthy();
-      expect(fixture.nativeElement.querySelector('.cyf-record-table-surface')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('app-data-table')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('.p-datatable-table-container')).toBeTruthy();
     });
   });
 });

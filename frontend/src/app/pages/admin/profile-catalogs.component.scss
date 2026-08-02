@@ -116,7 +116,7 @@
    the one case where horizontal scrolling is correct, and it belongs to the
    table rather than to the document. */
 /* The table surface, header, rows, hover, and empty state all come from
-   `cyf-record-table` now — the template's own visual language. Only the two
+   `app-data-table` now — the template's own visual language. Only the two
    cell treatments unique to a catalog are declared here. */
 
 .cyf-catalogs-code {

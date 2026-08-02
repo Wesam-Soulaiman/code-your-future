@@ -6,26 +6,29 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { TitleCasePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { AvatarModule } from 'primeng/avatar';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
-import { Subject, debounceTime, finalize } from 'rxjs';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { finalize } from 'rxjs';
 
 import { AlertComponent } from '../../components/shared/alert.component';
-import { ColTemplateDirective } from '../../components/shared/data-table/col-template.directive';
-import { TableColumn } from '../../components/shared/data-table/data-table.component';
-import { PageChangeEvent } from '../../components/shared/data-table/paginator.component';
-import { RecordTableComponent } from '../../components/shared/record-table/record-table.component';
+import {
+  ColTemplateDirective,
+  DataTableComponent,
+  GridCardTemplateDirective,
+  LoadDataEvent,
+  PreviewTemplateDirective,
+  TableColumn,
+} from '../../components/shared/data-table';
 import { ADMIN_BATCHES, ADMIN_STUDENTS } from '../../guards/home-route';
 import { AdminStudentSummary, Batch, InvitationStatus } from '../../models/Batch';
 import { catalogItemName } from '../../models/ProfileCatalogItem';
 import { ChangeLangService } from '../../services/change-lang.service';
 import { BatchApiService } from '../../services/dataService/batch-service';
 import {
-  BATCH_LIMITS,
-  BATCH_PAGE,
   BATCH_STATUS,
   BATCH_STATUS_TONE,
   BATCH_TRANSITIONS,
@@ -48,13 +51,14 @@ type BatchTab = 'overview' | 'students' | 'invitation' | 'resources';
 
 /** A roster row with its joined date already rendered. */
 interface StudentRow {
+  id: string;
   student: AdminStudentSummary;
+  name: string;
+  email: string;
   joinedAt: string;
   city: string;
   institution: string;
 }
-
-const SEARCH_DEBOUNCE_MS = 300;
 
 /**
  * One Batch, as its Admin sees it.
@@ -79,13 +83,17 @@ const SEARCH_DEBOUNCE_MS = 300;
   selector: 'app-admin-batch-detail',
   imports: [
     TranslateModule,
+    AvatarModule,
+    TitleCasePipe,
     ButtonModule,
     DialogModule,
     AlertComponent,
     InvitationCardComponent,
     BatchResourcesComponent,
-    RecordTableComponent,
+    DataTableComponent,
     ColTemplateDirective,
+    GridCardTemplateDirective,
+    PreviewTemplateDirective,
   ],
   templateUrl: './batch-detail.component.html',
   styleUrl: './batch-detail.component.scss',
@@ -96,22 +104,40 @@ export class AdminBatchDetailComponent {
   private router = inject(Router);
   private batchApi = inject(BatchApiService);
   private changeDetector = inject(ChangeDetectorRef);
+  private translate = inject(TranslateService);
   protected langService = inject(ChangeLangService);
 
-  protected readonly limits = BATCH_LIMITS;
-
   /** The roster columns. `header` is a translation key. */
-  protected readonly studentColumns: TableColumn[] = [
-    { field: 'name', header: 'admin.students.columns.name', template: 'name' },
-    { field: 'email', header: 'admin.students.columns.email', template: 'email' },
-    { field: 'city', header: 'admin.students.columns.city', template: 'city' },
-    {
-      field: 'institution',
-      header: 'admin.students.columns.institution',
-      template: 'institution',
-    },
-    { field: 'joinedAt', header: 'admin.batches.roster.joinedAt', template: 'joinedAt' },
-  ];
+  protected studentColumns = computed<TableColumn[]>(() => {
+    this.langService.currentLang();
+    return [
+      {
+        field: 'name',
+        header: this.translate.instant('admin.students.columns.name'),
+        template: 'name',
+      },
+      {
+        field: 'email',
+        header: this.translate.instant('admin.students.columns.email'),
+        template: 'email',
+      },
+      {
+        field: 'city',
+        header: this.translate.instant('admin.students.columns.city'),
+        template: 'city',
+      },
+      {
+        field: 'institution',
+        header: this.translate.instant('admin.students.columns.institution'),
+        template: 'institution',
+      },
+      {
+        field: 'joinedAt',
+        header: this.translate.instant('admin.batches.roster.joinedAt'),
+        template: 'joinedAt',
+      },
+    ];
+  });
 
   protected readonly tabs: { id: BatchTab; labelKey: string }[] = [
     { id: 'overview', labelKey: 'admin.batches.tabs.overview' },
@@ -137,14 +163,9 @@ export class AdminBatchDetailComponent {
   private students = signal<AdminStudentSummary[]>([]);
   protected studentTotal = signal(0);
 
-  /** Zero-based page and page size for the roster, driven by the paginator. */
-  protected studentPage = signal(0);
-  protected studentPageSize = signal<number>(BATCH_PAGE.defaultLimit);
-  protected studentSearch = signal('');
+  protected studentLastLoadEvent = signal<LoadDataEvent | null>(null);
   protected studentsLoading = signal(false);
   protected studentsErrorKey = signal<BatchErrorKey | null>(null);
-  private studentsLoaded = signal(false);
-  private studentSearchInput = new Subject<string>();
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
@@ -186,7 +207,10 @@ export class AdminBatchDetailComponent {
   protected rows = computed<StudentRow[]>(() => {
     const lang = this.langService.currentLang();
     return this.students().map((student) => ({
+      id: student.id,
       student,
+      name: student.fullName,
+      email: student.verifiedEmail,
       joinedAt: formatInstant(student.joinedAt, lang),
       // The catalog pointers are optional on a profile, so an absent one is an
       // empty cell rather than a crash.
@@ -196,27 +220,15 @@ export class AdminBatchDetailComponent {
   });
 
   protected noStudents = computed(
-    () => !this.studentsLoading() && this.studentTotal() === 0 && !this.studentSearch(),
+    () =>
+      this.studentLastLoadEvent() !== null &&
+      !this.studentsLoading() &&
+      this.studentTotal() === 0 &&
+      !this.studentLastLoadEvent()?.search,
   );
-  protected noStudentMatches = computed(
-    () => !this.studentsLoading() && this.rows().length === 0 && !this.noStudents(),
-  );
-
-
 
   constructor() {
     this.batchId.set(String(this.route.snapshot.paramMap.get('batchId') ?? ''));
-
-    this.studentSearchInput
-      .pipe(debounceTime(SEARCH_DEBOUNCE_MS), takeUntilDestroyed())
-      .subscribe((term) => {
-        this.studentSearch.set(term);
-        // A new search is a new result set; the old page number does not
-        // survive it.
-        this.studentPage.set(0);
-        this.loadStudents();
-      });
-
     this.load();
   }
 
@@ -253,7 +265,6 @@ export class AdminBatchDetailComponent {
     this.activeTab.set(tab);
     // The roster is fetched the first time somebody actually looks at it, not
     // on every page load — most visits to a Batch are not about the roster.
-    if (tab === 'students' && !this.studentsLoaded()) this.loadStudents();
   }
 
   // ── Status ────────────────────────────────────────────────────────────────
@@ -321,22 +332,18 @@ export class AdminBatchDetailComponent {
 
   // ── Roster ────────────────────────────────────────────────────────────────
 
-  protected loadStudents(): void {
+  protected onStudentLoadData(event: LoadDataEvent): void {
+    this.studentLastLoadEvent.set(event);
     this.studentsLoading.set(true);
     this.studentsErrorKey.set(null);
 
     this.batchApi
       .adminListBatchStudents(this.batchId(), {
-        search: this.studentSearch(),
-        skip: this.studentPage() * this.studentPageSize(),
-        limit: this.studentPageSize(),
+        search: event.search,
+        skip: event.skip,
+        limit: event.limit,
       })
-      .pipe(
-        finalize(() => {
-          this.studentsLoading.set(false);
-          this.studentsLoaded.set(true);
-        }),
-      )
+      .pipe(finalize(() => this.studentsLoading.set(false)))
       .subscribe({
         next: (page) => {
           this.students.set(page.items ?? []);
@@ -350,17 +357,6 @@ export class AdminBatchDetailComponent {
           this.changeDetector.markForCheck();
         },
       });
-  }
-
-  protected updateStudentSearch(term: string): void {
-    this.studentSearchInput.next(term.slice(0, this.limits.search.max));
-  }
-
-  /** A different roster page, or a different page size. Both hit the server. */
-  protected onStudentPageChange(event: PageChangeEvent): void {
-    this.studentPage.set(event.page);
-    this.studentPageSize.set(event.rows);
-    this.loadStudents();
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────

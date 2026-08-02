@@ -157,34 +157,6 @@
     <!-- ══ Students ═════════════════════════════════════════════════════ -->
     @if (activeTab() === 'students') {
       <div class="cyf-card cyf-card-padded cyf-batch-detail-panel">
-        <div class="cyf-toolbar">
-          <div class="cyf-field cyf-toolbar-grow">
-            <label class="cyf-sr-only" for="roster-search">{{ 'actions.search' | translate }}</label>
-            <input
-              id="roster-search"
-              type="search"
-              class="cyf-input"
-              [attr.maxlength]="limits.search.max"
-              [placeholder]="'admin.batches.roster.searchPlaceholder' | translate"
-              (input)="updateStudentSearch($any($event.target).value)"
-            />
-          </div>
-
-          <div class="cyf-toolbar-actions">
-            <p-button
-              type="button"
-              severity="secondary"
-              [outlined]="true"
-              [disabled]="studentsLoading()"
-              (onClick)="loadStudents()"
-              styleClass="cyf-btn"
-            >
-              <i class="fa-solid fa-rotate" aria-hidden="true"></i>
-              <span>{{ 'actions.refresh' | translate }}</span>
-            </p-button>
-          </div>
-        </div>
-
         <div class="cyf-page-status" aria-live="polite">
           @if (studentsErrorKey()) {
             <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
@@ -220,25 +192,34 @@
           <!-- The template's table and the template's paginator. The roster is
                paged on the server exactly as before; only the appearance of the
                control changed. -->
-          <cyf-record-table
+          <app-data-table
+            [title]="'admin.batches.tabs.students' | translate"
+            [stateKey]="'batch-students-' + batchId()"
+            rowKey="id"
+            [showPreview]="true"
+            [previewKey]="'name'"
             [data]="rows()"
-            [columns]="studentColumns"
+            [columns]="studentColumns()"
             [loading]="studentsLoading()"
             [totalRecords]="studentTotal()"
-            [page]="studentPage()"
-            [rows]="studentPageSize()"
-            emptyMessage="admin.batches.roster.noMatch"
-            emptyIcon="fa-solid fa-user-group"
-            (pageChange)="onStudentPageChange($event)"
+            [searchPlaceholder]="'admin.batches.roster.searchPlaceholder' | translate"
+            (loadData)="onStudentLoadData($event)"
           >
             <ng-template appColTemplate="name" let-row>
-              <button type="button" class="cyf-table-link" (click)="openStudent(row.student)">
-                {{ row.student.fullName }}
-              </button>
+              <div class="flex items-center gap-2">
+                <p-avatar [label]="row.name?.[0]" shape="circle" />
+                <button
+                  type="button"
+                  class="cyf-table-link"
+                  (click)="$event.stopPropagation(); openStudent(row.student)"
+                >
+                  {{ row.name | titlecase }}
+                </button>
+              </div>
             </ng-template>
 
             <ng-template appColTemplate="email" let-row>
-              <span dir="ltr">{{ row.student.verifiedEmail }}</span>
+              <span dir="ltr">{{ row.email }}</span>
             </ng-template>
 
             <ng-template appColTemplate="city" let-row>{{ row.city || '—' }}</ng-template>
@@ -249,7 +230,50 @@
             <ng-template appColTemplate="joinedAt" let-row>
               <span class="cyf-numeric">{{ row.joinedAt || '—' }}</span>
             </ng-template>
-          </cyf-record-table>
+            <ng-template appPreviewTemplate let-row>
+              <div class="flex flex-col gap-4">
+                <div class="flex items-center gap-2">
+                  <p-avatar [label]="row.name?.[0]" size="large" shape="circle" />
+                  <div>
+                    <h3 class="cyf-card-title">{{ row.name | titlecase }}</h3>
+                    <span class="text-sm text-surface-500" dir="ltr">{{ row.email }}</span>
+                  </div>
+                </div>
+                <span><i class="fa-solid fa-location-dot me-2"></i>{{ row.city || '—' }}</span>
+                <span><i class="fa-solid fa-building-columns me-2"></i>{{ row.institution || '—' }}</span>
+                <span><i class="fa-solid fa-calendar-check me-2"></i>{{ row.joinedAt || '—' }}</span>
+                <p-button
+                  size="small"
+                  icon="fa-solid fa-arrow-right"
+                  [label]="'actions.view' | translate"
+                  (onClick)="openStudent(row.student)"
+                />
+              </div>
+            </ng-template>
+
+            <ng-template appGridCardTemplate let-row>
+              <div class="flex flex-col gap-4">
+                <div class="flex items-center gap-2">
+                  <p-avatar [label]="row.name?.[0]" size="large" shape="circle" />
+                  <div class="min-w-0">
+                    <h3 class="font-semibold truncate">{{ row.name | titlecase }}</h3>
+                    <span class="text-sm text-surface-500 truncate" dir="ltr">{{ row.email }}</span>
+                  </div>
+                </div>
+                <span class="text-sm text-surface-500">
+                  <i class="fa-solid fa-calendar-check me-2"></i>{{ row.joinedAt || '—' }}
+                </span>
+                <button
+                  type="button"
+                  class="cyf-icon-button self-end"
+                  [attr.aria-label]="('actions.view' | translate) + ' — ' + row.name"
+                  (click)="$event.stopPropagation(); openStudent(row.student)"
+                >
+                  <i class="fa-solid fa-arrow-right cyf-flip-rtl" aria-hidden="true"></i>
+                </button>
+              </div>
+            </ng-template>
+          </app-data-table>
         }
       </div>
     }

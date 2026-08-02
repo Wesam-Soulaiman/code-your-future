@@ -78,7 +78,7 @@ an owning checkpoint:
 | Parse `Date` truncation in the interceptor (L-9) | **Checkpoint 4** | ⏳ will matter once profiles store dates |
 | Hash vs path routing (OQ-12) | **Checkpoint 4** | ✅ **decided** — hash routing kept; see TEMPLATE_ARCHITECTURE §17g |
 | `applyAllIndexes` never called during startup | **Checkpoint 4 closeout** | ✅ **fixed** — applied and verified before the port opens; see TEMPLATE_ARCHITECTURE §17l |
-| The template's table and paginator were unused; every list hand-rolled its own | **Checkpoint 4 closeout** | ✅ **fixed** — the four implemented tables are back on `p-table` + the template's `app-paginator` |
+| The template's table and paginator were unused; every list hand-rolled its own | **Checkpoint 4 closeout** | ✅ **fixed** — all six table surfaces now use the original reusable `app-data-table`; the interim `cyf-record-table` adapter was removed |
 | The Student area had its own header navigation | **Checkpoint 4 closeout** | ✅ **fixed** — both workspaces load the same role-aware shell |
 | GitLab CI targeting `dev` while the repo is GitHub/`master`; **CI runs no tests** (OQ-14) | **Checkpoint 12** | ⏳ |
 | `GENERATE.md` and `backend/CLAUDE.md` still cite `SuperAdmin`/`Employee` and `models/Employee.ts` | **Checkpoint 2** | ⏳ documentation follow-up |

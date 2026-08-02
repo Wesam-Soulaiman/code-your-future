@@ -1880,45 +1880,31 @@ still gets the kit's detail, with the sensitive part removed.
 The buffering matters: the first attempt forwarded straight into `safeLog`, which
 itself writes to `console`, and recursed until the boot stalled.
 
-### 17n. The tables and the paginator ⟨CP4 closeout⟩
+### 17n. The reusable data table ⟨CP4 closeout⟩
 
-The template ships a table and a paginator. Nothing used them.
+The original `components/shared/data-table/` is now the single table
+implementation. Its `app-data-table` and `app-paginator` match the source
+template, including page-number controls, first/last navigation, the
+`[10, 25, 50]` rows selector, and the current-page report. The temporary
+`components/shared/record-table/` adapter was removed, so no second PrimeNG table
+surface remains.
 
-`c1517e4` contains `components/shared/data-table/` — `app-data-table` (a PrimeNG
-`p-table` carrying the template's header, row, hover, and empty-state treatment)
-and `app-paginator` (a `p-paginator` with page-number buttons, first/last,
-`rowsPerPageOptions [10, 25, 50]`, and `currentPageReportTemplate
-"{first} - {last} / {totalRecords}"`). Both files are **unchanged since that
-commit**; `git log` shows a single entry for each.
+All six product table surfaces consume it directly: Admin Batches, the Student
+directory, a Batch roster, Profile Catalogs, Admin Batch Resources, and Student
+Batch Resources. Every page supplies column templates plus a grid-card template
+and, where useful, a preview template. Unsupported product actions remain hidden
+rather than being invented merely because the shared component can expose them.
 
-No page imported either. Profile Catalogs in Checkpoint 3A, then Batches,
-Students, and the Batch roster in Checkpoint 4, each hand-rolled a bare `<table>`
-with its own `.cyf-*-table` stylesheet and a pair of Previous/Next buttons — four
-near-identical stylesheets and a control that could not say which page you were
-on.
+Server-backed lists use the component's `loadData` event verbatim: `skip`,
+`limit`, and search reach the API, and filter changes reset the shared paginator
+to the first page. Catalog and Resource endpoints return complete ordered lists,
+so those pages filter and slice their loaded data locally while keeping the same
+table controls and persisted UI preferences.
 
-`components/shared/record-table/` is the slice those four pages need: the same
-`p-table`, the same `app-paginator` **used as it is**, and the same
-`appColTemplate` directive. `app-data-table` is untouched and still exported; it
-carries bulk selection, XLSX export, a preview panel, column visibility, and a
-grid mode, none of which this product has.
-
-**Server-side paging is unchanged.** The component holds no data and slices
-nothing: it renders the page it is handed and emits `pageChange`, and the page
-turns that into the next request. Page changes, page-size changes, searches, and
-filter changes all reach the backend, and each is separately tested.
-
-**One real defect surfaced.** PrimeNG renders page numbers through
-`new Intl.NumberFormat(this.locale)`. `locale` was unset, so the digits followed
-the **viewer's operating system** rather than the application — an English page
-rendered `١ ٢ ٣` on an Arabic-configured machine. `app-paginator` gained an
-explicit `locale` input, pinned to Latin digits, matching `calendar-date.ts`,
-which pins the same for every other figure in the product.
-
-A wide table scrolls on PrimeNG's own `.p-datatable-table-container`; the card
-around it clips instead, which is what keeps the header inside the corner
-radius. That container is not focusable and carries no accessible name — a
-PrimeNG limitation recorded in the handoff, not worked around.
+A wide table scrolls on PrimeNG's `.p-datatable-table-container`. Paginator
+digits follow PrimeNG's environment locale because the restored source
+`app-paginator` does not override it; application-owned counts, dates, and file
+sizes retain their explicit formatting.
 
 ### 17o. One shell, two workspaces ⟨CP4 closeout⟩
 

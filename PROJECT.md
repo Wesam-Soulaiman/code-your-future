@@ -682,7 +682,12 @@ Future has no manual user-administration requirement.
 ### Data Table (Reusable)
 Retained shared component: lazy loading, server-side pagination, debounced search,
 table/grid views, column visibility, preview panel, Excel export, skeletons.
-Currently unused — no list page exists.
+It now renders every table surface: Admin Batches, the Student directory, a
+Batch roster, Profile Catalogs, Admin Batch Resources, and Student Batch
+Resources. Server-backed lists still page and filter on the server; lists
+returned whole by their APIs page and search locally. Product-specific actions
+remain explicit, so bulk deletion and Excel export stay hidden where the API
+does not offer them.
 
 ---
 

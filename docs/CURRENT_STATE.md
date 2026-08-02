@@ -84,7 +84,7 @@ with hard-coded state, not application code.
 | `@Cron` infrastructure | Works; `cron.ts` declares an empty class. |
 | Index application | **Resolved in the closeout.** Applied and physically verified during normal startup, before the port opens; a missing or non-unique index fails the boot. See §7h. |
 | MongoDB validators | `applyMongoValidators` runs; almost no field constraints are declared, so validators are effectively empty. |
-| `data-table` component | Retained, untouched, and still unused **as a whole** — it carries bulk delete, XLSX export, a preview panel, column visibility, and a grid mode, and this product has none of those. Its table, its paginator, and its column-template directive **are** now used, through `cyf-record-table`. Nothing was deleted; the parts that fit are wired up and the parts that do not are still there. |
+| `data-table` component | The original reusable component now renders all six table surfaces. Server-backed pages use its `loadData` contract; whole-list APIs are searched and paged locally. Grid view, previews, column visibility, refresh, and skeletons are active, while unsupported bulk-delete/export actions remain hidden. The interim `cyf-record-table` adapter was removed. |
 | Web Push | `sw-push.js` and the `web-push` dependency exist; `vapidPublicKey` empty, no push function. |
 | Dashboard page | Intentionally empty — a placeholder with no fake statistics, charts, or product data. The Admin workspace now has two real pages beside it (Batches, Students); the dashboard itself stays empty rather than inventing numbers. |
 | Student auth page | **Live** ⟨CP2B⟩. Google Identity Services renders Google's own button; a verified credential creates or reuses a Student and establishes a session. Still no email, username, password, signup, reset, or invitation-token field. |
@@ -586,28 +586,24 @@ each line is redacted and replayed at debug level. §17m.
 | Database URI, master key, admin password, invitation token in any log | **none** |
 | Any unmasked 64-hex token hash in any log | **none** |
 
-### The template's table and paginator, restored
+### The reusable data table, used everywhere
 
-Every list built since Checkpoint 3A had hand-rolled a bare `<table>` with its
-own stylesheet and a pair of Previous/Next buttons — while the template's
-`app-data-table` (PrimeNG `p-table`) and `app-paginator` sat unused and
-unchanged since `c1517e4`.
+All six table surfaces now render through the original `app-data-table`: Admin
+Batches, the Student directory, the roster inside a Batch, Profile Catalogs,
+Admin Batch Resources, and Student Batch Resources. The interim
+`cyf-record-table` adapter and its duplicate PrimeNG table were removed.
 
-The four implemented tables are now back on that visual language through a
-shared `cyf-record-table`: the template's `p-table` for the surface, header,
-rows, hover, and empty state, and the template's `app-paginator` **as it is** —
-page-number buttons, an active page, first/last, a rows-per-page selector, and
-the `{first} - {last} / {totalRecords}` report.
+The common behaviour is now real on every list: debounced in-table search,
+page-number navigation, rows-per-page selection, refresh, table/grid views,
+column visibility, loading skeletons, and row previews. Each page supplies its
+own cell, grid-card, and preview templates, so existing status, navigation,
+download, reorder, edit, and read-only rules are preserved.
 
-Server-side paging is unchanged. The component holds no data and slices nothing;
-it renders the page it is given and emits a request for the next one.
-
-**A real defect surfaced while restoring it.** PrimeNG formats page numbers with
-`new Intl.NumberFormat(this.locale)`, and `locale` was unset — so the digits
-followed the **viewer's operating system**, not the application. On an
-Arabic-configured machine an English page rendered `١ ٢ ٣`. The paginator now
-takes an explicit locale, pinned to Latin digits like every other figure in the
-product.
+Server-backed lists pass `skip`, `limit`, search, and filters through
+`loadData`. Profile Catalogs and Batch Resources are returned whole by their
+APIs, so those pages search and page their in-memory result instead. The shared
+component and paginator match the source template; PrimeNG therefore formats
+paginator digits using the viewer environment when no locale is supplied.
 
 ### One shell for both workspaces
 

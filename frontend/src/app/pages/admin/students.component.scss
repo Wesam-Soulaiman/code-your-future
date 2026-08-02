@@ -1,7 +1,7 @@
 /* Students — the Admin directory. Scoped styles.
    The page frame, heading rhythm, toolbar, filter grid, table, and paginator are
    all shared: the layout layer supplies `.cyf-page-*`, `.cyf-toolbar`, and
-   `.cyf-filter-grid`, and `cyf-record-table` supplies the table surface and the
+   `.cyf-filter-grid`, and `app-data-table` supplies the table surface and the
    template's paginator. Nothing page-specific is left to declare. */
 
 :host {

@@ -24,45 +24,6 @@
   </div>
 
   <!-- ── Toolbar ──────────────────────────────────────────────────────── -->
-  <div class="cyf-toolbar">
-    <div class="cyf-field cyf-toolbar-grow">
-      <label class="cyf-sr-only" for="catalog-search">{{ 'actions.search' | translate }}</label>
-      <input
-        id="catalog-search"
-        type="search"
-        class="cyf-input"
-        [value]="search()"
-        [attr.maxlength]="limits.search.max"
-        [placeholder]="'admin.catalogs.searchPlaceholder' | translate"
-        (input)="updateSearch($any($event.target).value)"
-      />
-    </div>
-
-    <div class="cyf-toolbar-actions">
-      <p-button
-        type="button"
-        severity="secondary"
-        [outlined]="true"
-        [disabled]="loading() || busy()"
-        (onClick)="refresh()"
-        styleClass="cyf-btn"
-      >
-        <i class="fa-solid fa-rotate" aria-hidden="true"></i>
-        <span>{{ 'actions.refresh' | translate }}</span>
-      </p-button>
-
-      <p-button
-        type="button"
-        [disabled]="loading() || busy()"
-        (onClick)="openCreate()"
-        styleClass="cyf-btn"
-      >
-        <i class="fa-solid fa-plus" aria-hidden="true"></i>
-        <span>{{ 'admin.catalogs.actions.add' | translate }}</span>
-      </p-button>
-    </div>
-  </div>
-
   <!-- ── Status ───────────────────────────────────────────────────────── -->
   <div class="cyf-page-status" aria-live="polite">
     @if (errorKey()) {
@@ -77,12 +38,7 @@
   </div>
 
   <!-- ── List ─────────────────────────────────────────────────────────── -->
-  @if (loading()) {
-    <div class="cyf-card cyf-card-padded cyf-catalogs-state" role="status" aria-live="polite">
-      <span class="cyf-spinner" aria-hidden="true"></span>
-      <span>{{ 'admin.catalogs.loading' | translate }}</span>
-    </div>
-  } @else if (isEmpty()) {
+  @if (isEmpty()) {
     <!-- Empty means empty. Nothing is invented for a category nobody has
          filled in yet. -->
     <div class="cyf-card cyf-card-padded cyf-catalogs-state cyf-catalogs-empty">
@@ -100,12 +56,22 @@
          whole and filtered as you type, which is the behaviour it has always
          had — so no paginator is rendered. Showing one would be inventing a
          pagination that does not exist. -->
-    <cyf-record-table
+    <app-data-table
+      [title]="'admin.catalogs.title' | translate"
+      [stateKey]="'profile-catalogs-' + activeType()"
+      rowKey="id"
+      [showPreview]="true"
+      [showAdd]="true"
+      [addLabel]="'admin.catalogs.actions.add' | translate"
+      [previewKey]="'nameEn'"
       [data]="visibleItems()"
       [columns]="columns()"
       [loading]="loading()"
-      emptyMessage="admin.catalogs.noMatch"
-      emptyIcon="fa-solid fa-list-ul"
+      [totalRecords]="totalRecords()"
+      [searchPlaceholder]="'admin.catalogs.searchPlaceholder' | translate"
+      editMode="dialog"
+      (loadData)="onLoadData($event)"
+      (add)="openCreate()"
     >
       <ng-template appColTemplate="order" let-item>
         <span class="cyf-numeric">{{ item.sortOrder }}</span>
@@ -189,7 +155,69 @@
           </button>
         </div>
       </ng-template>
-    </cyf-record-table>
+      <ng-template appPreviewTemplate let-item>
+        <div class="flex flex-col gap-4">
+          <div>
+            <h2 class="cyf-card-title">
+              {{ langService.currentLang() === 'ar' ? item.nameAr : item.nameEn }}
+            </h2>
+            <code class="cyf-catalogs-code">{{ item.code }}</code>
+          </div>
+          <div class="flex flex-col gap-2 text-sm">
+            <span dir="ltr">{{ item.nameEn }}</span>
+            <span dir="rtl" lang="ar">{{ item.nameAr }}</span>
+            <span class="cyf-numeric">{{ item.sortOrder }}</span>
+          </div>
+          <span
+            class="cyf-status-chip"
+            [class.cyf-status-success]="item.active"
+            [class.cyf-status-neutral]="!item.active"
+          >
+            {{
+              (item.active ? 'admin.catalogs.status.active' : 'admin.catalogs.status.inactive')
+                | translate
+            }}
+          </span>
+          <p-button
+            size="small"
+            icon="fa-solid fa-pen"
+            [label]="'actions.edit' | translate"
+            (onClick)="openEdit(item)"
+          />
+        </div>
+      </ng-template>
+
+      <ng-template appGridCardTemplate let-item>
+        <div class="flex flex-col gap-4">
+          <div>
+            <h3 class="font-semibold">
+              {{ langService.currentLang() === 'ar' ? item.nameAr : item.nameEn }}
+            </h3>
+            <code class="cyf-catalogs-code">{{ item.code }}</code>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <span
+              class="cyf-status-chip"
+              [class.cyf-status-success]="item.active"
+              [class.cyf-status-neutral]="!item.active"
+            >
+              {{
+                (item.active ? 'admin.catalogs.status.active' : 'admin.catalogs.status.inactive')
+                  | translate
+              }}
+            </span>
+            <button
+              type="button"
+              class="cyf-icon-button"
+              [attr.aria-label]="'actions.edit' | translate"
+              (click)="$event.stopPropagation(); openEdit(item)"
+            >
+              <i class="fa-solid fa-pen" aria-hidden="true"></i>
+            </button>
+          </div>
+        </div>
+      </ng-template>
+    </app-data-table>
   }
 </div>
 

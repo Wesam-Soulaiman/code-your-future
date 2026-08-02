@@ -180,6 +180,7 @@ type ViewMode = 'table' | 'grid';
     MenuModule,
     CardModule,
     CheckboxModule,
+    SearchInputComponent,
     TranslateModule,
   ],
   template: `
@@ -192,9 +193,18 @@ type ViewMode = 'table' | 'grid';
       <!-- Table Section -->
       <div class="flex flex-col flex-1 min-w-0 ">
         <!-- Toolbar -->
-        <div class="shrink-0 flex justify-between items-center pb-4">
+        <div class="shrink-0 flex flex-wrap justify-between items-center gap-2 pb-4">
           <!-- Left: Actions + Search -->
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
+            @if (showSearch()) {
+              <app-search-input
+                [placeholder]="searchPlaceholder()"
+                [loading]="loading()"
+                [initialValue]="searchTerm()"
+                (valueChange)="onSearch($event)"
+              />
+            }
+
             <!-- Add Button (hidden when items selected) -->
             @if (showAdd() && !hasSelection()) {
               <p-button
@@ -752,11 +762,6 @@ export class DataTableComponent implements OnInit, OnDestroy {
         this.pageTitleService.setSelection(count, () => this.clearSelection());
       }
     });
-
-    // Sync loading state with search in title bar
-    effect(() => {
-      this.pageTitleService.updateSearchLoading(this.loading());
-    });
   }
 
   ngOnInit(): void {
@@ -764,22 +769,11 @@ export class DataTableComponent implements OnInit, OnDestroy {
     this.viewMode.set(this.defaultViewMode());
     this.loadState();
 
-    // Register search in title bar
-    if (this.showSearch()) {
-      this.pageTitleService.setSearch({
-        placeholder: this.searchPlaceholder(),
-        loading: this.loading(),
-        initialValue: this.searchTerm(),
-        callback: (term: string) => this.onSearch(term),
-      });
-    }
-
     this.emitLoadData();
   }
 
   ngOnDestroy(): void {
     this.pageTitleService.resetSelection();
-    this.pageTitleService.resetSearch();
   }
 
   private emitLoadData(): void {

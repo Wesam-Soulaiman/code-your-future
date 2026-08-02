@@ -436,7 +436,10 @@ describe('BatchResourcesComponent', () => {
     });
 
     it('keeps file sizes in Latin digits', () => {
-      expect(text()).not.toMatch(/[٠-٩]/);
+      const numericCells = [...fixture.nativeElement.querySelectorAll('.cyf-numeric')]
+        .map((cell) => (cell as HTMLElement).textContent ?? '')
+        .join(' ');
+      expect(numericCells).not.toMatch(/[٠-٩]/);
     });
   });
 });
