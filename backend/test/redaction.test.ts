@@ -481,6 +481,50 @@ describe('Parse trigger logging for a Student sign-in (S-19)', () => {
     assert.ok(line.includes('loginWithGoogle'), 'the operation stays diagnosable');
   });
 
+  test('a Resource storage key never survives redaction ⟨CP5⟩', () => {
+    // 128 bits of randomness is the only thing between a log reader and
+    // somebody's private document. Found by runtime validation: Parse logs
+    // every `beforeSave` with its serialised object, so this was written
+    // verbatim on every upload.
+    const key = 'resource_deadbeefdeadbeefdeadbeefdeadbeef';
+
+    const meta = serialise(redactMeta({op: 'uploadResource', storageKey: key}));
+    assert.ok(!meta.includes(key), `the storage key leaked: ${meta}`);
+    assert.ok(meta.includes('uploadResource'), 'the operation stays diagnosable');
+
+    const line = buildParseLogLine(
+      'info',
+      'beforeSave triggered for BatchResource for user undefined:\n' +
+        `  Input: {"title":"Week one","fileSize":29,"storageKey":"${key}"}`,
+      {className: 'BatchResource', triggerType: 'beforeSave'}
+    );
+    assert.ok(!line.includes(key), `the storage key leaked through Parse's logger: ${line}`);
+    // Everything an operator actually needs is still there.
+    assert.ok(line.includes('BatchResource'));
+    assert.ok(line.includes('29'), 'a byte count is not a secret');
+  });
+
+  test('a Resource filename never survives redaction ⟨CP5⟩', () => {
+    // People name documents after themselves and after the people they are
+    // about. `filename` was already covered by the binary-key rules; this
+    // pins it down for the Resource shape specifically.
+    const line = buildParseLogLine(
+      'info',
+      'beforeSave triggered for BatchResource for user undefined:\n' +
+        '  Input: {"filename":"offer-letter-lina-haddad.pdf","extension":".pdf"}',
+      {className: 'BatchResource', triggerType: 'beforeSave'}
+    );
+    assert.ok(!line.includes('offer-letter-lina-haddad'), `a filename leaked: ${line}`);
+    assert.ok(line.includes('.pdf'), 'the format is not personal data');
+  });
+
+  test('a harmless key that merely mentions storage still survives', () => {
+    // The fragment is `storagekey`, not `storage`, so an operational flag is
+    // not swallowed with it.
+    const meta = serialise(redactMeta({op: 'bootstrap', storageIsUsable: true}));
+    assert.ok(meta.includes('true'), meta);
+  });
+
   test('a provisioning failure log carries no identity data', () => {
     const line = buildParseLogLine('error', 'Student provisioning failed', {
       op: 'provisionStudent',

@@ -1,0 +1,410 @@
+<!--
+  The Resources of one Batch, for its Admin ⟨CP5⟩.
+
+  Every control that changes something disappears when the Batch is archived;
+  downloading never does.
+-->
+<div class="cyf-resources">
+  <div class="cyf-toolbar">
+    <div class="cyf-toolbar-grow">
+      <h2 class="cyf-section-title cyf-resources-title">{{ 'resources.title' | translate }}</h2>
+      <p class="cyf-body-sm cyf-resources-lead">{{ 'resources.lead' | translate }}</p>
+    </div>
+
+    <div class="cyf-toolbar-actions">
+      <p-button
+        type="button"
+        severity="secondary"
+        [outlined]="true"
+        [disabled]="loading()"
+        (onClick)="reload()"
+        styleClass="cyf-btn"
+      >
+        <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+        <span>{{ 'actions.refresh' | translate }}</span>
+      </p-button>
+
+      @if (!readOnly()) {
+        <p-button
+          type="button"
+          [disabled]="busy() || loading()"
+          (onClick)="openUpload()"
+          styleClass="cyf-btn"
+        >
+          <i class="fa-solid fa-upload" aria-hidden="true"></i>
+          <span>{{ 'resources.actions.upload' | translate }}</span>
+        </p-button>
+      }
+    </div>
+  </div>
+
+  <!-- ── Panel status ──────────────────────────────────────────────────── -->
+  <div class="cyf-page-status" aria-live="polite">
+    @if (errorKey()) {
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ errorKey()! | translate }}
+      </cyf-alert>
+    } @else if (noticeKey()) {
+      <cyf-alert variant="success" [prefix]="'a11y.noticePrefix' | translate">
+        {{ noticeKey()! | translate }}
+      </cyf-alert>
+    } @else if (readOnly()) {
+      <!-- Not an error. A fact that explains every missing button on this
+           panel, said once rather than left to be discovered. -->
+      <cyf-alert variant="info" [prefix]="'a11y.noticePrefix' | translate">
+        {{ 'resources.readOnlyNotice' | translate }}
+      </cyf-alert>
+    }
+  </div>
+
+  @if (isEmpty()) {
+    <div class="cyf-empty">
+      <span class="cyf-empty-icon" aria-hidden="true">
+        <i class="fa-solid fa-folder-open"></i>
+      </span>
+      <h3 class="cyf-card-title cyf-empty-title">{{ 'resources.empty.title' | translate }}</h3>
+      <p class="cyf-body-sm cyf-empty-text">
+        {{ (readOnly() ? 'resources.empty.archived' : 'resources.empty.body') | translate }}
+      </p>
+      @if (!readOnly()) {
+        <p-button type="button" [disabled]="busy()" (onClick)="openUpload()" styleClass="cyf-btn">
+          <i class="fa-solid fa-upload" aria-hidden="true"></i>
+          <span>{{ 'resources.actions.upload' | translate }}</span>
+        </p-button>
+      }
+    </div>
+  } @else {
+    <!--
+      No paginator: a Batch's materials are a short, ordered list, and the
+      whole of it arrives in one response. `totalRecords` is left at zero
+      deliberately, which is what tells the table there is nothing to page.
+    -->
+    <cyf-record-table
+      [data]="rows()"
+      [columns]="columns"
+      [loading]="loading()"
+      emptyMessage="resources.empty.title"
+      emptyIcon="fa-solid fa-folder-open"
+    >
+      <ng-template appColTemplate="title" let-row>
+        <div class="cyf-resource-title">
+          <span class="cyf-resource-icon" aria-hidden="true"><i [class]="row.icon"></i></span>
+          <span class="cyf-resource-text">
+            <span class="cyf-resource-name">{{ row.resource.title }}</span>
+            @if (row.resource.description) {
+              <span class="cyf-resource-description">{{ row.resource.description }}</span>
+            }
+            <!-- The original filename, shown because it is what gets saved. -->
+            <span class="cyf-resource-filename" dir="auto">{{ row.resource.filename }}</span>
+          </span>
+        </div>
+      </ng-template>
+
+      <ng-template appColTemplate="kind" let-row>
+        {{ 'resources.kinds.' + row.resource.kind | translate }}
+      </ng-template>
+
+      <ng-template appColTemplate="size" let-row>
+        <span class="cyf-numeric">{{ row.size }} {{ row.sizeUnitKey | translate }}</span>
+      </ng-template>
+
+      <ng-template appColTemplate="addedAt" let-row>
+        <span class="cyf-numeric">{{ row.addedAt || '—' }}</span>
+      </ng-template>
+
+      <ng-template appColTemplate="actions" let-row>
+        <div class="cyf-resource-actions">
+          <button
+            type="button"
+            class="cyf-icon-button"
+            [disabled]="downloadingId() === row.resource.id"
+            [attr.aria-label]="'resources.actions.download' | translate"
+            [title]="'resources.actions.download' | translate"
+            (click)="download(row.resource)"
+          >
+            @if (downloadingId() === row.resource.id) {
+              <span class="cyf-spinner cyf-resource-spinner" aria-hidden="true"></span>
+            } @else {
+              <i class="fa-solid fa-download" aria-hidden="true"></i>
+            }
+          </button>
+
+          @if (!readOnly()) {
+            <button
+              type="button"
+              class="cyf-icon-button"
+              [disabled]="busy() || row.first"
+              [attr.aria-label]="'resources.actions.moveUp' | translate"
+              [title]="'resources.actions.moveUp' | translate"
+              (click)="moveUp(row.resource)"
+            >
+              <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+            </button>
+
+            <button
+              type="button"
+              class="cyf-icon-button"
+              [disabled]="busy() || row.last"
+              [attr.aria-label]="'resources.actions.moveDown' | translate"
+              [title]="'resources.actions.moveDown' | translate"
+              (click)="moveDown(row.resource)"
+            >
+              <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
+            </button>
+
+            <button
+              type="button"
+              class="cyf-icon-button"
+              [disabled]="busy()"
+              [attr.aria-label]="'resources.actions.edit' | translate"
+              [title]="'resources.actions.edit' | translate"
+              (click)="openEdit(row.resource)"
+            >
+              <i class="fa-solid fa-pen" aria-hidden="true"></i>
+            </button>
+
+            <button
+              type="button"
+              class="cyf-icon-button cyf-is-danger"
+              [disabled]="busy()"
+              [attr.aria-label]="'resources.actions.delete' | translate"
+              [title]="'resources.actions.delete' | translate"
+              (click)="openDelete(row.resource)"
+            >
+              <i class="fa-solid fa-trash" aria-hidden="true"></i>
+            </button>
+          }
+        </div>
+      </ng-template>
+    </cyf-record-table>
+  }
+</div>
+
+<!-- ══ Upload ═══════════════════════════════════════════════════════════ -->
+<p-dialog
+  [visible]="uploadOpen()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="!busy()"
+  [style]="{ width: 'min(36rem, 92vw)' }"
+  [header]="'resources.upload.title' | translate"
+  (visibleChange)="$event ? null : cancelUpload()"
+>
+  <p class="cyf-body-sm">{{ 'resources.upload.lead' | translate }}</p>
+
+  <div class="cyf-field">
+    <label class="cyf-label" for="resource-file">{{ 'resources.upload.file' | translate }}</label>
+    <input
+      id="resource-file"
+      #fileInput
+      type="file"
+      class="cyf-input"
+      [accept]="accept()"
+      [disabled]="busy()"
+      (change)="chooseFile(fileInput)"
+    />
+    <!-- The rules the server enforces, stated by the server. -->
+    <p class="cyf-helper">
+      {{
+        'resources.upload.rules'
+          | translate
+            : {
+                extensions: extensionList(),
+                size: maxSize() + ' ' + (maxSizeUnitKey() | translate),
+              }
+      }}
+    </p>
+    @if (chosenFile(); as file) {
+      <p class="cyf-helper cyf-resource-chosen" dir="auto">
+        {{ file.name }} — {{ chosenFileSize() }} {{ chosenFileUnitKey() | translate }}
+      </p>
+    }
+  </div>
+
+  <div class="cyf-field">
+    <label class="cyf-label" for="resource-title">{{ 'resources.fields.title' | translate }}</label>
+    <input
+      id="resource-title"
+      type="text"
+      class="cyf-input"
+      [value]="uploadTitle()"
+      [attr.maxlength]="limits.title.max"
+      [disabled]="busy()"
+      (input)="uploadTitle.set($any($event.target).value)"
+    />
+    @if (fieldError('title'); as key) {
+      <p class="cyf-error-text">{{ key | translate }}</p>
+    }
+  </div>
+
+  <div class="cyf-field">
+    <label class="cyf-label" for="resource-description">
+      {{ 'resources.fields.description' | translate }}
+    </label>
+    <textarea
+      id="resource-description"
+      class="cyf-input cyf-textarea"
+      rows="3"
+      [value]="uploadDescription()"
+      [attr.maxlength]="limits.description.max"
+      [disabled]="busy()"
+      (input)="uploadDescription.set($any($event.target).value)"
+    ></textarea>
+    @if (fieldError('description'); as key) {
+      <p class="cyf-error-text">{{ key | translate }}</p>
+    }
+  </div>
+
+  @if (errorKey()) {
+    <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+      {{ errorKey()! | translate }}
+    </cyf-alert>
+  }
+
+  <div class="cyf-resource-dialog-actions">
+    <p-button
+      type="button"
+      severity="secondary"
+      [outlined]="true"
+      [disabled]="busy()"
+      (onClick)="cancelUpload()"
+      styleClass="cyf-btn"
+    >
+      <span>{{ 'actions.cancel' | translate }}</span>
+    </p-button>
+    <p-button
+      type="button"
+      [disabled]="busy() || !canUpload()"
+      [loading]="busy()"
+      (onClick)="submitUpload()"
+      styleClass="cyf-btn"
+    >
+      <span>{{ 'resources.actions.upload' | translate }}</span>
+    </p-button>
+  </div>
+</p-dialog>
+
+<!-- ══ Edit ═════════════════════════════════════════════════════════════ -->
+<p-dialog
+  [visible]="!!editing()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="!busy()"
+  [style]="{ width: 'min(36rem, 92vw)' }"
+  [header]="'resources.edit.title' | translate"
+  (visibleChange)="$event ? null : cancelEdit()"
+>
+  <!-- Said before the fields, not after: somebody opening this dialog to swap a
+       file needs to know that is not what it does. -->
+  <p class="cyf-body-sm">{{ 'resources.edit.lead' | translate }}</p>
+
+  @if (editing(); as resource) {
+    <p class="cyf-helper cyf-resource-chosen" dir="auto">{{ resource.filename }}</p>
+  }
+
+  <div class="cyf-field">
+    <label class="cyf-label" for="resource-edit-title">
+      {{ 'resources.fields.title' | translate }}
+    </label>
+    <input
+      id="resource-edit-title"
+      type="text"
+      class="cyf-input"
+      [value]="editTitle()"
+      [attr.maxlength]="limits.title.max"
+      [disabled]="busy()"
+      (input)="editTitle.set($any($event.target).value)"
+    />
+    @if (fieldError('title'); as key) {
+      <p class="cyf-error-text">{{ key | translate }}</p>
+    }
+  </div>
+
+  <div class="cyf-field">
+    <label class="cyf-label" for="resource-edit-description">
+      {{ 'resources.fields.description' | translate }}
+    </label>
+    <textarea
+      id="resource-edit-description"
+      class="cyf-input cyf-textarea"
+      rows="3"
+      [value]="editDescription()"
+      [attr.maxlength]="limits.description.max"
+      [disabled]="busy()"
+      (input)="editDescription.set($any($event.target).value)"
+    ></textarea>
+    @if (fieldError('description'); as key) {
+      <p class="cyf-error-text">{{ key | translate }}</p>
+    }
+  </div>
+
+  @if (errorKey()) {
+    <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+      {{ errorKey()! | translate }}
+    </cyf-alert>
+  }
+
+  <div class="cyf-resource-dialog-actions">
+    <p-button
+      type="button"
+      severity="secondary"
+      [outlined]="true"
+      [disabled]="busy()"
+      (onClick)="cancelEdit()"
+      styleClass="cyf-btn"
+    >
+      <span>{{ 'actions.cancel' | translate }}</span>
+    </p-button>
+    <p-button
+      type="button"
+      [disabled]="busy() || !canSaveEdit()"
+      [loading]="busy()"
+      (onClick)="submitEdit()"
+      styleClass="cyf-btn"
+    >
+      <span>{{ 'actions.save' | translate }}</span>
+    </p-button>
+  </div>
+</p-dialog>
+
+<!-- ══ Delete ═══════════════════════════════════════════════════════════ -->
+<p-dialog
+  [visible]="!!deleting()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="!busy()"
+  [style]="{ width: 'min(32rem, 92vw)' }"
+  [header]="'resources.delete.title' | translate"
+  (visibleChange)="$event ? null : cancelDelete()"
+>
+  <p>{{ 'resources.delete.body' | translate: { title: deleting()?.title ?? '' } }}</p>
+  <!-- The file goes too. That is worth saying, because "remove from the list"
+       and "destroy the only copy" are very different things to agree to. -->
+  <p class="cyf-helper">{{ 'resources.delete.hint' | translate }}</p>
+
+  <div class="cyf-resource-dialog-actions">
+    <p-button
+      type="button"
+      severity="secondary"
+      [outlined]="true"
+      [disabled]="busy()"
+      (onClick)="cancelDelete()"
+      styleClass="cyf-btn"
+    >
+      <span>{{ 'actions.cancel' | translate }}</span>
+    </p-button>
+    <p-button
+      type="button"
+      severity="danger"
+      [disabled]="busy()"
+      [loading]="busy()"
+      (onClick)="confirmDelete()"
+      styleClass="cyf-btn"
+    >
+      <span>{{ 'actions.delete' | translate }}</span>
+    </p-button>
+  </div>
+</p-dialog>

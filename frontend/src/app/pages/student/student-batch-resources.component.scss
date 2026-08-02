@@ -1,0 +1,55 @@
+/* Batch Resources, Student view — scoped styles ⟨CP5⟩.
+   Composition only. Every colour, space, radius and size comes from the
+   Checkpoint 2A token layer, and all box properties are logical so one
+   stylesheet serves LTR and RTL. */
+
+:host {
+  display: block;
+}
+
+.cyf-student-resources-title {
+  margin: 0;
+}
+
+.cyf-student-resources-lead {
+  margin: var(--cyf-space-1) 0 0;
+  color: var(--cyf-text-secondary);
+}
+
+.cyf-resource-title {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cyf-space-3);
+}
+
+.cyf-resource-icon {
+  color: var(--cyf-text-muted);
+  font-size: var(--cyf-text-lg);
+  line-height: 1.4;
+}
+
+.cyf-resource-text {
+  display: grid;
+  gap: var(--cyf-space-1);
+  min-inline-size: 0;
+}
+
+.cyf-resource-name {
+  font-weight: var(--cyf-weight-medium);
+}
+
+.cyf-resource-description {
+  color: var(--cyf-text-secondary);
+  font-size: var(--cyf-text-sm);
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-inline-size: 24rem;
+}
+
+.cyf-resource-filename {
+  color: var(--cyf-text-muted);
+  font-size: var(--cyf-text-xs);
+}

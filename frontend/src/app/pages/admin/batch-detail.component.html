@@ -265,6 +265,15 @@
         />
       </div>
     }
+
+    <!-- ══ Resources ════════════════════════════════════════════════════ -->
+    @if (activeTab() === 'resources') {
+      <div class="cyf-card cyf-card-padded cyf-batch-detail-panel">
+        <!-- Mounted only while the tab is open, so a Batch nobody opens this
+             tab on costs no request at all. -->
+        <cyf-batch-resources [batchId]="batchId()" [archived]="readOnly()" />
+      </div>
+    }
   }
 </div>
 

@@ -1529,7 +1529,7 @@ it terminates its own two paths and everything else falls through untouched:
 `blockRawFileRoutes` still answers `/api/files/*` with 403. `File`, `IMG`, and `fileAdapter.ts` are
 untouched and unwired. `fileUpload` stays disabled. **No public URL exists.** The bytes still live
 inline on the private, owner-ACL'd, deny-by-default profile row for the reason recorded in S-20, and
-**OQ-10 / S-20 stay open** — this is a profile-photo answer, not the general private-file
+**OQ-10 / S-20 were resolved in Checkpoint 5, not here** — this is a profile-photo answer, not the general private-file
 architecture.
 
 ### Image content in logs
@@ -1995,3 +1995,107 @@ second navigation with its own active state.
     and its `rateLimit` module starts a non-`unref`'d `setInterval` at import. Both live in
     `@90soft/parse-server-kit`, which must not be patched; the interval is neutralised in the test
     harness and the body-key path is not exploitable in this configuration.
+
+---
+
+## 19. Private binary storage ⟨CP5⟩ — the answer to OQ-10 / S-20
+
+### The problem, precisely
+
+`Parse.File` is unusable from cloud code in this deployment, and that is not a style preference.
+Parse's `FilesRouter` is **not** part of the router `directAccess` uses, so `Parse.File.save()`
+falls back to an HTTP request against the server's own `serverURL` — which `blockRawFileRoutes`
+refuses, correctly. `getData()` fails the same way. That is S-20.
+
+Checkpoint 3A worked around it for one file type by storing bounded, re-encoded bytes **inline**
+on a private row. That is a workable answer for a ≤1 MiB WebP and no answer at all for a 20 MiB
+PDF: an inline column is loaded whole on every read of the row, including reads that only wanted a
+title.
+
+### What replaces it
+
+**MongoDB GridFS, through the files adapter Parse Server already has.**
+
+The default adapter *is* `GridFSBucketAdapter`, already connected to the same database. It is
+reached **directly, in-process** — so this introduces no new dependency, no second connection, no
+new operational surface, and never involves the HTTP route S-20 blocks.
+
+```
+POST /api/batch-resource                 GET /api/batch-resource/:resourceId
+        │                                        │
+   multer (memory, 20 MiB, files:1)         resolveSessionUser()  ← _Session, master key,
+        │                                        │                  explicit expiry check
+   resolveSessionUser()                     describeViewer()      ← live _Role membership
+        │                                        │
+   requireWriteAccess()                     canReadBatchResources()
+   (Admin, Batch not archived)              (Admin, or a live BatchEnrollment)
+        │                                        │
+   validateUploadedFile()                   openBinaryStream()    ← adapter._getBucket()
+   (extension → MIME → bytes)                    │
+        │                                   headers, then pipe
+   storeBinary()  ← adapter.createFile()         │
+        │                                   ── attachment, nosniff, private/no-store,
+   createResource()  (row second)              sandbox CSP, Accept-Ranges: none
+        │
+   on any failure: removeBinaryQuietly()
+```
+
+### Why the bucket is opened directly
+
+The adapter has two public read methods and neither fits:
+
+| Method | Why not |
+|---|---|
+| `getFileData` | Reads the entire file into a Buffer — exactly what a 20 MiB limit exists to avoid. |
+| `handleFileStream` | A **range** handler. It calls `req.get('Range')` unconditionally (so it throws on an ordinary download), always answers **206**, and sets no `Content-Disposition`. |
+
+So `_getBucket()` is used for reads. That is the one place this module reaches past the adapter's
+public surface. It is **feature-detected at startup** — `storageIsUsable()` checks `createFile`,
+`deleteFile`, and `_getBucket` together, and the server logs a warning at boot if any is missing,
+so a parse-server upgrade that moved it surfaces as a startup line rather than as a failed
+download under a user.
+
+### The storage key
+
+`resource_` + 16 random bytes as hex. Generated per file, derived from **nothing** — not the
+filename, not the Batch, not the uploader — because a key that encodes anything is a key that
+leaks it.
+
+It is in `protectedFields`, absent from both DTOs, absent from the logging allow-list, and
+enforced unique by index. It is also not an address: asking for a storage key as a resource id
+answers 404.
+
+Redaction was extended to mask `storagekey` in Checkpoint 5, after runtime validation read a real
+log file and found Parse's own `beforeSave` line writing it verbatim on every upload — the same
+class of finding, discovered the same way, as `fullName` in Checkpoint 3A.
+
+### Ordering, in both directions
+
+Uploading stores **bytes first, row second**. Deleting removes the **row first, bytes second**.
+The asymmetry is deliberate and it is the whole failure design: bytes with no row are invisible,
+harmless, and reclaimable, while a row pointing at bytes that are not there is a broken Resource
+people can see and click. Every post-store failure path on upload calls `removeBinaryQuietly`,
+which never throws — the caller is already failing for a reason it will report, and a cleanup
+failure must not replace that reason with a worse one — but does warn, because an orphan nobody
+knows about is the thing it exists to prevent.
+
+### Distinguishing formats that share a signature
+
+`.docx`, `.pptx`, and `.xlsx` are ZIP archives. Their first four bytes are `PK\x03\x04`, which is
+also a `.jar`, an `.apk`, an `.epub`, and a plain `.zip` full of anything at all.
+
+So for those three the **package contents** decide. `zipEntryNames()` walks the ZIP central
+directory by its `PK\x01\x02` signature and reads the entry names — bounded to 512 entries,
+decompressing nothing, opening nothing, and returning a short list rather than throwing on a
+malformed archive. A name table is inert, which is why no ZIP library was added.
+
+Every OOXML package contains `[Content_Types].xml`; a document also contains `word/`, a
+presentation `ppt/`, a workbook `xl/`. A renamed JAR has `META-INF/` and no `[Content_Types].xml`,
+so it fails.
+
+### What this did not touch
+
+`File`, `IMG`, `fileAdapter.ts`, and the Checkpoint 3A profile-photo route are all unchanged.
+`/api/files/*` is still 403 and the static `backend/files/` mount is still gone. Rewriting a
+working private-file path to prove an architectural point is how a working private-file path stops
+working.

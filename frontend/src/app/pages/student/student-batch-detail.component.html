@@ -34,14 +34,36 @@
         </div>
       </div>
     } @else if (batch(); as mine) {
-      <article class="cyf-card cyf-card-padded cyf-batch-card">
-        <header class="cyf-batch-head">
-          <h1 class="cyf-page-title cyf-batch-title">{{ mine.name }}</h1>
-          <span class="cyf-status-chip cyf-status-{{ tone() }}">
-            {{ 'batch.status.' + mine.status | translate }}
-          </span>
-        </header>
+      <header class="cyf-batch-head">
+        <h1 class="cyf-page-title cyf-batch-title">{{ mine.name }}</h1>
+        <span class="cyf-status-chip cyf-status-{{ tone() }}">
+          {{ 'batch.status.' + mine.status | translate }}
+        </span>
+      </header>
 
+      <!-- ── Tabs ─────────────────────────────────────────────────────── -->
+      <div
+        class="cyf-batch-tabs"
+        role="tablist"
+        [attr.aria-label]="'student.batches.tabs.label' | translate"
+      >
+        @for (tab of tabs; track tab.id) {
+          <button
+            type="button"
+            role="tab"
+            class="cyf-batch-tab"
+            [class.cyf-is-active]="activeTab() === tab.id"
+            [attr.aria-selected]="activeTab() === tab.id"
+            [attr.tabindex]="activeTab() === tab.id ? 0 : -1"
+            (click)="selectTab(tab.id)"
+          >
+            {{ tab.labelKey | translate }}
+          </button>
+        }
+      </div>
+
+      @if (activeTab() === 'overview') {
+      <article class="cyf-card cyf-card-padded cyf-batch-card">
         @if (mine.description) {
           <p class="cyf-body cyf-batch-description">{{ mine.description }}</p>
         }
@@ -71,5 +93,15 @@
              there is nothing else here yet, and that is the truth. -->
         <p class="cyf-helper cyf-batch-note">{{ 'student.batches.moreSoon' | translate }}</p>
       </article>
+      }
+
+      <!-- ══ Resources ══════════════════════════════════════════════════ -->
+      @if (activeTab() === 'resources') {
+        <article class="cyf-card cyf-card-padded cyf-batch-card">
+          <!-- Mounted only while the tab is open, so opening a Batch does not
+               fetch a list nobody asked to see. -->
+          <cyf-student-batch-resources [batchId]="batchId()" />
+        </article>
+      }
     }
 </div>

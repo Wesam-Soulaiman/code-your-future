@@ -1,0 +1,97 @@
+<!--
+  The materials of one Batch, for the Student in it ⟨CP5⟩.
+
+  Read and download. There is no control here that changes anything, because
+  there is no operation behind one.
+-->
+<div class="cyf-student-resources">
+  <div class="cyf-toolbar">
+    <div class="cyf-toolbar-grow">
+      <h2 class="cyf-section-title cyf-student-resources-title">
+        {{ 'resources.title' | translate }}
+      </h2>
+      <p class="cyf-body-sm cyf-student-resources-lead">
+        {{ 'resources.studentLead' | translate }}
+      </p>
+    </div>
+
+    <div class="cyf-toolbar-actions">
+      <p-button
+        type="button"
+        severity="secondary"
+        [outlined]="true"
+        [disabled]="loading()"
+        (onClick)="reload()"
+        styleClass="cyf-btn"
+      >
+        <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+        <span>{{ 'actions.refresh' | translate }}</span>
+      </p-button>
+    </div>
+  </div>
+
+  <div class="cyf-page-status" aria-live="polite">
+    @if (errorKey()) {
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ errorKey()! | translate }}
+      </cyf-alert>
+    }
+  </div>
+
+  @if (isEmpty()) {
+    <div class="cyf-empty">
+      <span class="cyf-empty-icon" aria-hidden="true">
+        <i class="fa-solid fa-folder-open"></i>
+      </span>
+      <h3 class="cyf-card-title cyf-empty-title">
+        {{ 'resources.student.empty.title' | translate }}
+      </h3>
+      <p class="cyf-body-sm cyf-empty-text">{{ 'resources.student.empty.body' | translate }}</p>
+    </div>
+  } @else {
+    <!-- Unpaged: the list arrives whole, in the order the Admin chose. -->
+    <cyf-record-table
+      [data]="rows()"
+      [columns]="columns"
+      [loading]="loading()"
+      emptyMessage="resources.student.empty.title"
+      emptyIcon="fa-solid fa-folder-open"
+    >
+      <ng-template appColTemplate="title" let-row>
+        <div class="cyf-resource-title">
+          <span class="cyf-resource-icon" aria-hidden="true"><i [class]="row.icon"></i></span>
+          <span class="cyf-resource-text">
+            <span class="cyf-resource-name">{{ row.resource.title }}</span>
+            @if (row.resource.description) {
+              <span class="cyf-resource-description">{{ row.resource.description }}</span>
+            }
+            <span class="cyf-resource-filename" dir="auto">{{ row.resource.filename }}</span>
+          </span>
+        </div>
+      </ng-template>
+
+      <ng-template appColTemplate="kind" let-row>
+        {{ 'resources.kinds.' + row.resource.kind | translate }}
+      </ng-template>
+
+      <ng-template appColTemplate="size" let-row>
+        <span class="cyf-numeric">{{ row.size }} {{ row.sizeUnitKey | translate }}</span>
+      </ng-template>
+
+      <ng-template appColTemplate="actions" let-row>
+        <p-button
+          type="button"
+          severity="secondary"
+          [outlined]="true"
+          [disabled]="downloadingId() === row.resource.id"
+          [loading]="downloadingId() === row.resource.id"
+          (onClick)="download(row.resource)"
+          styleClass="cyf-btn"
+        >
+          <i class="fa-solid fa-download" aria-hidden="true"></i>
+          <span>{{ 'resources.actions.download' | translate }}</span>
+        </p-button>
+      </ng-template>
+    </cyf-record-table>
+  }
+</div>

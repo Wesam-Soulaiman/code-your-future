@@ -125,7 +125,6 @@ describe('registered cloud-function surface', () => {
       'batch',
       'invitation',
       'enroll',
-      'resource',
       'slide',
       'task',
       'submission',

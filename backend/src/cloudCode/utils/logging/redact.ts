@@ -80,6 +80,18 @@ const SENSITIVE_KEY_FRAGMENTS: readonly string[] = [
   'givenname',
   'familyname',
   'rawbody',
+  // The address of a private file's bytes ⟨CP5⟩. Found by runtime validation,
+  // the same way `fullname` was: Parse logs every `beforeSave` with its
+  // serialised object, so `BatchResource.storageKey` — 128 bits of randomness
+  // that is the *only* thing standing between a log reader and somebody's
+  // private document — was written verbatim on every upload. It is in
+  // `protectedFields`, absent from every DTO, and absent from the Resource
+  // logging allow-list; a log line was the one place left that had it.
+  //
+  // The fragment is `storagekey` rather than `storage`, which would also
+  // swallow harmless keys like `storageIsUsable`. No log call site anywhere
+  // passes a field with this name, so nothing useful is lost.
+  'storagekey',
 ];
 
 /**

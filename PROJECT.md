@@ -185,12 +185,35 @@ creating a second one.
 
 Carries no score, rating, grade, feedback, or note.
 
+### `BatchResource`
+
+A file an Admin shares with one Batch. **Metadata only** — the bytes live in
+private GridFS storage and are addressed by `storageKey`, 128 bits of randomness
+that never leaves the server. A 20 MiB document stored inline on the row would be
+loaded whole on every read of the row, including reads that only wanted a title.
+
+Columns: the Batch, a title, an optional description, the sanitised original
+filename, the extension, the stored MIME type, the size in bytes, a display
+order, the storage key, and the uploading Admin.
+
+`storageKey`, `batch`, `filename`, `extension`, `mimeType`, `fileSize`, and
+`uploadedBy` are **written once, at creation**, and a trigger refuses any later
+change to them. That is what makes "there is no file replacement" a fact about
+the data rather than a policy about the UI.
+
+Two indexes: `(batch, displayOrder)` for the list, and a **unique** index on
+`storageKey` — two rows sharing a key would mean deleting one destroys the
+other's bytes.
+
+Carries no folder, tag, category, comment, rating, download count, progress flag,
+or generic metadata bag.
+
 > `AppSettings` was removed in Checkpoint 1 (resolved decision OQ-13): it had no
 > consumer, no product requirement, and it widened the API surface. A generic
 > key-value settings store is now a **prohibited pattern** — future configuration
 > needs use narrowly scoped, typed, sanitised endpoints.
 
-**Not implemented yet:** `Resource`, `LiveSlidesSession`, `Task`, `Submission`,
+**Not implemented yet:** `LiveSlidesSession`, `Task`, `Submission`,
 `PinnedStudent`, Talent Reels.
 
 ---
@@ -210,6 +233,9 @@ _User ──(membership)────── _Role {Admin, Student}
 
 Batch ──(1:N)── BatchEnrollment ──(N:1)── _User      unique on (batch, student)
 Batch ──(1:N)── BatchInvitation                      unique on currentForBatch
+Batch ──(1:N)── BatchResource ──(N:1)── _User        unique on storageKey
+                      │                 (uploadedBy)
+                      └──(1:1) private GridFS binary, addressed only by storageKey
 
 File, IMG  — standalone private infrastructure, no product owner yet
 ```
@@ -218,8 +244,13 @@ File, IMG  — standalone private infrastructure, no product owner yet
 
 ## API surface
 
-Thirty-four cloud functions and one authenticated binary route. Nothing else is
+Thirty-nine cloud functions and two authenticated binary routes. Nothing else is
 reachable.
+
+Both binary routes exist for the same reason: Parse Server logs every
+cloud-function call with its serialised input **and** result, so a file passed as
+a parameter is a file written into the log. Bytes therefore never enter the
+cloud-function pipeline in either direction.
 
 | Route | Method | Auth | Purpose |
 |---|---|---|---|
@@ -257,6 +288,13 @@ reachable.
 | `/api/student-batches/getMyBatch` | GET | Student session | One of them. "Not yours" and "does not exist" answer identically. |
 | `/api/student-directory/listStudents` | GET | Admin session | Read-only directory, driven by `StudentProfile`. Filters are catalog **ids**, never typed names. |
 | `/api/student-directory/getStudent` | GET | Admin session | One Student, read-only, plus the Batches they belong to. |
+| `/api/batch-resources/listBatchResources` | GET | Admin session | Every Resource of one Batch in display order, plus the upload rules and whether the Batch is read-only. Works on an archived Batch. |
+| `/api/batch-resources/updateBatchResource` | POST | Admin session | Edit the title and description. The file is untouchable — there is no replacement operation. |
+| `/api/batch-resources/reorderBatchResources` | POST | Admin session | Apply a whole new order. The set is rewritten 0..n in one save. |
+| `/api/batch-resources/deleteBatchResource` | POST | Admin session | Delete the Resource and the bytes behind it. |
+| `/api/student-resources/listMyBatchResources` | GET | Student session | The Resources of a Batch the caller has **joined**. An invitation alone grants nothing. |
+| `/api/batch-resource` | POST | Admin session | **Not a cloud function.** Multipart upload, bounded at the socket to 20 MiB. |
+| `/api/batch-resource/:resourceId` | GET | Admin **or** enrolled Student | **Not a cloud function.** Streams the bytes as an attachment. **No URL exists** — the id is not an address for the file, and a refusal answers 404. |
 
 The two operations that accept a token are **POST** so the token travels in a
 body: a GET would put it in the URL, and URLs end up in access logs, proxy logs,
@@ -345,7 +383,7 @@ all return 403 (or 404 where the route does not resolve).
 - **No other Student appears anywhere, and no count of them.** The endpoint
   behind the page cannot return a roster.
 
-### One Batch (`/student/batches/:batchId`) — the Student's own view
+### One Batch (`/student/batches/:batchId`) — Overview · Resources
 - The Batch's details and the date this Student joined.
 - No roster, no trainer, no schedule, no score.
 - "Not yours" and "does not exist" render the identical message, because the
@@ -398,7 +436,7 @@ the profile is complete.
 - An archived Batch never reaches this page, and the form stays disabled if
   somebody arrives at it anyway.
 
-### One Batch (`/dashboard/batches/:batchId`) — Overview · Students · Invitation
+### One Batch (`/dashboard/batches/:batchId`) — Overview · Students · Invitation · Resources
 - **Overview** — details, the Student count, and the status transitions that are
   legal right now, read from the shared transition map so the buttons and the
   server cannot disagree. Archiving is confirmed in a dialog that spells out what
@@ -411,6 +449,16 @@ the profile is complete.
   fingerprint, version, state, and expiry remain. The QR code is drawn black on
   white in both themes, because a scanner reads it and a themed one does not
   scan.
+- **Resources** — upload a file, edit its title and description, move it up or
+  down, download it, and delete it. The upload dialog states the accepted formats
+  and the size limit **as the server sent them**, so the hint cannot drift from
+  the rule. Editing says plainly that the file itself cannot be replaced.
+  Deleting says the file goes with the row. On an archived Batch every one of
+  those controls is **absent** — not disabled — and the panel says why; downloads
+  keep working.
+
+  The panel is mounted only while its tab is open, so a Batch nobody opens it on
+  costs no request at all.
 
 ### Students (`/dashboard/students`) — Admins only
 - A **read-only directory**: search, and filter by Batch, city, institution,
@@ -537,6 +585,58 @@ Future has no manual user-administration requirement.
 - An Admin cannot join a Batch, and a Visitor cannot redeem a link — signing in
   comes first, and the profile comes before the membership.
 
+### Batch Resources
+- An Admin uploads files to a Batch; enrolled Students list and download them.
+  Visitors get nothing, and a Student outside the Batch gets the same answer as
+  somebody asking for a Resource that does not exist.
+- Eight accepted formats — `.pdf .html .htm .docx .pptx .xlsx .txt .md` — and
+  **20 MiB** per file. The limit is applied at the socket, so an oversized upload
+  is refused mid-stream rather than buffered whole and then rejected.
+- Three things are checked, cheapest first: the extension against a closed
+  allow-list, the browser's MIME value as a **cross-check** (never as the source
+  of truth), and finally the bytes. `.docx`, `.pptx`, `.xlsx`, a renamed `.jar`
+  and a plain `.zip` all start with the same four bytes, so for those three the
+  **package contents** decide — read from the ZIP central directory, with nothing
+  decompressed and no ZIP library added.
+- The stored MIME type comes from the allow-list, never from the browser, so a
+  caller cannot choose what a later download is served as.
+- Every download is an **attachment**, including HTML: `Content-Disposition:
+  attachment`, `X-Content-Type-Options: nosniff`, `Cache-Control: private,
+  no-store`, and a sandbox CSP. There is no inline mode, no preview endpoint, and
+  no query parameter that changes it. An uploaded `.html` rendered in this
+  application's origin would run its own script with the reader's session in
+  scope.
+- Downloads are **streamed** out of GridFS, so a 20 MiB file is never held whole
+  in application memory.
+- **No file replacement.** A metadata edit changes the title and description;
+  the storage key, filename, extension, MIME type, and size are frozen by a
+  trigger.
+- Reordering sends the **whole** sequence, and the server rewrites `displayOrder`
+  0..n in one save, so two concurrent reorders cannot interleave into an order
+  neither Admin chose.
+- Deleting removes the row **first**, then the bytes. A failure between the two
+  leaves bytes nobody can see and anybody can reclaim; the other order would
+  leave a visible Resource whose download 404s. Uploading is the mirror image —
+  bytes first, row second — and every failure path after the bytes land removes
+  them again.
+- An archived Batch is read-only, not invisible: everything stays listed and
+  downloadable, and every write is refused server-side as well as hidden in the
+  UI.
+- **There is no public URL for a Resource**, and nothing in the browser can build
+  one. `/api/files/*` remains closed.
+
+### Schema reconciliation at startup
+- Parse **adds** fields to `_SCHEMA` and never removes them, so a `required`
+  field left behind by an earlier shape of a model refuses **every** create on
+  that class — surfacing as a bare `142 / "<field> is required"` naming a column
+  the running code has never heard of. A fresh database never shows it.
+- Startup now compares each class's stored required fields with what its model
+  declares. A stale required field **no row uses** is removed through Parse's own
+  schema API and logged loudly; one that **still holds data** fails the boot with
+  the field named, because deleting somebody's column is a person's decision.
+- Deliberately narrow: it does not sync schemas, does not touch optional
+  leftovers, and does not touch anything a model still declares.
+
 ### Access boundaries
 - Deny-by-default CLP on every class.
 - A repository-owned schema guard aborts startup if a class omits explicit access
@@ -556,6 +656,12 @@ Future has no manual user-administration requirement.
 - Recursive over nested objects, arrays, `Map`/`Set`, and errors carrying request
   data; masks by key name regardless of casing; summarises Parse objects and
   buffers instead of printing them.
+- `storageKey` joined the masked list in Checkpoint 5, found the same way
+  `fullName` was in 3A: runtime validation read a real log file and saw Parse's
+  own `beforeSave` line writing a private file's address verbatim. A Resource
+  operation logs an id, a byte **count**, and an extension — never a filename,
+  because people name documents after themselves and after the people they are
+  about.
 
 ### Design system
 - Semantic design tokens (colour, surface, text, border, focus, status, spacing, radius, shadow,
@@ -584,16 +690,23 @@ Currently unused — no list page exists.
 
 | Suite | Command | Count |
 |---|---|---|
-| Backend | `cd backend && pnpm run test` (`node:test`) | 841 |
-| Frontend | `cd frontend && pnpm run test` (Vitest) | 590 |
+| Backend | `cd backend && pnpm run test` (`node:test`) | 987 |
+| Frontend | `cd frontend && pnpm run test` (Vitest) | 707 |
 
-No new dependency was added for either suite.
+No new dependency was added for either suite, and none was added for the feature.
 
-Beyond the suites, Checkpoint 4 was validated against a **running server on an
-isolated database**: 51 API checks, a concurrency run (ten simultaneous rotations
-→ exactly one live link), a real log file audited for a leaked token, and 121
-browser checks across both languages, both themes, and a phone width — including
-reading the QR canvas back to confirm a real, scannable symbol was drawn.
+Beyond the suites, Checkpoint 5 was validated against a **running server on an
+isolated database**: 75 checks covering all eight formats with real bytes, a
+renamed executable, a JAR disguised as a `.docx`, an empty file, the 20 MiB
+boundary, every download header, the four access boundaries, the archived
+read-only rule, orphan counts read straight from GridFS, and a real log file
+audited for a leaked storage key. Then six browser inspections in both languages
+and at a phone width.
+
+Checkpoint 4 was validated the same way: 51 API checks, a concurrency run (ten
+simultaneous rotations → exactly one live link), a log audited for a leaked
+token, and 121 browser checks — including reading the QR canvas back to confirm a
+real, scannable symbol was drawn.
 
 ---
 
@@ -616,8 +729,20 @@ reading the QR canvas back to confirm a real, scannable symbol was drawn.
   two live Google sessions.
 - CI is `.gitlab-ci.yml` targeting branch `dev` while the remote is GitHub/`master`
   (OQ-14).
-- Controlled private-file read access is designed but not implemented; the
-  extension points are documented on `File`/`IMG` (OQ-10).
+- Reads from private storage reach past the files adapter's public surface to
+  its `_getBucket()`. Neither public read method fits: `getFileData` buffers the
+  whole file, and `handleFileStream` is a range handler that demands a `Range`
+  header, always answers 206, and sets no `Content-Disposition`. The call is
+  feature-detected at startup and the server logs a warning if it is ever
+  missing, but a parse-server upgrade that removes it would break downloads.
+- Reordering has no drag-and-drop. Move Up / Move Down works from the keyboard
+  and needs no library; a long list would want better.
+- A Resource cannot be moved between Batches, and there is no bulk upload.
+  Both are deliberate for now.
+- An archived Batch shows two read-only notices on the Resources tab — one for
+  the Batch, one for the panel. Each is accurate and each is needed on its own
+  (the Student view has no page-level banner), but together they read as
+  repetition.
 
 ---
 
@@ -634,7 +759,16 @@ token directly and never exchanges an authorization code.
 
 ## Last Updated
 
-Checkpoint 4 — Batches, invitations, enrollment, and the Admin Student directory:
+Checkpoint 5 — Private Batch Resources: an Admin uploads files to a Batch and
+manages their titles, descriptions, and order; enrolled Students list and
+download them. Eight document formats, 20 MiB each, validated by extension, by
+the browser's MIME claim, and finally by their own bytes — which is the only one
+of the three an uploader cannot simply set. Files live in private GridFS storage
+addressed by a random key that never leaves the server; every download is an
+authenticated, streamed **attachment** with no public URL anywhere. This resolves
+**OQ-10** and closes **S-20**.
+
+Preceded by Checkpoint 4 — Batches, invitations, enrollment, and the Admin Student directory:
 an Admin creates a Batch, generates one invitation link for it, and sees who
 joined; a Student opens the link, signs in if they need to, finishes their
 profile if they need to, and joins. One current link per Batch and one membership

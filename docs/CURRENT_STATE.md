@@ -22,9 +22,9 @@ with hard-coded state, not application code.
 | Single pnpm version | `pnpm -v` → `10.33.0` in all three directories |
 | Backend type-check | `npx tsc --noEmit` → exit 0, zero diagnostics |
 | Backend compile | `pnpm run compile` → exit 0 (now cleans `build/` first) |
-| **Backend tests** | `pnpm run test` → **868 pass, 0 fail**, exits cleanly with no force-exit |
-| Frontend production build | `pnpm run build` → exit 0, initial bundle 701.83 kB |
-| **Frontend tests** | `pnpm run test` → **648 pass, 0 fail** (25 spec files) |
+| **Backend tests** | `pnpm run test` → **987 pass, 0 fail**, exits cleanly with no force-exit |
+| Frontend production build | `pnpm run build` → exit 0, initial bundle 715.51 kB (over the 500 kB budget, as the template already was) |
+| **Frontend tests** | `pnpm run test` → **707 pass, 0 fail** (29 spec files) |
 | sharp | real WebP encode after install (44 bytes) |
 
 ### Runtime — observed against a clean isolated database
@@ -77,7 +77,7 @@ with hard-coded state, not application code.
 | Item | State |
 |---|---|
 | `Student` role | Seeded, enforced, and **now reachable**: a verified Google identity provisions a Student ⟨CP2B⟩. A Student still cannot use password login. |
-| `File` / `IMG` | Private and server-controlled, but **no client-reachable path creates or reads one**. The controlled-access extension points are documented, not implemented (OQ-10). |
+| `File` / `IMG` | Private and server-controlled, and still with **no client-reachable path**. Deliberately untouched by Checkpoint 5: Batch Resources have their own private storage and never go through `Parse.File`. OQ-10 is answered without them — see §7i. |
 | `LiveQueryService` (frontend) | Fully implemented; `liveQuery.classNames` is still `[]` and no `beforeSubscribe` hook exists, so no class is subscribable. |
 | `fileAdapter.ts` | Still dead code — never passed to Parse Server. Its `validateFilename()` still returns instead of throwing. |
 | `File.fileSize` | Declared, never populated. |
@@ -151,10 +151,10 @@ validation is not optional.
 ### Remaining gaps
 | # | Gap | Owner |
 |---|---|---|
-| **S-20** | **`Parse.File` cannot be written from cloud code while the raw file route is blocked** ⟨found in CP3A; **still open**⟩. The profile photo now has an authenticated binary route of its own (§16g), which is a photo answer rather than the general one — it stores bounded inline bytes and would not serve a PDF. Parse's `FilesRouter` is not part of the router `directAccess` uses, so `Parse.File.save()` falls back to an HTTP request to the server's own `serverURL` and is refused by `blockRawFileRoutes`; `getData()` fails the same way, and `IMG.beforeSave` re-downloads the file it just saved. The profile photo works around this by storing bounded, re-encoded bytes on its own private row — **no security control was changed**. Batch Resources (Checkpoint 7) will need a real answer, which is OQ-10. | Engineering, Checkpoint 7 (OQ-10) |
+| ~~**S-20**~~ | **CLOSED in Checkpoint 5.** `Parse.File` still cannot be written from cloud code — Parse's `FilesRouter` is not in the router `directAccess` uses, so `Parse.File.save()` falls back to an HTTP call against the server's own `serverURL` and `blockRawFileRoutes` refuses it, correctly. That was never worked around; it was **routed around**. Batch Resources reach the configured `GridFSBucketAdapter` **in-process**, so the blocked HTTP surface is never involved, and every download is authorised per request and streamed. No security control was weakened and `/api/files/*` is still 403. See §7i and OQ-10. | Closed |
 | S-4 | Session token and user DTO in `localStorage` (XSS-readable) | Checkpoint 11 — storage decision |
 | S-6 | The kit's `extractMasterKey` still accepts a master key from the request **body**, and its `restrictRoutes` treats a match as a bypass. Not exploitable in this configuration (403 observed). Lives in `node_modules`; cannot be fixed here | Report upstream / Checkpoint 11 |
-| S-9 | No MIME / extension / size / magic-byte validation. Deliberately deferred: no client-reachable upload path exists today | Checkpoints 4 and 7 |
+| ~~S-9~~ | **Closed in Checkpoint 5.** Both client-reachable upload paths validate. The profile photo bounds and re-encodes an image ⟨CP3A⟩; a Batch Resource is checked by extension against a closed allow-list, cross-checked against the browser's MIME claim, and finally judged on its own bytes — including reading a ZIP's central directory so a renamed `.jar` cannot pass as a `.docx`. Empty and oversized files are refused, the latter at the socket. | Closed |
 | ~~S-13~~ | **Withdrawn — misclassified.** The committed `parseApiKey` is the Parse **REST API key**, a *client* key that identifies the application and authorises nothing. It is public browser configuration by design, not a secret, and needs no rotation on security grounds. See [TEMPLATE_ARCHITECTURE.md §16a](TEMPLATE_ARCHITECTURE.md). Residual hygiene note only: dev and prod share one value. |
 | **S-17** | **Partly fixed.** `create-project.js` no longer carries a default Admin password (see §7), so no *new* environment can inherit one. **The local `backend/.env` still holds the old publicly-known value** — that file is out of bounds for this work, so **rotating the local and any deployed Admin password remains a manual action for the owner.** | Owner action, before Checkpoint 2 |
 | **S-18** | **Fixed in the closeout.** `backend/setup.js` generated the `masterKey` and `restAPIKey` with `Math.random()`, which is predictable and unsuitable for secrets. Both generators now use `crypto.randomBytes`. **Any environment whose keys were produced by the old generator should have them regenerated.** | Owner action for existing environments |
@@ -636,19 +636,163 @@ view. The container added in response was redundant and was removed.
 What is genuinely missing is keyboard access to that scroll region — PrimeNG's
 container has no `tabindex` and no accessible name. Recorded as a gap.
 
+## 7i. Checkpoint 5 — Private Batch Resources ⟨implemented⟩
+
+### What exists
+
+`BatchResource` — metadata only, deny-by-default CLP, an empty class ACL, and **every** column in
+`protectedFields`. A query that somehow reached the class reads an empty shell, `storageKey`
+included. Two indexes: `(_p_batch, displayOrder)` for the list, and a unique index on `storageKey`.
+
+Five cloud functions across two routes — `batch-resources/*` for Admins,
+`student-resources/listMyBatchResources` for Students — and one binary route with two paths,
+`POST /api/batch-resource` and `GET /api/batch-resource/:resourceId`.
+
+The two audiences are separate routes on purpose. They could have been one with a role branch
+inside; they are not, because a shared entry point is where an authorisation branch eventually
+gets the wrong default.
+
+### The bytes never touch a cloud function
+
+Parse Server logs every cloud-function call with its serialised input **and** result. In
+Checkpoint 3A that wrote a whole base64 photograph into the log on every upload. So Resources move
+metadata through cloud functions and bytes through a dedicated authenticated Express route — which
+also lets the 20 MiB limit apply **at the socket**, refusing an oversized upload mid-stream rather
+than buffering it whole and then rejecting it.
+
+### Private storage — the OQ-10 / S-20 answer
+
+`modules/BatchResource/storage.ts` uses the `GridFSBucketAdapter` Parse Server already has,
+in-process. No new dependency, no second connection, no new operational surface, and the HTTP file
+route that S-20 blocks is never involved. Writes are piped in; reads are streamed out.
+
+Neither of the adapter's public read methods fits — `getFileData` buffers the whole file, and
+`handleFileStream` demands a `Range` header, always answers 206, and sets no
+`Content-Disposition`. Reads therefore open the bucket directly. That is feature-detected once at
+startup, the server logs a warning if the capability is ever missing, and it is recorded in §2.
+
+### Ordering of writes, in both directions
+
+Uploading stores **bytes first, row second**, and every failure path after the bytes land removes
+them again. Deleting is the mirror image — **row first, bytes second**. The asymmetry is the point:
+bytes with no row are invisible and reclaimable, while a row pointing at bytes that are not there
+is a broken Resource people can see and click.
+
+### Runtime — 75 checks observed end to end against MongoDB
+
+Against a running server on an isolated database (`cyf_cp5_validation` on port 27018, dropped
+afterwards; the developer's own database and their server on 1337 were never touched).
+
+| Area | Result |
+|---|---|
+| All eight formats, built byte by byte and uploaded | accepted; the stored MIME comes from the table, not the browser |
+| An `.exe`; an executable renamed `.pdf`; an executable renamed `.txt` | refused, `RESOURCE_TYPE_NOT_ALLOWED` |
+| A **JAR renamed `.docx`** and a plain ZIP renamed `.xlsx` | refused — the package-contents check, which magic bytes cannot make |
+| A MIME type contradicting the extension | refused |
+| An empty file | refused as `RESOURCE_EMPTY`, not as the wrong type |
+| 20 MiB + 1 KiB | refused **413** `RESOURCE_TOO_LARGE` at the socket |
+| GridFS rows vs metadata rows after every refusal | equal — nothing orphaned |
+| Download headers | `Content-Disposition: attachment`, `nosniff`, `private, no-store`, sandbox CSP, and the stored MIME |
+| An uploaded `.html` | served as an attachment, never inline |
+| Bytes returned | byte-for-byte identical to what was uploaded |
+| Enrolled Student | lists and downloads; the DTO omits `displayOrder`, `updatedAt`, and the uploader |
+| Student outside the Batch | refused, and the download answers **404**, not 403 |
+| Visitor | 401 on the download, refused on the list |
+| Student calling the Admin route, or uploading | refused |
+| Metadata edit | the title changes; `storageKey`, `filename`, and `fileSize` do not |
+| A smuggled `storageKey` in an edit | refused with a field error, and the stored key is unchanged |
+| Reorder | the whole order applied, `displayOrder` rewritten 0..n; a partial list keeps every Resource |
+| Delete | row gone, **binary gone**, and a later download is a clean 404 |
+| Archived Batch | list works and says `readOnly`; upload, edit, reorder, and delete all refused; download still works; an enrolled Student still reads it |
+| `/classes/BatchResource` | unreadable with no session **and** with an Admin session; unwritable |
+| `/api/files/*` | still refused |
+| A storage key used as a resource id | 404 — it is not an address |
+| The log file, read | no storage key, no filename value, no file bytes; uploads logged with a byte **count** and refusals with their code |
+| Profile, photo route, Batches, Student Batches | all still answer |
+
+### The log was read, not assumed — and it had a leak
+
+The first run failed one check: `storageKey` appeared verbatim in Parse Server's own `beforeSave`
+line on every upload. `filename` was already masked; the storage key was not. It is the one value
+that would matter most in a log, because it is how the bytes are addressed.
+
+`storagekey` was added to the redaction key list — the same fix, found the same way, as `fullName`
+in Checkpoint 3A. Three tests now pin it: the key is masked through the Parse logger adapter, a
+filename is masked in the Resource shape, and a harmless key that merely mentions storage
+(`storageIsUsable`) still survives.
+
+### Visual — six inspections in a real browser
+
+Headless Chrome, on the isolated server, at 1440 px and 390 px, in English and Arabic.
+
+| # | What | Result |
+|---|---|---|
+| 1 | Admin → Resources tab of a live Batch | five Resources listed with title, description, filename, type, binary size, and date; all write controls present |
+| 2 | The upload dialog | states the accepted formats and the 20 MiB limit **as the server sent them**; the picker's `accept` is the server's list |
+| 3 | Admin → Resources of an **archived** Batch | the Resource is listed and downloadable; Upload, Edit, Delete, Move Up and Move Down are **absent**, and the panel says why |
+| 4 | Student → Resources tab | two tabs only; every row offers a download; no control a Student cannot use is drawn |
+| 5 | Arabic, RTL | `dir="rtl"`, translated, no English leaked into the panel, file sizes in **Latin** digits |
+| 6 | 390 px phone | the list renders, the document does not scroll sideways, and the wide table scrolls inside its own container |
+
+Every inspection also asserted: no console error, no `<a href>` pointing at a file, and no
+`resource_` storage key anywhere in the rendered HTML.
+
+---
+
+## 7j. Schema reconciliation at startup ⟨CP5 fix⟩
+
+Found by a real upload against a real database, not by a suite.
+
+`BatchResource` carried a `file` column marked `required` that no model declares.
+Parse Server's `RestWrite.setRequiredFieldsIfNeeded` therefore threw
+`VALIDATION_ERROR (142) / "file is required"` on **every** create, so the class
+read fine, counted fine, and would not accept a single row. Parse never removes a
+field from `_SCHEMA`, so the state was permanent.
+
+A database created by this code does not have it — which is exactly why 999
+backend tests, 707 frontend tests, and 75 runtime checks all passed while one
+real database could not store a file.
+
+`startup/schemaDrift.ts` now runs before the port opens and, per declared class:
+
+| Stored field | Action |
+|---|---|
+| required, model does not declare it, **no row uses it** | removed through `Parse.Schema`, logged at `warn` with the class and field |
+| required, model does not declare it, **rows hold values** | **boot fails**, naming the field, with the remedy in the message |
+| optional and undeclared | left alone — untidy, not fatal |
+| declared by the model, or Parse's own (`objectId`, `createdAt`, `updatedAt`, `ACL`) | never touched |
+
+Verified end to end: the exact `file` column was injected into an isolated
+database's `BatchResource` schema, the server was booted, and it logged
+
+```
+[warn] Removed a stale required field that no model declares and no row used.
+       {"op":"reconcileSchemaDrift","className":"BatchResource","fieldName":"file"}
+```
+
+after which the full 75-check runtime validation passed again.
+
+Ten unit tests cover the repair, the refusal, the three cases it must not touch,
+and the "a failed count means there might be data" rule.
+
+---
+
 ## 8. Product features not implemented
 
 None of the following exists in any form — no model, no cloud function, no route, no page, no DTO:
 
 Apple OAuth ·
-Resources · PDF validation · resource ordering · authorised file download · Live Slides · Tasks ·
+Live Slides · Tasks ·
 Assignment · Final Task · Submission · one-submission locking · Accept-for-publication ·
 Pinned Students · Talent Reels · sanitised public DTOs for Visitors · Batch capacity · trainers ·
 locations · schedules · scores · ratings · feedback · Student export · any Student write an Admin
-could perform.
+could perform · Resource preview, viewer, conversion, folders, tags, comments, ratings, progress
+tracking, download analytics, bulk actions, Student uploads, and file replacement.
 
 Batch, Batch lifecycle, BatchInvitation, invitation tokens, QR generation, `/join/:token`,
 Enrollment, and the pending-invitation flow **were** on this list and shipped in Checkpoint 4.
+Resources, format validation, resource ordering, and authorised file download shipped in
+Checkpoint 5.
 
 The frontend ships: `/auth/admin`, `/auth/student`, `/join/:token`, `/student/profile`,
 `/student/welcome`, `/student/batches`, `/student/batches/:batchId`, `/dashboard`,

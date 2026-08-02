@@ -56,10 +56,17 @@ import {
   applyAndVerifyIndexes,
   indexFailureGuidance,
 } from './cloudCode/startup/indexes';
+import {
+  SchemaDriftError,
+  reconcileSchemaDrift,
+  schemaDriftGuidance,
+} from './cloudCode/startup/schemaDrift';
 import {initializeParseServer} from './cloudCode/utils/config/parseConfig';
 import {buildCorsOptions, logCorsPolicy} from './cloudCode/utils/config/cors';
 import {googleAuthStatus} from './cloudCode/modules/StudentAuth/googleConfig';
 import {studentProfilePhotoRouter} from './cloudCode/modules/StudentProfile/photoRoute';
+import {batchResourceRouter} from './cloudCode/modules/BatchResource/resourceRoute';
+import {storageIsUsable, useFilesAdapter} from './cloudCode/modules/BatchResource/storage';
 import {seedInstitutionCatalog} from './cloudCode/modules/ProfileCatalog/seed';
 import './cloudCode/cron'; // Load cron job definitions before CronRegistry.initialize
 
@@ -147,6 +154,18 @@ async function main() {
   // the route serves the authenticated owner and nobody else.
   app.use(process.env.mountPath as string, studentProfilePhotoRouter());
 
+  // Batch Resources — the second **authenticated binary** endpoint ⟨CP5⟩.
+  //
+  // Mounted here for the same reason the photo route is: `validateEntityRoutes`
+  // maps any path under a registered entity prefix onto a cloud function and
+  // answers 404 for the rest, so a binary route has to terminate its own paths
+  // ahead of it.
+  //
+  // It opens no file route. `/api/files/*` is still 403 above, `File` and `IMG`
+  // are untouched, and no public URL exists — a Resource is addressed by its
+  // objectId and served only to an Admin or a Student enrolled in its Batch.
+  app.use(process.env.mountPath as string, batchResourceRouter());
+
   // Validates entity-based routes: /api/{entity}/{action} → /functions/{name}
   app.use(process.env.mountPath as string, validateEntityRoutes as any);
 
@@ -206,9 +225,48 @@ async function main() {
     safeLog.error('Seeding failed', {op: 'bootstrap', ok: false, stage: 'seedAll'});
   }
 
+  // Hand the Resource storage layer the files adapter Parse already has ⟨CP5⟩.
+  //
+  // The default adapter is GridFS, on the same connection. Wired once here
+  // rather than reached for per request, so a deployment whose adapter cannot
+  // stream is reported at boot instead of under somebody's upload.
+  useFilesAdapter((parseServer as {config?: {filesController?: {adapter?: unknown}}})?.config
+    ?.filesController?.adapter);
+  if (!storageIsUsable()) {
+    safeLog.warn(
+      'Private Resource storage is unavailable — the configured files adapter ' +
+        'cannot stream. Batch Resource upload and download will refuse.',
+      {op: 'bootstrap', ok: false, stage: 'resourceStorage'}
+    );
+  } else {
+    safeLog.info('Private Resource storage is ready', {
+      op: 'bootstrap',
+      ok: true,
+      stage: 'resourceStorage',
+    });
+  }
+
   // Apply **and verify** every declared index. This throws rather than
   // returning a flag, so there is no path that continues past a failure.
   await applyAndVerifyIndexes(parseServer);
+
+  // Reconcile the stored schema with the models ⟨CP5 fix⟩.
+  //
+  // Parse adds fields to `_SCHEMA` and never removes them, so a `required`
+  // field left behind by an earlier shape of a model refuses **every** create
+  // on that class — as a bare `142 / "<field> is required"` naming a column the
+  // running code has never heard of. Runs before the port opens, because a
+  // class in that state cannot accept a single row.
+  const removedFields = await reconcileSchemaDrift();
+  if (removedFields > 0) {
+    safeLog.warn('Stored schema reconciled with the models', {
+      op: 'bootstrap',
+      ok: true,
+      stage: 'schemaDrift',
+      count: removedFields,
+    });
+  }
+
   await applyMongoValidators(parseServer);
 
   // Move the Checkpoint 3A institution list into the catalog ⟨CP3A catalog⟩.
@@ -287,6 +345,18 @@ main()
         code: error.code,
         collection: error.collection,
         indexName: error.indexName,
+      });
+    } else if (error instanceof SchemaDriftError) {
+      // A stored required field the models no longer declare, still holding
+      // data. Naming it is the whole point: without the name there is nothing
+      // an operator can act on.
+      safeLog.error(schemaDriftGuidance(error), {
+        op: 'bootstrap',
+        ok: false,
+        stage: 'schemaDrift',
+        code: error.code,
+        className: error.className,
+        fieldName: error.fieldName,
       });
     } else {
       safeLog.error('Server failed to start', {op: 'bootstrap', ok: false});

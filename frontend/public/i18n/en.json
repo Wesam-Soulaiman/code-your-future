@@ -296,6 +296,11 @@
       "empty": {
         "title": "You have not joined a batch yet",
         "text": "You join a batch with an invitation link. Whoever runs your batch will send you one."
+      },
+      "tabs": {
+        "label": "Batch sections",
+        "overview": "Overview",
+        "resources": "Resources"
       }
     }
   },
@@ -396,7 +401,8 @@
         "label": "Batch sections",
         "overview": "Overview",
         "students": "Students",
-        "invitation": "Invitation"
+        "invitation": "Invitation",
+        "resources": "Resources"
       },
       "notices": {
         "statusChanged": "The batch status was updated.",
@@ -604,6 +610,88 @@
       "profileIncomplete": "Complete your profile before joining a batch.",
       "notAStudent": "Only students can join a batch.",
       "failed": "We could not add you to the batch. Please try again."
+    }
+  },
+  "resources": {
+    "title": "Resources",
+    "lead": "Files shared with this batch. Students in it can download them; nobody else can.",
+    "studentLead": "Material shared with your batch. Files download to your device.",
+    "readOnlyNotice": "This batch is archived. Its resources stay available to download, but nothing can be added, edited, reordered or removed.",
+    "columns": {
+      "title": "Resource",
+      "type": "Type",
+      "size": "Size",
+      "added": "Added",
+      "actions": "Actions"
+    },
+    "fields": {
+      "title": "Title",
+      "description": "Description (optional)"
+    },
+    "kinds": {
+      "pdf": "PDF",
+      "html": "Web page",
+      "docx": "Word document",
+      "pptx": "Presentation",
+      "xlsx": "Spreadsheet",
+      "txt": "Text",
+      "md": "Markdown"
+    },
+    "units": {
+      "bytes": "B",
+      "kb": "KB",
+      "mb": "MB"
+    },
+    "actions": {
+      "upload": "Upload file",
+      "download": "Download",
+      "edit": "Edit details",
+      "delete": "Delete",
+      "moveUp": "Move up",
+      "moveDown": "Move down"
+    },
+    "upload": {
+      "title": "Upload a resource",
+      "lead": "The file is stored privately. Only students enrolled in this batch can download it.",
+      "file": "File",
+      "rules": "Accepted: {{extensions}}. Up to {{size}}."
+    },
+    "edit": {
+      "title": "Edit resource details",
+      "lead": "You can change the title and description. The file itself cannot be replaced — upload a new resource and delete this one if you need a different file."
+    },
+    "delete": {
+      "title": "Delete this resource?",
+      "body": "“{{title}}” will be removed from this batch.",
+      "hint": "The file is deleted with it. This cannot be undone."
+    },
+    "notices": {
+      "uploaded": "The file was uploaded.",
+      "updated": "The details were saved.",
+      "deleted": "The resource was deleted."
+    },
+    "empty": {
+      "title": "No resources yet",
+      "body": "Upload a file to share it with everybody in this batch.",
+      "archived": "Nothing was shared with this batch before it was archived."
+    },
+    "student": {
+      "empty": {
+        "title": "Nothing shared yet",
+        "body": "When your batch shares material, it appears here."
+      }
+    },
+    "errors": {
+      "validation": "Some details need fixing. Check the fields marked below.",
+      "typeNotAllowed": "That file type is not accepted. Choose a document, presentation, spreadsheet, PDF, web page or text file.",
+      "tooLarge": "That file is too large.",
+      "empty": "That file is empty.",
+      "uploadFailed": "The file could not be saved. Please try again.",
+      "notFound": "That resource could not be found.",
+      "accessDenied": "You do not have permission to do that.",
+      "deleteFailed": "The resource could not be deleted. Please try again.",
+      "unavailable": "We could not reach the server. Check your connection and try again.",
+      "unexpected": "Something went wrong. Please try again."
     }
   }
 }

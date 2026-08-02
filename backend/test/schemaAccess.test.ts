@@ -39,6 +39,7 @@ before(async () => {
   await import('../src/cloudCode/models/Batch');
   await import('../src/cloudCode/models/BatchInvitation');
   await import('../src/cloudCode/models/BatchEnrollment');
+  await import('../src/cloudCode/models/BatchResource');
 
   const guard = await import('../src/cloudCode/utils/config/schemaGuard');
   hardenDefinitions = guard.hardenDefinitions as typeof hardenDefinitions;
@@ -49,12 +50,13 @@ before(async () => {
 });
 
 describe('registered class surface', () => {
-  test('contains exactly the nine approved classes', () => {
+  test('contains exactly the ten approved classes', () => {
     const names = definitions.map(definition => definition.className).sort();
     assert.deepEqual(names, [
       'Batch',
       'BatchEnrollment',
       'BatchInvitation',
+      'BatchResource',
       'File',
       'IMG',
       'ProfileCatalogItem',
@@ -75,12 +77,11 @@ describe('registered class surface', () => {
 
   test('no future product model was added', () => {
     const names = definitions.map(definition => definition.className);
-    // Batch, BatchInvitation, and BatchEnrollment shipped in Checkpoint 4 and
-    // are no longer future. Everything below belongs to a checkpoint that has
-    // not happened, and a class for one would be a stub.
+    // Batch, BatchInvitation, and BatchEnrollment shipped in Checkpoint 4;
+    // BatchResource in Checkpoint 5. Everything below belongs to a checkpoint
+    // that has not happened, and a class for one would be a stub.
     const future = [
       'Enrollment',
-      'Resource',
       'Task',
       'Submission',
       'PinnedStudent',
@@ -115,6 +116,7 @@ describe('deny-by-default access', () => {
     'Batch',
     'BatchInvitation',
     'BatchEnrollment',
+    'BatchResource',
   ]) {
     test(`${className} denies every client operation`, () => {
       const definition = definitions.find(entry => entry.className === className);
@@ -227,6 +229,29 @@ describe('deny-by-default access', () => {
         assert.ok(
           enrollment!.classLevelPermissions!.protectedFields![audience].includes(field),
           `BatchEnrollment.${field} must be hidden from '${audience}'`
+        );
+      }
+    }
+  });
+
+  test('BatchResource hides the storage key and every other column ⟨CP5⟩', () => {
+    // The storage key is the one column that would matter most if it leaked:
+    // it is how the bytes are addressed. Nothing at all is readable.
+    const resource = definitions.find(entry => entry.className === 'BatchResource');
+    const protectedFields = resource!.classLevelPermissions!.protectedFields!;
+    for (const audience of ['*', 'authenticated']) {
+      for (const field of [
+        'storageKey',
+        'batch',
+        'title',
+        'filename',
+        'mimeType',
+        'fileSize',
+        'uploadedBy',
+      ]) {
+        assert.ok(
+          protectedFields[audience].includes(field),
+          `${field} must be hidden from '${audience}'`
         );
       }
     }

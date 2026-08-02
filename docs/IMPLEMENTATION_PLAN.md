@@ -445,31 +445,35 @@ tests on both the sign-in and the profile-save paths.
 
 ---
 
-## Checkpoint 7 — Resources
+## Checkpoint 7 — Resources ✅ **delivered as Checkpoint 5 (Private Batch Resources)**
 
-**Prerequisites:** Checkpoint 6; OQ-10 (private file serving) answered — this checkpoint cannot
-be secure without it.
+**Prerequisite met:** OQ-10 was answered *by* this work rather than before it — the answer is an
+authorised streaming route over the `GridFSBucketAdapter` Parse Server already has, reached
+in-process. See PRODUCT_REQUIREMENTS.md OQ-10 and CURRENT_STATE.md §7i.
 
-**Backend scope:** `Resource` model scoped to a Batch with an explicit order field; PDF-only
-validation (extension **and** MIME **and** non-empty **and** `%PDF-` magic bytes) with a 20 MiB
-default cap; metadata edit that cannot replace the file; Move Up / Move Down reordering; Admin
-manage in draft/active/completed, read-only in archived; enrolled-Student read; **an authorised
-download endpoint — no public raw file access.**
-**Frontend scope:** Admin Resource list with upload, metadata edit, reorder, delete; Student
-read-only list and viewer; archived read-only.
-**Data-model scope:** `Resource` (+ ordering strategy).
-**Authorization and security:** close security gaps S-2 and S-3 — Parse's unauthenticated
-`/api/files/{appId}/{name}` URLs and the static `backend/files/` mount must not expose Resources.
-Every download is authorised per request.
-**Tests:** non-PDF rejected by extension, by MIME, and by magic bytes; empty file rejected;
-oversize rejected; metadata edit leaves the file untouched; reorder correctness; unauthenticated
-and non-enrolled download attempts denied; archived writes denied.
-**Manual flow:** upload three PDFs, reorder, edit metadata, read as an enrolled Student, confirm a
-Visitor and a non-enrolled Student are denied, archive the Batch and confirm read-only.
-**Documentation:** `PROJECT.md`, `CURRENT_STATE.md`, `HANDOFF.md`.
-**Out of scope:** non-PDF resource types, versioning.
-**Definition of done:** no PDF is reachable without an authorised request, and every validation
-rule above is enforced server-side.
+**Delivered, and where it differs from the plan above:**
+- **Formats widened from PDF-only**, by product decision, to `.pdf .html .htm .docx .pptx .xlsx
+  .txt .md`. The plan's `%PDF-` magic-byte rule generalised into a per-format signature rule —
+  and, for the three OOXML formats, into a **package-contents** check, because `.docx`, `.pptx`,
+  `.xlsx`, a renamed `.jar`, and a plain `.zip` share the same four leading bytes. A magic-byte
+  check alone would have accepted an executable JAR renamed to `.docx`.
+- **No viewer.** The plan said "Student read-only list and viewer"; the product decision was
+  explicitly no previewer, no conversion, and no inline rendering. Every download is an
+  attachment, HTML included.
+- The 20 MiB cap is enforced **at the socket** by the multipart layer, not after buffering.
+- Deletion removes the metadata row first and the bytes second; upload does the reverse, and
+  cleans up the bytes on every post-store failure.
+
+**S-2 / S-3 remain closed** — `/api/files/*` is still 403 and the static `backend/files/` mount is
+still gone. Nothing was reopened, and `File` / `IMG` were not touched.
+
+**Validated:** 987 backend and 707 frontend tests; 75 runtime checks against a running server on
+an isolated database, including reading GridFS row counts directly to prove no orphan survives a
+refused upload; a real log file audited (it had a leak — the storage key — now fixed and pinned by
+tests); six browser inspections in both languages and at a phone width.
+
+**Still out of scope and still not built:** versioning, moving a Resource between Batches, bulk
+upload, drag-and-drop ordering, folders, tags, comments, ratings, progress, and analytics.
 
 ---
 

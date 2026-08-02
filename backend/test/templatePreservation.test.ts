@@ -318,7 +318,6 @@ describe('no future product feature leaked into the frontend', () => {
     const routes = read('app/app.routes.ts');
     for (const future of [
       "path: 'reels'",
-      "path: 'resources'",
       "path: 'tasks'",
       "path: 'final-tasks'",
       "path: 'live-slides'",
@@ -396,8 +395,9 @@ describe('no future product feature leaked into the frontend', () => {
 
   test('no future product page was added', () => {
     // Every directory and every file below exists because the feature it serves
-    // works today. `join` and the Batch/Student pages arrived with Checkpoint 4;
-    // nothing here is a stub for a checkpoint that has not happened.
+    // works today. `join` and the Batch/Student pages arrived with Checkpoint 4
+    // and the two Resource panels with Checkpoint 5; nothing here is a stub for
+    // a checkpoint that has not happened.
     const pages = join(FRONTEND_SRC, 'app', 'pages');
     const present = readdirSync(pages).sort();
     assert.deepEqual(present, ['admin', 'auth', 'dashboard', 'join', 'student']);
@@ -408,6 +408,7 @@ describe('no future product feature leaked into the frontend', () => {
       'batch-form',
       'batch-detail',
       'invitation-card',
+      'batch-resources',
       'students',
       'student-detail',
     ];
@@ -423,6 +424,7 @@ describe('no future product feature leaked into the frontend', () => {
       'student-profile',
       'student-batches',
       'student-batch-detail',
+      'student-batch-resources',
     ];
     for (const name of readdirSync(join(pages, 'student'))) {
       assert.ok(
@@ -433,14 +435,15 @@ describe('no future product feature leaked into the frontend', () => {
   });
 
   test('no page exists for a feature that does not ⟨CP4⟩', () => {
-    // The inverse check, by name: Resources, Live Slides, Tasks, Final Tasks,
-    // Pinned Students, and Talent Reels are all later checkpoints.
+    // The inverse check, by name: Live Slides, Tasks, Final Tasks, Pinned
+    // Students, and Talent Reels are all later checkpoints. Resources shipped
+    // in Checkpoint 5 and are no longer on this list.
     const pages = join(FRONTEND_SRC, 'app', 'pages');
     const everyFile: string[] = [];
     for (const dir of readdirSync(pages)) {
       for (const name of readdirSync(join(pages, dir))) everyFile.push(name.toLowerCase());
     }
-    for (const forbidden of ['resource', 'slide', 'task', 'pinned', 'reel', 'submission']) {
+    for (const forbidden of ['slide', 'task', 'pinned', 'reel', 'submission']) {
       assert.ok(
         !everyFile.some(name => name.includes(forbidden)),
         `a ${forbidden} page belongs to a later checkpoint`
@@ -472,6 +475,32 @@ describe('no future product feature leaked into the frontend', () => {
     assert.ok(service.includes('https://accounts.google.com/gsi/client'));
     assert.ok(!service.includes('jsonwebtoken'), 'no hand-rolled JWT handling');
     assert.ok(!service.includes('client_secret'), 'no client secret in the browser');
+  });
+
+  test('the browser keeps no copy of the Resource rules ⟨CP5⟩', () => {
+    // Accepted extensions and the 20 MiB limit are the server's, and they
+    // travel with every list response. A hard-coded list in the browser would
+    // start refusing a format the server accepts the day somebody adds one, and
+    // the person uploading would have no way to tell which of the two was
+    // wrong. Asserted here because this is the only suite that can read source.
+    const constants = read('app/utils/resource-constants.ts');
+    assert.ok(!constants.includes("'.pdf'"), 'no extension list in the browser');
+    assert.ok(!/20\s*\*\s*1024\s*\*\s*1024/.test(constants), 'no size limit in the browser');
+    assert.ok(!/maxBytes\s*[=:]\s*\d/.test(constants), 'no size limit in the browser');
+  });
+
+  test('the browser never builds a Resource URL ⟨CP5⟩', () => {
+    // A Resource is fetched by objectId over an authenticated request. Anything
+    // that produced a shareable address would defeat private storage.
+    for (const file of [
+      'app/services/dataService/batch-resource-service.ts',
+      'app/pages/admin/batch-resources.component.ts',
+      'app/pages/student/student-batch-resources.component.ts',
+    ]) {
+      const source = read(file);
+      assert.ok(!source.includes('storageKey'), `${file} must not know about a storage key`);
+      assert.ok(!/window\.open|target="_blank"/.test(source), `${file} must not open a tab`);
+    }
   });
 
   test('no Google client secret exists anywhere in the frontend', () => {

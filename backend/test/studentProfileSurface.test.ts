@@ -142,7 +142,7 @@ describe('registered operations', () => {
 
   test('no future product operation was added', () => {
     const names = registry.getFunctions().map(fn => fn.name.toLowerCase());
-    for (const future of ['batch', 'invitation', 'enroll', 'resource', 'task', 'reel', 'pinned']) {
+    for (const future of ['batch', 'invitation', 'enroll', 'task', 'reel', 'pinned']) {
       assert.ok(!names.some(name => name.includes(future)), `${future} belongs to a later checkpoint`);
     }
   });

@@ -254,17 +254,41 @@ scoring, Student removal.
 
 Temporary token state is cleared after: success, invalid token, logout, or explicit cancellation.
 
-## 10. Resources
+## 10. Resources ⟨CP5 — implemented⟩
 
-A private PDF library inside each Batch.
+A private document library inside each Batch.
 
-- Admin manages Resources in `draft`, `active`, `completed`. `archived` is read-only.
-- Enrolled Students have read-only access. Visitors have no access.
-- Files: **PDF only**, **max 20 MiB by default**. Validate extension, validate MIME, reject
-  empty files, validate the `%PDF-` signature.
-- Metadata may be edited; the underlying file **cannot** be replaced during metadata editing.
-- Ordering supports **Move Up** / **Move Down**.
-- There is **no public raw file access**.
+- Admin manages Resources in `draft`, `active`, `completed`. `archived` is read-only —
+  everything stays listed and downloadable, and every write is refused.
+- Enrolled Students have read-only access, and keep it after the Batch is completed or
+  archived: they were in the cohort, and the material they were given does not stop being
+  theirs because it finished. Visitors have no access. A Student outside the Batch gets the
+  same answer as somebody asking for a Resource that does not exist.
+- **Widened from PDF-only in Checkpoint 5**, by product decision. The accepted formats are
+  `.pdf .html .htm .docx .pptx .xlsx .txt .md` and nothing else, at **max 20 MiB** per file.
+  The list is closed: `.csv` is not dangerous, it is simply not one of the eight, and widening
+  it is a product decision rather than a code one.
+- Validation is three checks, cheapest first — extension against the allow-list, the browser's
+  MIME value as a **cross-check only**, then the bytes. Empty files are refused as empty. The
+  size is judged before the type, so an enormous file is cheap to refuse.
+  - `.docx`, `.pptx`, and `.xlsx` are all ZIP archives with identical leading bytes, which a
+    renamed `.jar` also has. For those three the **package contents** decide, read from the ZIP
+    central directory: nothing is decompressed and no ZIP library is added.
+  - The **stored** MIME type comes from the allow-list, never from the browser, so a caller
+    cannot choose what a later download is served as.
+- Metadata may be edited; the underlying file **cannot** be replaced — not during a metadata
+  edit and not at all. The storage key, filename, extension, MIME type, and size are frozen by
+  a database trigger, so this is a property of the data rather than a policy about the UI.
+- Ordering supports **Move Up** / **Move Down**. The whole resulting sequence is sent and the
+  server rewrites the positions in one save, so two concurrent reorders cannot interleave.
+- Deleting a Resource deletes its bytes.
+- There is **no public raw file access**, no URL of any kind, and no inline rendering. Every
+  download is an authenticated, streamed **attachment** — HTML included, because an uploaded
+  page rendered in this application's origin would run its own script with the reader's session
+  in scope.
+- Deliberately absent: folders, tags, categories, comments, ratings, progress tracking,
+  download analytics, bulk actions, public Resources, Student uploads, file replacement, a
+  preview or viewer, document conversion, and external resource links.
 
 ## 11. Live Slides constraints
 
@@ -591,12 +615,33 @@ inline on the private profile row, which works for a ≤1 MiB WebP and will not 
 Resource PDF. It also does not use `File`, `IMG`, or `fileAdapter.ts`, all of which remain unwired
 for the reason recorded in S-20.
 
-**Still open:** the general mechanism for private files that are too large to inline — an
-authorised streaming route reading from a `filesAdapter`, or a custom adapter that authorises per
-request. This is a technical/architecture decision, not a product decision.
-**Answer required from:** engineering, before Checkpoint 7 (Batch Resources).
-**Classification:** **BLOCKS-CP7** (Resources) — Resources cannot be made private without it.
-Also referenced by Checkpoint 11 and by Checkpoint 4's private photo.
+**RESOLVED in Checkpoint 5 — an authorised streaming route over the files adapter Parse Server
+already has.**
+
+The answer, in one sentence: **use the configured `GridFSBucketAdapter` in-process, and never let
+a byte near Parse's HTTP file surface.**
+
+- The default files adapter *is* `GridFSBucketAdapter`, already connected to the same database.
+  Reaching it directly introduces **no new dependency**, no second connection, and no new
+  operational surface — and the HTTP route that S-20 blocks is never involved. Uploads are piped
+  in and downloads are streamed out, so a 20 MiB file is never held whole in memory.
+- Authorisation is per request, in the route, from the session: the caller is resolved from
+  `_Session` with the master key (with an explicit expiry check), their roles are read live from
+  `_Role`, and a Student's enrolment is checked against the database on every single download.
+- The bytes are addressed by a `storageKey` — 128 bits of randomness, generated per file, derived
+  from nothing. It is in `protectedFields`, absent from every DTO, absent from the logging
+  allow-list, and **not** an address: asking for it as a resource id answers 404.
+- Neither of the adapter's public read methods fits. `getFileData` buffers the whole file, which
+  is what a 20 MiB limit exists to avoid; `handleFileStream` is a range handler that reads
+  `Range` unconditionally, always answers 206, and sets no `Content-Disposition`. So reads open
+  the bucket directly. That is the one place this reaches past the adapter's public surface; it
+  is feature-detected at startup, logged if it is ever missing, and recorded as a limitation.
+- `/api/files/*` stays 403 and `File` / `IMG` are untouched. The Checkpoint 3A profile photo was
+  deliberately **not** rewritten: it works, and rewriting a working private-file path to prove a
+  point is how a working private-file path stops working.
+
+**Classification:** **RESOLVED-CP5.** The mechanism generalises to any future private file; a
+second consumer should reuse `modules/BatchResource/storage.ts` rather than write its own.
 
 ---
 
@@ -724,7 +769,7 @@ a missing native binary.
 | # | Class | Blocks | Answer from |
 |---|---|---|---|
 | OQ-1 | BLOCKS-CP2 | Checkpoint 2 | product owner |
-| OQ-10 | BLOCKS-CP7 | Checkpoint 7 | engineering (narrowed in CP3A; still open) |
+| OQ-10 | RESOLVED-CP5 | — | engineering: answered and implemented in Checkpoint 5 |
 | OQ-5 | BLOCKS-CP8 | Checkpoint 8 (deferred) | product owner |
 | OQ-6, OQ-7, OQ-8 | BLOCKS-CP9 | Checkpoint 9 | product owner |
 | OQ-9, OQ-11 | BLOCKS-CP10 | Checkpoint 10 | product owner |

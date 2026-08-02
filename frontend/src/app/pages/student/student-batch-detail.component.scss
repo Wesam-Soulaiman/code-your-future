@@ -36,6 +36,51 @@
   margin-block-end: var(--cyf-space-4);
 }
 
+/* ── Tabs ⟨CP5⟩ ───────────────────────────────────────────────────────────
+   The same treatment as the Admin Batch page, so the two views of one Batch
+   look like two views of one thing. */
+
+.cyf-batch-tabs {
+  display: flex;
+  gap: var(--cyf-space-1);
+  margin-block-end: var(--cyf-space-5);
+  border-block-end: 1px solid var(--cyf-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cyf-batch-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.cyf-batch-tab {
+  padding: var(--cyf-space-3) var(--cyf-space-4);
+  min-block-size: var(--cyf-touch-target);
+  font-size: var(--cyf-text-sm);
+  font-weight: var(--cyf-weight-medium);
+  color: var(--cyf-text-secondary);
+  background: none;
+  border: 0;
+  /* The indicator sits on the same edge as the container's border, so an
+     inactive tab reserves the space and nothing shifts when it activates. */
+  border-block-end: 2px solid transparent;
+  margin-block-end: -1px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--cyf-transition) var(--cyf-ease);
+}
+
+.cyf-batch-tab:hover {
+  color: var(--cyf-text);
+}
+
+/* Never colour alone: the active tab is also bold and carries aria-selected. */
+.cyf-batch-tab.cyf-is-active {
+  color: var(--cyf-primary);
+  border-block-end-color: var(--cyf-primary);
+  font-weight: var(--cyf-weight-semibold);
+}
+
 .cyf-batch-title {
   margin: 0;
 }

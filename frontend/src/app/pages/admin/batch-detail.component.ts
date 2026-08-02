@@ -33,10 +33,18 @@ import {
 } from '../../utils/batch-constants';
 import { BatchErrorKey, mapBatchError } from '../../utils/batch-error';
 import { formatCalendarDate, formatInstant } from '../../utils/calendar-date';
+import { BatchResourcesComponent } from './batch-resources.component';
 import { InvitationCardComponent } from './invitation-card.component';
 
-/** The three tabs. There is no fourth: nothing else exists yet to put in one. */
-type BatchTab = 'overview' | 'students' | 'invitation';
+/**
+ * The four tabs. There is no fifth: nothing else exists yet to put in one.
+ *
+ * Resources joined in Checkpoint 5 and sits here rather than in the sidebar,
+ * because a Resource has no meaning away from its Batch — a top-level
+ * "Resources" item would be a list of files with nothing to say which cohort
+ * each belongs to.
+ */
+type BatchTab = 'overview' | 'students' | 'invitation' | 'resources';
 
 /** A roster row with its joined date already rendered. */
 interface StudentRow {
@@ -75,6 +83,7 @@ const SEARCH_DEBOUNCE_MS = 300;
     DialogModule,
     AlertComponent,
     InvitationCardComponent,
+    BatchResourcesComponent,
     RecordTableComponent,
     ColTemplateDirective,
   ],
@@ -108,6 +117,7 @@ export class AdminBatchDetailComponent {
     { id: 'overview', labelKey: 'admin.batches.tabs.overview' },
     { id: 'students', labelKey: 'admin.batches.tabs.students' },
     { id: 'invitation', labelKey: 'admin.batches.tabs.invitation' },
+    { id: 'resources', labelKey: 'admin.batches.tabs.resources' },
   ];
 
   protected batchId = signal('');

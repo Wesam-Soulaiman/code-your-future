@@ -19,6 +19,10 @@ import { BatchApiService } from '../../services/dataService/batch-service';
 import { BATCH_STATUS_TONE, BatchStatus } from '../../utils/batch-constants';
 import { BatchErrorKey, mapBatchError } from '../../utils/batch-error';
 import { formatCalendarDate, formatInstant } from '../../utils/calendar-date';
+import { StudentBatchResourcesComponent } from './student-batch-resources.component';
+
+/** Two tabs: what the Batch is, and what was shared with it. */
+type StudentBatchTab = 'overview' | 'resources';
 
 /**
  * One Batch, as the Student who belongs to it sees it.
@@ -37,7 +41,7 @@ import { formatCalendarDate, formatInstant } from '../../utils/calendar-date';
  */
 @Component({
   selector: 'app-student-batch-detail',
-  imports: [TranslateModule, ButtonModule, AlertComponent],
+  imports: [TranslateModule, ButtonModule, AlertComponent, StudentBatchResourcesComponent],
   templateUrl: './student-batch-detail.component.html',
   styleUrl: './student-batch-detail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,7 +53,14 @@ export class StudentBatchDetailComponent {
   private changeDetector = inject(ChangeDetectorRef);
   protected langService = inject(ChangeLangService);
 
-  private batchId = signal('');
+  protected batchId = signal('');
+  protected activeTab = signal<StudentBatchTab>('overview');
+
+  protected readonly tabs: { id: StudentBatchTab; labelKey: string }[] = [
+    { id: 'overview', labelKey: 'student.batches.tabs.overview' },
+    { id: 'resources', labelKey: 'student.batches.tabs.resources' },
+  ];
+
   protected batch = signal<StudentBatch | null>(null);
   protected loading = signal(true);
   protected errorKey = signal<BatchErrorKey | null>(null);
@@ -99,6 +110,10 @@ export class StudentBatchDetailComponent {
           this.changeDetector.markForCheck();
         },
       });
+  }
+
+  protected selectTab(tab: StudentBatchTab): void {
+    this.activeTab.set(tab);
   }
 
   protected back(): void {
