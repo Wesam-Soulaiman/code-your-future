@@ -692,6 +692,87 @@ describe('StudentProfileComponent', () => {
     });
   });
 
+  /**
+   * The page must not move when a choice is made.
+   *
+   * ── What went wrong, and why these assertions are about `position` ─────────
+   * Selecting an education status moved the whole page 452px, leaving the
+   * control the Student had just clicked off the top of the screen with no way
+   * to scroll back. It was reported as "the page glitches and doesn't work".
+   *
+   * It was not a reflow: measured in a real browser, every element's
+   * `offsetTop` was identical before and after, and the grid simply grew
+   * downwards by the height of the new field. What moved was a **scroll**.
+   *
+   * The visually-hidden radio inside each choice is `position: absolute`. With
+   * no positioned parent, its containing block was the shell's `main`, which is
+   * `position: fixed`. Clicking the label focuses that radio, the browser
+   * scrolled `main` to "reveal" it — and `main` is `overflow: hidden`, so there
+   * was no scrollbar and no way to put the page back.
+   *
+   * Giving each label its own containing block is the whole fix, so that is
+   * what these assert. A test that only checked the field appears would have
+   * passed throughout the bug.
+   */
+  describe('layout stability around the hidden controls', () => {
+    /** Every label that wraps a focusable `.cyf-sr-only` control. */
+    function hiddenControlLabels(): HTMLLabelElement[] {
+      return [...fixture.nativeElement.querySelectorAll('.cyf-sr-only')]
+        .filter((el) => el instanceof HTMLInputElement)
+        .map((el) => (el as HTMLElement).closest('label'))
+        .filter((el): el is HTMLLabelElement => el !== null);
+    }
+
+    it('gives every education choice its own containing block', () => {
+      const labels = fixture.nativeElement.querySelectorAll('.cyf-profile-choice');
+      expect(labels.length).toBe(2);
+      for (const label of labels) {
+        expect(getComputedStyle(label).position).not.toBe('static');
+      }
+    });
+
+    it('gives the photo button its own containing block', () => {
+      const button = fixture.nativeElement.querySelector('.cyf-profile-photo-btn');
+      expect(button).toBeTruthy();
+      expect(getComputedStyle(button).position).not.toBe('static');
+    });
+
+    it('leaves no visually-hidden control able to escape its own label', () => {
+      // The general rule, so a third one added later cannot reintroduce this.
+      const labels = hiddenControlLabels();
+      expect(labels.length).toBeGreaterThan(0);
+      for (const label of labels) {
+        expect(getComputedStyle(label).position).not.toBe('static');
+      }
+    });
+
+    it('keeps the education fieldset in place when the graduation field appears', () => {
+      const fieldset = fixture.nativeElement.querySelector('.cyf-profile-fieldset');
+      const before = fieldset.offsetTop;
+
+      chooseStatus(0);
+      expect(fixture.nativeElement.querySelector('#expectedGraduationMonth')).toBeTruthy();
+      // The new field is added *after* the fieldset, so the fieldset itself
+      // must not move. This is the reflow the first diagnosis wrongly blamed.
+      expect(fieldset.offsetTop).toBe(before);
+
+      chooseStatus(1);
+      expect(fieldset.offsetTop).toBe(before);
+    });
+
+    it('renders exactly one graduation control, never a duplicate', () => {
+      chooseStatus(0);
+      expect(
+        fixture.nativeElement.querySelectorAll('#expectedGraduationMonth').length,
+      ).toBe(1);
+      chooseStatus(1);
+      chooseStatus(0);
+      expect(
+        fixture.nativeElement.querySelectorAll('#expectedGraduationMonth').length,
+      ).toBe(1);
+    });
+  });
+
   describe('validation', () => {
     it('shows nothing before the user has touched a field', () => {
       expect(text()).not.toContain('This field is required');

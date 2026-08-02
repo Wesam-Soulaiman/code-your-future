@@ -300,7 +300,8 @@
       "tabs": {
         "label": "Batch sections",
         "overview": "Overview",
-        "resources": "Resources"
+        "resources": "Resources",
+        "liveSlides": "Live Slides"
       }
     }
   },
@@ -402,7 +403,8 @@
         "overview": "Overview",
         "students": "Students",
         "invitation": "Invitation",
-        "resources": "Resources"
+        "resources": "Resources",
+        "liveSlides": "Live Slides"
       },
       "notices": {
         "statusChanged": "The batch status was updated.",
@@ -691,6 +693,214 @@
       "accessDenied": "You do not have permission to do that.",
       "deleteFailed": "The resource could not be deleted. Please try again.",
       "unavailable": "We could not reach the server. Check your connection and try again.",
+      "unexpected": "Something went wrong. Please try again."
+    }
+  },
+  "liveSlides": {
+    "title": "Live Slides",
+    "lead": "Interactive sessions for this Batch. Students answer during the lecture.",
+    "readOnly": "This Batch is archived. Live Slides are read-only.",
+    "batchNotActive": "A session can only be started while the Batch is active. You can still prepare one.",
+    "intro": {
+      "badge": "FIRST LECTURE",
+      "title": "Meet the students through live questions",
+      "body": "Prepare slides before class, control them during the lecture, and keep every submitted answer in the student profile."
+    },
+    "status": {
+      "draft": "Draft",
+      "ready": "Ready",
+      "live": "Live",
+      "completed": "Completed"
+    },
+    "slideTypes": {
+      "INFORMATION": "Information",
+      "QUESTION": "Question"
+    },
+    "answerTypes": {
+      "SHORT_ANSWER": "Short answer",
+      "LONG_ANSWER": "Long answer",
+      "POLL": "Poll",
+      "SINGLE_CHOICE": "Single choice",
+      "MULTIPLE_CHOICE": "Multiple choice"
+    },
+    "meta": {
+      "slides": "{{count}} slides",
+      "questions": "{{count}} questions",
+      "answers": "{{count}} answers"
+    },
+    "actions": {
+      "create": "Create Live Slides Session",
+      "open": "Open",
+      "backToList": "All sessions",
+      "editDetails": "Edit details",
+      "markReady": "Mark as Ready",
+      "backToDraft": "Back to Draft",
+      "start": "Start Session",
+      "end": "End Session",
+      "duplicateAsDraft": "Duplicate as Draft"
+    },
+    "form": {
+      "createTitle": "Create Live Slides Session",
+      "editTitle": "Edit session",
+      "title": "Session title",
+      "date": "Session date",
+      "dateHelp": "For reference only. The session does not start by itself.",
+      "description": "Description"
+    },
+    "notices": {
+      "created": "Session created.",
+      "updated": "Session updated.",
+      "duplicated": "Session duplicated as a new Draft."
+    },
+    "ready": {
+      "notice": "This session is ready. Start it when the lecture begins."
+    },
+    "builder": {
+      "slides": "Slides",
+      "addSlide": "Add Slide",
+      "informationHint": "Context or instructions. No answer is collected.",
+      "questionHint": "Students submit one answer.",
+      "editing": "Edit {{type}} slide",
+      "position": "Slide {{index}} of {{total}}",
+      "slideTitle": "Title",
+      "slideContent": "Content",
+      "question": "Question",
+      "description": "Optional description",
+      "answerType": "Answer type",
+      "options": "Options",
+      "optionsHelp": "Between {{min}} and {{max}} options. There is no correct answer.",
+      "optionLabel": "Option {{index}}",
+      "addOption": "Add option",
+      "removeOption": "Remove option",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "duplicate": "Duplicate",
+      "delete": "Delete",
+      "deleteTitle": "Delete this slide?",
+      "deleteBody": "The slide is removed from this session. This cannot be undone.",
+      "preview": "Slide preview",
+      "empty": "Add a slide to begin.",
+      "needsQuestion": "A session needs at least one Question slide before it can be marked Ready."
+    },
+    "defaults": {
+      "infoTitle": "How today works",
+      "infoContent": "The Admin controls the slides. On question slides, write your answer and press Submit Answer.",
+      "question": "Write your question here."
+    },
+    "start": {
+      "title": "Start the Live session?",
+      "body": "Every student in this Batch will be able to join and answer."
+    },
+    "lock": {
+      "title": "Continue to the next slide?",
+      "body": "{{submitted}} answered and {{unanswered}} did not. Continuing closes this question permanently and records No Answer for them.",
+      "stay": "Stay on this slide",
+      "continue": "Continue and lock answers"
+    },
+    "end": {
+      "title": "End the Live session?",
+      "body": "The current question is closed and the session is completed. Students cannot answer afterwards, and this cannot be undone."
+    },
+    "presenter": {
+      "position": "Slide {{index}} of {{total}}",
+      "previous": "Previous",
+      "next": "Next slide",
+      "fullscreen": "Full screen",
+      "exitFullscreen": "Exit full screen",
+      "showResponses": "Show responses",
+      "hideResponses": "Hide responses",
+      "responses": "Submitted answers",
+      "submitted": "{{count}} submitted",
+      "noAnswerNeeded": "No answer required",
+      "noResponses": "Answers appear here only after a student presses Submit.",
+      "privacy": "Only submitted answers appear. Draft text is never shown."
+    },
+    "results": {
+      "students": "Students",
+      "inBatch": "In this Batch",
+      "participants": "Participants",
+      "atLeastOne": "Submitted at least one answer",
+      "questions": "Questions",
+      "answers": "Submitted answers",
+      "byStudent": "View by Student",
+      "byQuestion": "View by Question",
+      "answeredOf": "{{answered}} of {{total}} answered",
+      "viewAnswers": "View answers",
+      "noAnswer": "No Answer",
+      "noAnswerCount": "{{count}} no answer"
+    },
+    "connection": {
+      "connecting": "Connecting",
+      "connected": "Connected",
+      "reconnecting": "Reconnecting",
+      "lost": "Connection lost"
+    },
+    "student": {
+      "none": {
+        "title": "No live session yet",
+        "body": "Your Admin prepares the session before the lecture. It will appear here."
+      },
+      "upcoming": "UPCOMING",
+      "liveNow": "LIVE NOW",
+      "waiting": "The Join button appears here when the Admin starts the session.",
+      "join": "Join Live Session",
+      "noAnswerNeeded": "No answer required. Wait for the Admin to continue.",
+      "yourAnswer": "Your answer",
+      "answerPlaceholder": "Write your answer here...",
+      "chooseOne": "Choose one",
+      "chooseMany": "Choose one or more",
+      "submit": "Submit Answer",
+      "privacy": "The Admin cannot see your answer before you press Submit Answer.",
+      "confirm": {
+        "title": "Submit your answer?",
+        "body": "You cannot change your answer after submitting it."
+      },
+      "submitted": {
+        "title": "Answer submitted",
+        "waiting": "Waiting for the Admin to continue.",
+        "cannotEdit": "This answer cannot be edited."
+      },
+      "closed": {
+        "title": "This question is closed",
+        "body": "No Answer was recorded. You cannot answer it now."
+      },
+      "noAnswer": "No Answer",
+      "completed": {
+        "notice": "Thank you. Your submitted answers were saved.",
+        "title": "Your submitted answers"
+      }
+    },
+    "history": {
+      "title": "Live Slide Answers",
+      "empty": "No answers from a completed session yet.",
+      "columns": {
+        "batch": "Batch",
+        "session": "Session",
+        "date": "Date",
+        "question": "Question",
+        "answer": "Answer",
+        "submittedAt": "Submitted"
+      },
+      "noAnswer": "No Answer"
+    },
+    "errors": {
+      "notFound": "That session is not available.",
+      "validation": "Please check the highlighted fields.",
+      "notEditable": "This session can no longer be edited.",
+      "notReady": "This session is not ready to start.",
+      "alreadyActive": "Another session is already live for this Batch.",
+      "notActive": "This session is not running.",
+      "completed": "This session has finished.",
+      "slideNotFound": "That slide is not available.",
+      "slideValidation": "Please check the slide fields.",
+      "questionClosed": "This question is closed.",
+      "answerMismatch": "That answer does not match the question.",
+      "optionInvalid": "Please choose from the options shown.",
+      "alreadySubmitted": "You have already answered this question.",
+      "profileIncomplete": "Complete your profile before answering.",
+      "notEnrolled": "You are not enrolled in this Batch.",
+      "responseFailed": "Your answer could not be saved. Please try again.",
+      "unavailable": "The server is unreachable. Check your connection.",
       "unexpected": "Something went wrong. Please try again."
     }
   }

@@ -1,0 +1,215 @@
+<!-- The Live Slides tab on a Student's Batch ⟨CP6⟩. -->
+<div class="cyf-stack-lg">
+  <div class="cyf-page-status" aria-live="polite">
+    @if (errorKey()) {
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ errorKey()! | translate }}
+      </cyf-alert>
+    }
+  </div>
+
+  @if (loading()) {
+    <p class="cyf-body-sm">{{ 'common.loading' | translate }}</p>
+  } @else if (!session()) {
+    <!-- ── 1. No session ── -->
+    <div class="cyf-live-intro">
+      <h3 class="cyf-card-title">{{ 'liveSlides.student.none.title' | translate }}</h3>
+      <p class="cyf-body-sm">{{ 'liveSlides.student.none.body' | translate }}</p>
+    </div>
+  } @else if (isCompleted()) {
+    <!-- ── 10. Completed: this Student's own answers, read-only ── -->
+    <cyf-alert variant="success">{{ 'liveSlides.student.completed.notice' | translate }}</cyf-alert>
+
+    <h3 class="cyf-section-title">{{ 'liveSlides.student.completed.title' | translate }}</h3>
+    @for (row of completedRows(); track row.question.id) {
+      <div class="cyf-answer-history-item">
+        <span class="cyf-answer-history-question">{{ row.question.question }}</span>
+        @if (row.response) {
+          @if (row.response.textAnswer) {
+            <p class="cyf-answer-history-answer">{{ row.response.textAnswer }}</p>
+          }
+          @if (row.response.selectedOptionLabels?.length) {
+            <p class="cyf-answer-history-answer">
+              {{ row.response.selectedOptionLabels!.join(' · ') }}
+            </p>
+          }
+        } @else {
+          <!-- Derived: the Question closed and this Student did not answer. -->
+          <p class="cyf-answer-history-answer cyf-no-answer">
+            {{ 'liveSlides.student.noAnswer' | translate }}
+          </p>
+        }
+      </div>
+    }
+  } @else if (!isLive()) {
+    <!-- ── 2. Ready, not started ── -->
+    <div class="cyf-live-intro">
+      <span class="cyf-status-chip cyf-status-success">
+        {{ 'liveSlides.student.upcoming' | translate }}
+      </span>
+      <h3 class="cyf-card-title cyf-live-intro-title">{{ session()!.title }}</h3>
+      @if (session()!.description) {
+        <p class="cyf-body-sm">{{ session()!.description }}</p>
+      }
+      <p class="cyf-body-sm cyf-mt-2">
+        <i class="fa-solid fa-calendar" aria-hidden="true"></i> {{ sessionDate() }}
+      </p>
+      <p class="cyf-body-sm cyf-mt-4">{{ 'liveSlides.student.waiting' | translate }}</p>
+    </div>
+  } @else if (!entered()) {
+    <!-- ── 3. Live, not entered. A view transition only: nothing is recorded. ── -->
+    <div class="cyf-live-intro">
+      <span class="cyf-status-chip cyf-status-error">
+        {{ 'liveSlides.student.liveNow' | translate }}
+      </span>
+      <h3 class="cyf-card-title cyf-live-intro-title">{{ session()!.title }}</h3>
+      @if (session()!.description) {
+        <p class="cyf-body-sm">{{ session()!.description }}</p>
+      }
+      <div class="cyf-mt-4">
+        <p-button
+          [label]="'liveSlides.student.join' | translate"
+          icon="fa-solid fa-right-to-bracket"
+          (onClick)="enter()"
+        />
+      </div>
+    </div>
+  } @else {
+    <!-- ── 4–9. The live slide, and whatever this Student may do with it ── -->
+    <div class="cyf-flex-between cyf-wrap cyf-gap-3">
+      <h3 class="cyf-section-title">{{ session()!.title }}</h3>
+      <span
+        class="cyf-connection"
+        [class.is-reconnecting]="poll.connection() === 'reconnecting'"
+        [class.is-lost]="poll.connection() === 'lost'"
+        role="status"
+      >
+        <span class="cyf-connection-dot" aria-hidden="true"></span>
+        {{ 'liveSlides.connection.' + poll.connection() | translate }}
+      </span>
+    </div>
+
+    @if (slide(); as current) {
+      <div class="cyf-slide" [class.cyf-slide-question]="current.type === SLIDE_TYPE.QUESTION">
+        <div class="cyf-slide-inner">
+          <span class="cyf-slide-kind">
+            <i [class]="slideIcon(current.type)" aria-hidden="true"></i>
+            {{ 'liveSlides.slideTypes.' + current.type | translate }}
+          </span>
+          <h2 class="cyf-slide-title">
+            {{ current.type === SLIDE_TYPE.QUESTION ? current.question : current.title }}
+          </h2>
+          @if (current.type === SLIDE_TYPE.QUESTION ? current.description : current.content) {
+            <p class="cyf-slide-body">
+              {{ current.type === SLIDE_TYPE.QUESTION ? current.description : current.content }}
+            </p>
+          }
+        </div>
+      </div>
+
+      <div class="cyf-answer-area">
+        @if (current.type !== SLIDE_TYPE.QUESTION) {
+          <!-- 4. Information: nothing to answer. -->
+          <p class="cyf-answer-none">{{ 'liveSlides.student.noAnswerNeeded' | translate }}</p>
+        } @else if (myResponse(); as mine) {
+          <!-- 7. Submitted: read-only, permanently. -->
+          <div class="cyf-answer-saved">
+            <strong>{{ 'liveSlides.student.submitted.title' | translate }}</strong>
+            @if (mine.textAnswer) {
+              <span class="cyf-answer-value">{{ mine.textAnswer }}</span>
+            }
+            @if (mine.selectedOptionLabels?.length) {
+              <span class="cyf-answer-value">{{ mine.selectedOptionLabels!.join(' · ') }}</span>
+            }
+            <p class="cyf-mt-2">{{ 'liveSlides.student.submitted.waiting' | translate }}</p>
+            <p>{{ 'liveSlides.student.submitted.cannotEdit' | translate }}</p>
+          </div>
+        } @else if (locked()) {
+          <!-- 8. Closed without an answer. -->
+          <div class="cyf-answer-locked">
+            <strong>{{ 'liveSlides.student.closed.title' | translate }}</strong>
+            <p class="cyf-mt-2">{{ 'liveSlides.student.closed.body' | translate }}</p>
+          </div>
+        } @else {
+          <!-- 5. Open. What is typed here goes nowhere until Submit. -->
+          @if (isTextAnswer(current.answerType)) {
+            <div class="cyf-field">
+              <label class="cyf-label" for="studentAnswer">
+                {{ 'liveSlides.student.yourAnswer' | translate }}
+              </label>
+              <textarea
+                id="studentAnswer"
+                class="cyf-input"
+                [rows]="current.answerType === 'SHORT_ANSWER' ? 2 : 6"
+                [ngModel]="draftText()"
+                (ngModelChange)="draftText.set($event)"
+                [maxlength]="
+                  current.answerType === 'SHORT_ANSWER' ? limits.shortAnswer.max : limits.longAnswer.max
+                "
+                [placeholder]="'liveSlides.student.answerPlaceholder' | translate"
+              ></textarea>
+            </div>
+          } @else if (needsOptions(current.answerType)) {
+            <fieldset class="cyf-field">
+              <legend class="cyf-label">
+                {{
+                  (isMultiSelect(current.answerType)
+                    ? 'liveSlides.student.chooseMany'
+                    : 'liveSlides.student.chooseOne') | translate
+                }}
+              </legend>
+              <div class="cyf-choice-list">
+                @for (option of current.options ?? []; track option.id) {
+                  <label class="cyf-choice" [class.is-selected]="isChosen(option.id)">
+                    <input
+                      [type]="isMultiSelect(current.answerType) ? 'checkbox' : 'radio'"
+                      name="studentChoice"
+                      [checked]="isChosen(option.id)"
+                      (change)="toggleChoice(option.id)"
+                    />
+                    <span class="cyf-choice-text">{{ option.text }}</span>
+                  </label>
+                }
+              </div>
+            </fieldset>
+          }
+
+          <div class="cyf-mt-4">
+            <p-button
+              [label]="'liveSlides.student.submit' | translate"
+              [loading]="busy()"
+              [disabled]="!answerReady() || busy()"
+              (onClick)="confirmSubmit.set(true)"
+            />
+          </div>
+          <p class="cyf-helper cyf-mt-2">{{ 'liveSlides.student.privacy' | translate }}</p>
+        }
+      </div>
+    }
+  }
+</div>
+
+<!-- ══ 6. The confirmation. Said before anything is sent. ══ -->
+<p-dialog
+  [visible]="confirmSubmit()"
+  (visibleChange)="confirmSubmit.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(30rem, 92vw)' }"
+  [header]="'liveSlides.student.confirm.title' | translate"
+>
+  <p class="cyf-body-sm">{{ 'liveSlides.student.confirm.body' | translate }}</p>
+  <ng-template pTemplate="footer">
+    <p-button
+      severity="secondary"
+      [text]="true"
+      [label]="'actions.cancel' | translate"
+      (onClick)="confirmSubmit.set(false)"
+    />
+    <p-button
+      [label]="'liveSlides.student.submit' | translate"
+      [loading]="busy()"
+      (onClick)="submit()"
+    />
+  </ng-template>
+</p-dialog>

@@ -127,6 +127,13 @@
 /* The file input is visually hidden inside its label, so the label *is* the
    control — it stays keyboard reachable and correctly announced. */
 .cyf-profile-photo-btn {
+  /*
+    Same reason as `.cyf-profile-choice`: this label wraps a `.cyf-sr-only`
+    file input, which is `position: absolute`. Without a positioned parent its
+    containing block is the shell's fixed `main`, and focusing it scrolls the
+    page with no way to scroll back.
+  */
+  position: relative;
   inline-size: auto;
   cursor: pointer;
 
@@ -175,6 +182,16 @@
 }
 
 .cyf-profile-choice {
+  /*
+    The containing block for the visually-hidden radio inside.
+
+    `.cyf-sr-only` is `position: absolute`, so without this its containing block
+    is the nearest *positioned* ancestor — which is the shell's `main`, because
+    that is `position: fixed`. Focusing the radio then made the browser scroll
+    `main` to "reveal" it, and `main` is `overflow: hidden`, so the page moved
+    with no scrollbar and no way to move it back.
+  */
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--cyf-space-2);

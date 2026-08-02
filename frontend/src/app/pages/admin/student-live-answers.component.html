@@ -1,0 +1,93 @@
+<!--
+  One Student's Live Slides answers ⟨CP6⟩.
+
+  Read-only throughout: no Edit, no Delete, no Score, no Feedback, and no
+  correct/incorrect state, because no operation exists behind any of them.
+-->
+<section class="cyf-stack">
+  <h3 class="cyf-section-title">{{ 'liveSlides.history.title' | translate }}</h3>
+
+  <div class="cyf-page-status" aria-live="polite">
+    @if (errorKey()) {
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ errorKey()! | translate }}
+      </cyf-alert>
+    }
+  </div>
+
+  @if (!loading() && rows().length === 0) {
+    <p class="cyf-body-sm">{{ 'liveSlides.history.empty' | translate }}</p>
+  } @else {
+    <app-data-table
+      [title]="'liveSlides.history.title' | translate"
+      [stateKey]="'student-live-answers-' + studentId()"
+      rowKey="id"
+      [showPreview]="true"
+      [previewKey]="'question'"
+      [showSearch]="false"
+      [data]="rows()"
+      [columns]="columns()"
+      [loading]="loading()"
+      [totalRecords]="total()"
+      (loadData)="onLoadData($event)"
+    >
+      <ng-template appColTemplate="question" let-row>
+        <span dir="auto">{{ row.row.question }}</span>
+      </ng-template>
+
+      <ng-template appColTemplate="answer" let-row>
+        @if (row.answer) {
+          <span dir="auto">{{ row.answer }}</span>
+        } @else {
+          <!-- Derived, never stored: the Question closed with no response. -->
+          <span class="cyf-no-answer">{{ 'liveSlides.history.noAnswer' | translate }}</span>
+        }
+      </ng-template>
+
+      <ng-template appColTemplate="session" let-row>
+        <span class="cyf-stack-tight">
+          <span dir="auto">{{ row.row.sessionTitle }}</span>
+          <span class="cyf-helper">{{ row.row.batchName }} · {{ row.sessionDate }}</span>
+        </span>
+      </ng-template>
+
+      <ng-template appColTemplate="submittedAt" let-row>
+        <span class="cyf-numeric">{{ row.submittedAt }}</span>
+      </ng-template>
+
+      <ng-template appPreviewTemplate let-row>
+        <div class="flex flex-col gap-4">
+          <div>
+            <h3 class="cyf-card-title" dir="auto">{{ row.row.question }}</h3>
+            <span class="cyf-helper">{{ row.answerTypeKey | translate }}</span>
+          </div>
+          @if (row.answer) {
+            <p class="cyf-answer-history-answer" dir="auto">{{ row.answer }}</p>
+          } @else {
+            <p class="cyf-no-answer">{{ 'liveSlides.history.noAnswer' | translate }}</p>
+          }
+          <span class="cyf-helper">
+            {{ row.row.batchName }} · {{ row.row.sessionTitle }} · {{ row.sessionDate }}
+          </span>
+          <span class="cyf-numeric cyf-helper">{{ row.submittedAt }}</span>
+        </div>
+      </ng-template>
+
+      <ng-template appGridCardTemplate let-row>
+        <div class="flex flex-col gap-2">
+          <span class="font-semibold" dir="auto">{{ row.row.question }}</span>
+          @if (row.answer) {
+            <span class="text-sm" dir="auto">{{ row.answer }}</span>
+          } @else {
+            <span class="cyf-no-answer text-sm">
+              {{ 'liveSlides.history.noAnswer' | translate }}
+            </span>
+          }
+          <span class="text-sm text-surface-500">
+            {{ row.row.sessionTitle }} · {{ row.sessionDate }}
+          </span>
+        </div>
+      </ng-template>
+    </app-data-table>
+  }
+</section>

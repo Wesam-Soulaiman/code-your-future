@@ -40,6 +40,9 @@ before(async () => {
   await import('../src/cloudCode/models/BatchInvitation');
   await import('../src/cloudCode/models/BatchEnrollment');
   await import('../src/cloudCode/models/BatchResource');
+  await import('../src/cloudCode/models/LiveSlideSession');
+  await import('../src/cloudCode/models/LiveSlide');
+  await import('../src/cloudCode/models/LiveResponse');
 
   const guard = await import('../src/cloudCode/utils/config/schemaGuard');
   hardenDefinitions = guard.hardenDefinitions as typeof hardenDefinitions;
@@ -50,7 +53,7 @@ before(async () => {
 });
 
 describe('registered class surface', () => {
-  test('contains exactly the ten approved classes', () => {
+  test('contains exactly the thirteen approved classes', () => {
     const names = definitions.map(definition => definition.className).sort();
     assert.deepEqual(names, [
       'Batch',
@@ -59,6 +62,9 @@ describe('registered class surface', () => {
       'BatchResource',
       'File',
       'IMG',
+      'LiveResponse',
+      'LiveSlide',
+      'LiveSlideSession',
       'ProfileCatalogItem',
       'StudentAuthIdentity',
       'StudentProfile',
@@ -78,8 +84,13 @@ describe('registered class surface', () => {
   test('no future product model was added', () => {
     const names = definitions.map(definition => definition.className);
     // Batch, BatchInvitation, and BatchEnrollment shipped in Checkpoint 4;
-    // BatchResource in Checkpoint 5. Everything below belongs to a checkpoint
+    // BatchResource in Checkpoint 5; LiveSlideSession, LiveSlide, and
+    // LiveResponse in Checkpoint 6. Everything below belongs to a checkpoint
     // that has not happened, and a class for one would be a stub.
+    //
+    // `LiveSlidesSession` — plural `Slides` — stays on this list on purpose:
+    // the class that shipped is `LiveSlideSession`, and the near-miss name is
+    // exactly the sort of thing that gets created twice.
     const future = [
       'Enrollment',
       'Task',
@@ -117,6 +128,9 @@ describe('deny-by-default access', () => {
     'BatchInvitation',
     'BatchEnrollment',
     'BatchResource',
+    'LiveSlideSession',
+    'LiveSlide',
+    'LiveResponse',
   ]) {
     test(`${className} denies every client operation`, () => {
       const definition = definitions.find(entry => entry.className === className);

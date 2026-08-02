@@ -1,0 +1,588 @@
+/**
+ * Live Slides ⟨CP6⟩ — the visual language from `docs/prototypes/slides.html`,
+ * rebuilt on this application's tokens.
+ *
+ * ── What was taken from the prototype ───────────────────────────────────────
+ * The blue Information gradient, the purple Question gradient, the green
+ * completed state, the two-column builder, the selected-slide card, the dark
+ * presenter stage, and the response side panel. Those are the feature's
+ * identity and they are reproduced closely.
+ *
+ * ── What was not ────────────────────────────────────────────────────────────
+ * Its hardcoded hexes. Every colour here resolves through `--cyf-*`, so the
+ * dark theme, the focus ring, and the disabled states behave the way they do on
+ * every other page. The prototype had one theme and no RTL; this has both.
+ *
+ * The gradients are the one exception: a slide is a **surface with text on it**,
+ * so its own colours are declared here rather than derived. They are stated once
+ * as tokens at the top and used everywhere below, and they carry white text in
+ * both themes — which is why they do not need a dark variant.
+ */
+
+.cyf-live,
+.cyf-slide,
+.cyf-presenter,
+.cyf-presenter-fullscreen {
+  /* The two slide identities, from the prototype. */
+  --slide-info: linear-gradient(145deg, #14324a, #2677c9 58%, #4aa4ff);
+  --slide-question: linear-gradient(145deg, #33204d, #8b4fc9 58%, #d16dca);
+  --slide-on-dark: #ffffff;
+  --slide-on-dark-muted: rgba(255, 255, 255, 0.82);
+  --slide-chip: rgba(255, 255, 255, 0.16);
+  --presenter-frame: #0c0d1a;
+}
+
+/* ══ Session cards ══════════════════════════════════════════════════════════ */
+
+.cyf-live-intro {
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-lg);
+  padding: var(--cyf-space-6);
+  background: linear-gradient(145deg, var(--cyf-surface), var(--cyf-primary-subtle));
+}
+
+.cyf-live-intro-title {
+  margin: var(--cyf-space-3) 0 var(--cyf-space-2);
+}
+
+.cyf-session-grid {
+  display: grid;
+  gap: var(--cyf-space-3);
+}
+
+.cyf-session-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cyf-space-4);
+  flex-wrap: wrap;
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-lg);
+  padding: var(--cyf-space-4);
+  background: var(--cyf-surface);
+  transition: var(--cyf-transition);
+}
+
+.cyf-session-card:hover {
+  border-color: var(--cyf-border-strong);
+  box-shadow: var(--cyf-shadow-sm);
+}
+
+.cyf-session-copy {
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+.cyf-session-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-3);
+  flex-wrap: wrap;
+  margin-top: var(--cyf-space-2);
+  color: var(--cyf-text-secondary);
+}
+
+.cyf-session-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  flex-wrap: wrap;
+}
+
+/* ══ Stat cards ═════════════════════════════════════════════════════════════ */
+
+.cyf-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--cyf-space-3);
+}
+
+.cyf-stat {
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-md);
+  padding: var(--cyf-space-4);
+  background: var(--cyf-surface);
+}
+
+.cyf-stat-value {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: var(--cyf-space-2) 0 var(--cyf-space-1);
+  /*
+   * Latin digits regardless of page language: a count is a number, and the
+   * paginator already settled this question for the whole application.
+   */
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══ The slide surface ══════════════════════════════════════════════════════ */
+
+.cyf-slide {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: var(--cyf-space-8) var(--cyf-space-6);
+  border-radius: var(--cyf-radius-lg);
+  color: var(--slide-on-dark);
+  background: var(--slide-info);
+  min-height: 16rem;
+}
+
+.cyf-slide-question {
+  background: var(--slide-question);
+}
+
+.cyf-slide-inner {
+  max-width: 44rem;
+  width: 100%;
+}
+
+.cyf-slide-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: var(--slide-chip);
+  color: var(--slide-on-dark);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.cyf-slide-title {
+  margin: var(--cyf-space-3) 0 0;
+  font-size: clamp(1.25rem, 2.5vw, 1.9rem);
+  line-height: 1.25;
+  /*
+   * A question can be long and a title can be one unbroken word in either
+   * language. Both wrap rather than escaping the slide.
+   */
+  overflow-wrap: anywhere;
+}
+
+.cyf-slide-body {
+  margin: var(--cyf-space-3) 0 0;
+  color: var(--slide-on-dark-muted);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  /* Author's line breaks are part of what they wrote. */
+  white-space: pre-wrap;
+}
+
+/* ══ The builder ════════════════════════════════════════════════════════════ */
+
+.cyf-builder {
+  display: grid;
+  grid-template-columns: minmax(0, 17rem) minmax(0, 1fr);
+  gap: var(--cyf-space-4);
+  align-items: start;
+}
+
+@media (max-width: 60rem) {
+  .cyf-builder {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cyf-slide-list {
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-lg);
+  padding: var(--cyf-space-3);
+  background: var(--cyf-surface-subtle);
+}
+
+.cyf-slide-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cyf-space-2);
+  margin-bottom: var(--cyf-space-3);
+}
+
+.cyf-slide-item {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  width: 100%;
+  text-align: start;
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-md);
+  padding: var(--cyf-space-2);
+  margin-top: var(--cyf-space-2);
+  background: var(--cyf-surface);
+  cursor: pointer;
+  transition: var(--cyf-transition);
+}
+
+.cyf-slide-item:hover {
+  border-color: var(--cyf-border-strong);
+}
+
+.cyf-slide-item.is-selected {
+  border-color: var(--cyf-primary);
+  background: var(--cyf-primary-subtle);
+}
+
+.cyf-slide-item:focus-visible {
+  outline: 2px solid var(--cyf-focus-ring);
+  outline-offset: 2px;
+}
+
+.cyf-slide-number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--cyf-radius-sm);
+  background: var(--cyf-surface-subtle);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.cyf-slide-item.is-selected .cyf-slide-number {
+  background: var(--cyf-surface);
+  color: var(--cyf-primary);
+}
+
+.cyf-slide-item-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.cyf-slide-item-title {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  /* One line with an ellipsis: the list is a map of the deck, not a preview. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cyf-slide-item-kind {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--cyf-text-muted);
+}
+
+.cyf-slide-item-actions {
+  display: flex;
+  gap: 0.15rem;
+  flex: 0 0 auto;
+}
+
+.cyf-editor {
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-lg);
+  padding: var(--cyf-space-4);
+  background: var(--cyf-surface);
+}
+
+/* ══ Options ════════════════════════════════════════════════════════════════ */
+
+.cyf-option-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  margin-top: var(--cyf-space-2);
+}
+
+.cyf-option-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.cyf-option-actions {
+  display: flex;
+  gap: 0.15rem;
+  flex: 0 0 auto;
+}
+
+/* ══ The presenter ══════════════════════════════════════════════════════════ */
+
+.cyf-live-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.75fr);
+  gap: var(--cyf-space-4);
+  align-items: start;
+}
+
+@media (max-width: 74rem) {
+  .cyf-live-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cyf-presenter {
+  position: relative;
+  border-radius: var(--cyf-radius-lg);
+  overflow: hidden;
+  background: var(--presenter-frame);
+  color: var(--slide-on-dark);
+}
+
+.cyf-presenter-top,
+.cyf-presenter-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cyf-space-3);
+  flex-wrap: wrap;
+  padding: var(--cyf-space-3) var(--cyf-space-4);
+  background: rgba(7, 8, 18, 0.72);
+}
+
+.cyf-presenter-stage {
+  min-height: 22rem;
+  border-radius: 0;
+}
+
+.cyf-presenter-position {
+  font-variant-numeric: tabular-nums;
+  color: var(--slide-on-dark-muted);
+  font-size: 0.8rem;
+}
+
+/**
+ * Fullscreen stays inside the application.
+ *
+ * A fixed overlay rather than the Fullscreen API: the API takes the whole
+ * screen away from the browser chrome, and a presenter who cannot find the way
+ * back is stuck. Escape closes this, and the exit control is always visible.
+ */
+.cyf-presenter-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  padding: var(--cyf-space-4);
+  background: #090a14;
+  overflow: auto;
+}
+
+.cyf-presenter-fullscreen .cyf-presenter-stage {
+  min-height: calc(100vh - 14rem);
+}
+
+/* ══ The response panel ═════════════════════════════════════════════════════ */
+
+.cyf-response-panel {
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-lg);
+  padding: var(--cyf-space-4);
+  background: var(--cyf-surface);
+  max-height: 40rem;
+  overflow-y: auto;
+}
+
+.cyf-response-card {
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-md);
+  padding: var(--cyf-space-3);
+  margin-top: var(--cyf-space-2);
+  background: var(--cyf-surface);
+}
+
+.cyf-response-name {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.cyf-response-answer {
+  margin: var(--cyf-space-2) 0 0;
+  color: var(--cyf-text-secondary);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* ══ Tallies ════════════════════════════════════════════════════════════════ */
+
+.cyf-tally-row {
+  margin-top: var(--cyf-space-3);
+}
+
+.cyf-tally-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cyf-space-2);
+  margin-bottom: 0.35rem;
+}
+
+.cyf-tally-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--cyf-text-secondary);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.cyf-tally-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--cyf-surface-subtle);
+  overflow: hidden;
+}
+
+.cyf-tally-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--cyf-primary);
+  transition: width var(--cyf-transition);
+}
+
+/*
+ * A bar's width is data, so it must not animate for somebody who asked for
+ * less motion.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .cyf-tally-fill,
+  .cyf-slide-item,
+  .cyf-session-card {
+    transition: none;
+  }
+}
+
+/* ══ Answer states ══════════════════════════════════════════════════════════ */
+
+.cyf-answer-area {
+  padding: var(--cyf-space-4);
+  border: 1px solid var(--cyf-border);
+  border-top: 0;
+  border-radius: 0 0 var(--cyf-radius-lg) var(--cyf-radius-lg);
+  background: var(--cyf-surface);
+}
+
+.cyf-answer-saved,
+.cyf-answer-locked,
+.cyf-answer-none {
+  border-radius: var(--cyf-radius-md);
+  padding: var(--cyf-space-4);
+  line-height: 1.55;
+}
+
+.cyf-answer-saved {
+  border: 1px solid color-mix(in srgb, var(--cyf-success) 35%, transparent);
+  background: color-mix(in srgb, var(--cyf-success) 10%, var(--cyf-surface));
+  color: var(--cyf-success);
+}
+
+.cyf-answer-locked {
+  border: 1px solid color-mix(in srgb, var(--cyf-warning) 35%, transparent);
+  background: color-mix(in srgb, var(--cyf-warning) 10%, var(--cyf-surface));
+  color: var(--cyf-warning);
+}
+
+.cyf-answer-none {
+  border: 1px solid var(--cyf-border);
+  background: var(--cyf-surface-subtle);
+  color: var(--cyf-text-secondary);
+}
+
+.cyf-answer-value {
+  display: block;
+  margin-top: var(--cyf-space-2);
+  color: var(--cyf-text);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.cyf-choice-list {
+  display: grid;
+  gap: var(--cyf-space-2);
+  margin-top: var(--cyf-space-2);
+}
+
+.cyf-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-3);
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-md);
+  padding: var(--cyf-space-3);
+  background: var(--cyf-surface);
+  cursor: pointer;
+  /*
+   * Comfortably past the 44px minimum, because this is tapped on a phone in a
+   * room with the lights down.
+   */
+  min-height: var(--cyf-touch-target);
+}
+
+.cyf-choice:hover {
+  border-color: var(--cyf-border-strong);
+}
+
+.cyf-choice.is-selected {
+  border-color: var(--cyf-primary);
+  background: var(--cyf-primary-subtle);
+}
+
+.cyf-choice:focus-within {
+  outline: 2px solid var(--cyf-focus-ring);
+  outline-offset: 2px;
+}
+
+.cyf-choice-text {
+  overflow-wrap: anywhere;
+}
+
+/* ══ Connection state ═══════════════════════════════════════════════════════ */
+
+.cyf-connection {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  font-size: 0.85rem;
+}
+
+.cyf-connection-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--cyf-success);
+  flex: 0 0 auto;
+}
+
+.cyf-connection.is-reconnecting .cyf-connection-dot {
+  background: var(--cyf-warning);
+}
+
+.cyf-connection.is-lost .cyf-connection-dot {
+  background: var(--cyf-error);
+}
+
+/* ══ Answer history ═════════════════════════════════════════════════════════ */
+
+.cyf-answer-history-item {
+  border-inline-start: 3px solid var(--cyf-primary);
+  border-radius: 0 var(--cyf-radius-md) var(--cyf-radius-md) 0;
+  padding: var(--cyf-space-3) var(--cyf-space-4);
+  margin-top: var(--cyf-space-3);
+  background: var(--cyf-surface-subtle);
+}
+
+.cyf-answer-history-question {
+  display: block;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.cyf-answer-history-answer {
+  margin: var(--cyf-space-2) 0 0;
+  color: var(--cyf-text-secondary);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.cyf-no-answer {
+  color: var(--cyf-warning);
+  font-weight: 600;
+}

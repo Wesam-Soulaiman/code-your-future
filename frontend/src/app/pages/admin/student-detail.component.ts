@@ -12,6 +12,7 @@ import { ButtonModule } from 'primeng/button';
 import { finalize } from 'rxjs';
 
 import { AlertComponent } from '../../components/shared/alert.component';
+import { StudentLiveAnswersComponent } from './student-live-answers.component';
 import { ADMIN_BATCHES, ADMIN_STUDENTS } from '../../guards/home-route';
 import { AdminStudentSummary, StudentBatch } from '../../models/Batch';
 import { catalogItemName } from '../../models/ProfileCatalogItem';
@@ -47,7 +48,7 @@ interface BatchRow {
  */
 @Component({
   selector: 'app-admin-student-detail',
-  imports: [TranslateModule, ButtonModule, AlertComponent],
+  imports: [TranslateModule, ButtonModule, AlertComponent, StudentLiveAnswersComponent],
   templateUrl: './student-detail.component.html',
   styleUrl: './student-detail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -59,7 +60,7 @@ export class AdminStudentDetailComponent {
   private changeDetector = inject(ChangeDetectorRef);
   protected langService = inject(ChangeLangService);
 
-  private studentId = signal('');
+  protected studentId = signal('');
   protected student = signal<AdminStudentSummary | null>(null);
   private batches = signal<StudentBatch[]>([]);
   protected loading = signal(true);

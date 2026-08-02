@@ -1,0 +1,245 @@
+<!-- Presenter Mode ⟨CP6⟩. The stage and the response panel, from one request. -->
+<ng-template #presenterBody>
+  <div class="cyf-live-layout">
+    <div class="cyf-presenter">
+      <div class="cyf-presenter-top">
+        <div>
+          <strong>{{ session().title }}</strong>
+          <div class="cyf-presenter-position">
+            {{
+              'liveSlides.presenter.position'
+                | translate: { index: (state()?.currentIndex ?? 0) + 1, total: state()?.slideCount ?? 0 }
+            }}
+          </div>
+        </div>
+        <div class="cyf-flex cyf-gap-2 cyf-wrap">
+          <span
+            class="cyf-connection"
+            [class.is-reconnecting]="poll.connection() === 'reconnecting'"
+            [class.is-lost]="poll.connection() === 'lost'"
+            role="status"
+          >
+            <span class="cyf-connection-dot" aria-hidden="true"></span>
+            {{ 'liveSlides.connection.' + poll.connection() | translate }}
+          </span>
+          <p-button
+            size="small"
+            severity="secondary"
+            [text]="true"
+            [label]="
+              (fullscreen() ? 'liveSlides.presenter.exitFullscreen' : 'liveSlides.presenter.fullscreen')
+                | translate
+            "
+            (onClick)="fullscreen.set(!fullscreen())"
+          />
+          <p-button
+            size="small"
+            severity="secondary"
+            [text]="true"
+            [label]="
+              (responsesVisible() ? 'liveSlides.presenter.hideResponses' : 'liveSlides.presenter.showResponses')
+                | translate
+            "
+            (onClick)="toggleResponses()"
+          />
+        </div>
+      </div>
+
+      @if (currentSlide(); as slide) {
+        <div
+          class="cyf-slide cyf-presenter-stage"
+          [class.cyf-slide-question]="slide.type === SLIDE_TYPE.QUESTION"
+        >
+          <div class="cyf-slide-inner">
+            <span class="cyf-slide-kind">
+              <i [class]="slideIcon(slide.type)" aria-hidden="true"></i>
+              {{ 'liveSlides.slideTypes.' + slide.type | translate }}
+            </span>
+            <h2 class="cyf-slide-title">
+              {{ slide.type === SLIDE_TYPE.QUESTION ? slide.question : slide.title }}
+            </h2>
+            @if (slide.type === SLIDE_TYPE.QUESTION ? slide.description : slide.content) {
+              <p class="cyf-slide-body">
+                {{ slide.type === SLIDE_TYPE.QUESTION ? slide.description : slide.content }}
+              </p>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="cyf-presenter-controls">
+        <p-button
+          severity="secondary"
+          icon="fa-solid fa-arrow-left"
+          [label]="'liveSlides.presenter.previous' | translate"
+          [disabled]="atStart() || busy()"
+          (onClick)="requestMove('previous')"
+        />
+        <span class="cyf-presenter-position cyf-numeric">
+          @if (isQuestion()) {
+            {{ 'liveSlides.presenter.submitted' | translate: { count: state()?.submitted ?? 0 } }}
+          } @else {
+            {{ 'liveSlides.presenter.noAnswerNeeded' | translate }}
+          }
+        </span>
+        @if (atEnd()) {
+          <p-button
+            severity="success"
+            [label]="'liveSlides.actions.end' | translate"
+            [loading]="busy()"
+            (onClick)="confirmEnd.set(true)"
+          />
+        } @else {
+          <p-button
+            [label]="'liveSlides.presenter.next' | translate"
+            icon="fa-solid fa-arrow-right"
+            iconPos="right"
+            [loading]="busy()"
+            (onClick)="requestMove('next')"
+          />
+        }
+      </div>
+    </div>
+
+    <!-- ── The response panel. Admin only, submitted answers only. ────────── -->
+    @if (responsesVisible()) {
+      <aside class="cyf-response-panel">
+        <div class="cyf-flex-between cyf-gap-2">
+          <h4 class="cyf-card-title">{{ 'liveSlides.presenter.responses' | translate }}</h4>
+          @if (isQuestion()) {
+            <span class="cyf-body-sm cyf-numeric">
+              {{ state()?.submitted ?? 0 }} / {{ (state()?.submitted ?? 0) + (state()?.unanswered ?? 0) }}
+            </span>
+          }
+        </div>
+
+        @if (!isQuestion()) {
+          <p class="cyf-body-sm cyf-mt-3">{{ 'liveSlides.presenter.noAnswerNeeded' | translate }}</p>
+        } @else {
+          <!-- Nothing appears before a Student presses Submit. There is no
+               draft text and no typing indicator anywhere in this feature. -->
+          <p class="cyf-helper cyf-mt-2">{{ 'liveSlides.presenter.privacy' | translate }}</p>
+
+          @if (showTally()) {
+            @for (entry of state()?.tally ?? []; track entry.optionId) {
+              <div class="cyf-tally-row">
+                <div class="cyf-tally-head">
+                  <span>{{ entry.text }}</span>
+                  <span class="cyf-tally-count">{{ entry.count }} · {{ entry.percent }}%</span>
+                </div>
+                <div
+                  class="cyf-tally-track"
+                  role="progressbar"
+                  [attr.aria-valuenow]="entry.percent"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  [attr.aria-label]="entry.text"
+                >
+                  <div class="cyf-tally-fill" [style.width.%]="entry.percent"></div>
+                </div>
+              </div>
+            }
+          }
+
+          @for (response of state()?.responses ?? []; track response.id) {
+            <article class="cyf-response-card">
+              <span class="cyf-response-name">{{ response.studentName }}</span>
+              @if (response.textAnswer) {
+                <p class="cyf-response-answer">{{ response.textAnswer }}</p>
+              }
+              @if (response.selectedOptionLabels?.length) {
+                <p class="cyf-response-answer">{{ response.selectedOptionLabels!.join(' · ') }}</p>
+              }
+            </article>
+          } @empty {
+            <p class="cyf-body-sm cyf-mt-3">{{ 'liveSlides.presenter.noResponses' | translate }}</p>
+          }
+        }
+      </aside>
+    }
+  </div>
+</ng-template>
+
+<div class="cyf-stack">
+  <div class="cyf-page-status" aria-live="polite">
+    @if (errorKey()) {
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ errorKey()! | translate }}
+      </cyf-alert>
+    }
+  </div>
+
+  @if (!fullscreen()) {
+    <ng-container *ngTemplateOutlet="presenterBody" />
+  }
+</div>
+
+@if (fullscreen()) {
+  <div class="cyf-presenter-fullscreen" role="dialog" aria-modal="true">
+    <ng-container *ngTemplateOutlet="presenterBody" />
+  </div>
+}
+
+<!-- ══ Continuing locks the Question ══ -->
+<p-dialog
+  [visible]="confirmLock() !== null"
+  (visibleChange)="!$event && confirmLock.set(null)"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(34rem, 92vw)' }"
+  [header]="'liveSlides.lock.title' | translate"
+>
+  <p class="cyf-body-sm">
+    {{
+      'liveSlides.lock.body'
+        | translate: { submitted: state()?.submitted ?? 0, unanswered: state()?.unanswered ?? 0 }
+    }}
+  </p>
+  <!-- The names are shown to the Admin only, so they know who to ask. -->
+  @if (state()?.unansweredNames?.length) {
+    <ul class="cyf-mt-3 cyf-body-sm">
+      @for (name of state()!.unansweredNames; track name) {
+        <li>{{ name }}</li>
+      }
+    </ul>
+  }
+  <ng-template pTemplate="footer">
+    <p-button
+      severity="secondary"
+      [text]="true"
+      [label]="'liveSlides.lock.stay' | translate"
+      (onClick)="confirmLock.set(null)"
+    />
+    <p-button
+      [label]="'liveSlides.lock.continue' | translate"
+      [loading]="busy()"
+      (onClick)="confirmAndMove()"
+    />
+  </ng-template>
+</p-dialog>
+
+<!-- ══ End the session ══ -->
+<p-dialog
+  [visible]="confirmEnd()"
+  (visibleChange)="confirmEnd.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(32rem, 92vw)' }"
+  [header]="'liveSlides.end.title' | translate"
+>
+  <p class="cyf-body-sm">{{ 'liveSlides.end.body' | translate }}</p>
+  <ng-template pTemplate="footer">
+    <p-button
+      severity="secondary"
+      [text]="true"
+      [label]="'actions.cancel' | translate"
+      (onClick)="confirmEnd.set(false)"
+    />
+    <p-button
+      severity="danger"
+      [label]="'liveSlides.actions.end' | translate"
+      [loading]="busy()"
+      (onClick)="endSession()"
+    />
+  </ng-template>
+</p-dialog>

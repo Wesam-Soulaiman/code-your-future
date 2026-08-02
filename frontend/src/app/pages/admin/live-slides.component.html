@@ -1,0 +1,249 @@
+<!--
+  Live Slides for one Batch ⟨CP6⟩.
+
+  Five states, one at a time: no session, the session list, the Draft builder,
+  the Ready summary, the live Presenter, and the completed results. An Admin is
+  only ever doing one of these, and showing the others would mean showing
+  controls that do nothing.
+-->
+<div class="cyf-stack-lg">
+  <div class="cyf-page-status" aria-live="polite">
+    @if (errorKey()) {
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ errorKey()! | translate }}
+      </cyf-alert>
+    }
+    @if (noticeKey()) {
+      <cyf-alert variant="success">{{ noticeKey()! | translate }}</cyf-alert>
+    }
+  </div>
+
+  @if (loading()) {
+    <p class="cyf-body-sm">{{ 'common.loading' | translate }}</p>
+  } @else if (openSession(); as session) {
+    <!-- ══ One session, in whatever state it is in ══ -->
+    <div class="cyf-flex-between cyf-wrap cyf-gap-3">
+      <div>
+        <h3 class="cyf-section-title">{{ session.title }}</h3>
+        @if (session.description) {
+          <p class="cyf-body-sm">{{ session.description }}</p>
+        }
+      </div>
+      <div class="cyf-session-actions">
+        <span class="cyf-status-chip cyf-status-{{ tone(session.status) }}">
+          {{ statusKey(session.status) | translate }}
+        </span>
+        <p-button
+          size="small"
+          severity="secondary"
+          [text]="true"
+          [label]="'liveSlides.actions.backToList' | translate"
+          icon="fa-solid fa-arrow-left"
+          (onClick)="closeSession()"
+        />
+      </div>
+    </div>
+
+    @switch (session.status) {
+      @case ('draft') {
+        <cyf-slide-builder
+          [session]="session"
+          [readOnly]="readOnly()"
+          (sessionChanged)="onSessionChanged($event)"
+          (editMetadata)="openEdit(session)"
+        />
+      }
+      @case ('ready') {
+        <cyf-slide-builder
+          [session]="session"
+          [readOnly]="readOnly()"
+          [canStart]="canStart()"
+          (sessionChanged)="onSessionChanged($event)"
+          (editMetadata)="openEdit(session)"
+        />
+      }
+      @case ('live') {
+        <cyf-live-presenter [session]="session" (sessionChanged)="onSessionChanged($event)" />
+      }
+      @case ('completed') {
+        <cyf-live-results
+          [session]="session"
+          [readOnly]="readOnly()"
+          (duplicated)="onSessionChanged($event)"
+        />
+      }
+    }
+  } @else if (sessions().length === 0) {
+    <!-- ══ No session yet ══ -->
+    <div class="cyf-live-intro">
+      <span class="cyf-status-chip cyf-status-info">
+        {{ 'liveSlides.intro.badge' | translate }}
+      </span>
+      <h3 class="cyf-card-title cyf-live-intro-title">{{ 'liveSlides.intro.title' | translate }}</h3>
+      <p class="cyf-body-sm">{{ 'liveSlides.intro.body' | translate }}</p>
+
+      @if (readOnly()) {
+        <p class="cyf-body-sm cyf-mt-4">{{ 'liveSlides.readOnly' | translate }}</p>
+      } @else {
+        <div class="cyf-mt-4">
+          <p-button
+            [label]="'liveSlides.actions.create' | translate"
+            icon="fa-solid fa-plus"
+            [disabled]="!canCreate()"
+            (onClick)="openCreate()"
+          />
+        </div>
+      }
+    </div>
+  } @else {
+    <!-- ══ The session list ══ -->
+    <div class="cyf-flex-between cyf-wrap cyf-gap-3">
+      <div>
+        <h3 class="cyf-section-title">{{ 'liveSlides.title' | translate }}</h3>
+        <p class="cyf-body-sm">{{ 'liveSlides.lead' | translate }}</p>
+      </div>
+      @if (!readOnly()) {
+        <p-button
+          size="small"
+          [label]="'liveSlides.actions.create' | translate"
+          icon="fa-solid fa-plus"
+          [disabled]="!canCreate()"
+          (onClick)="openCreate()"
+        />
+      }
+    </div>
+
+    @if (readOnly()) {
+      <cyf-alert variant="info">{{ 'liveSlides.readOnly' | translate }}</cyf-alert>
+    } @else if (!canStart()) {
+      <!-- Said in words rather than left as a button that silently does nothing. -->
+      <cyf-alert variant="info">{{ 'liveSlides.batchNotActive' | translate }}</cyf-alert>
+    }
+
+    <div class="cyf-session-grid">
+      @for (row of rows(); track row.session.id) {
+        <article class="cyf-session-card">
+          <div class="cyf-session-copy">
+            <h4 class="cyf-card-title">{{ row.session.title }}</h4>
+            @if (row.session.description) {
+              <p class="cyf-body-sm">{{ row.session.description }}</p>
+            }
+            <div class="cyf-session-meta cyf-body-sm">
+              <span><i class="fa-solid fa-calendar" aria-hidden="true"></i> {{ row.date }}</span>
+              <span class="cyf-numeric">
+                {{ 'liveSlides.meta.slides' | translate: { count: row.session.slideCount } }}
+              </span>
+              <span class="cyf-numeric">
+                {{ 'liveSlides.meta.questions' | translate: { count: row.session.questionCount } }}
+              </span>
+              @if (row.session.responseCount !== undefined) {
+                <span class="cyf-numeric">
+                  {{ 'liveSlides.meta.answers' | translate: { count: row.session.responseCount } }}
+                </span>
+              }
+            </div>
+          </div>
+
+          <div class="cyf-session-actions">
+            <span class="cyf-status-chip cyf-status-{{ row.tone }}">
+              {{ statusKey(row.session.status) | translate }}
+            </span>
+            <p-button
+              size="small"
+              severity="secondary"
+              [label]="'liveSlides.actions.open' | translate"
+              [loading]="busy()"
+              (onClick)="open(row.session.id)"
+            />
+          </div>
+        </article>
+      }
+    </div>
+  }
+</div>
+
+<!-- ══ Create / edit ══ -->
+<p-dialog
+  [visible]="formOpen()"
+  (visibleChange)="formOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: 'min(34rem, 92vw)' }"
+  [header]="
+    (editingId() ? 'liveSlides.form.editTitle' : 'liveSlides.form.createTitle') | translate
+  "
+>
+  <div class="cyf-stack">
+    <div class="cyf-field">
+      <label class="cyf-label" for="liveSessionTitle">
+        {{ 'liveSlides.form.title' | translate }} *
+      </label>
+      <input
+        id="liveSessionTitle"
+        class="cyf-input"
+        type="text"
+        [ngModel]="formTitle()"
+        (ngModelChange)="formTitle.set($event)"
+        [maxlength]="limits.sessionTitle.max"
+        [attr.aria-invalid]="fieldError('title') ? 'true' : null"
+        required
+      />
+      @if (fieldError('title')) {
+        <span class="cyf-error-text">{{ fieldError('title') }}</span>
+      }
+    </div>
+
+    <div class="cyf-field">
+      <label class="cyf-label" for="liveSessionDate">
+        {{ 'liveSlides.form.date' | translate }} *
+      </label>
+      <p-datepicker
+        inputId="liveSessionDate"
+        [ngModel]="formDate()"
+        (ngModelChange)="formDate.set($event)"
+        dateFormat="yy-mm-dd"
+        [showIcon]="true"
+        [appendTo]="'body'"
+        styleClass="w-full"
+      />
+      <!-- Informational: nothing about this date starts the session. -->
+      <span class="cyf-helper">{{ 'liveSlides.form.dateHelp' | translate }}</span>
+      @if (fieldError('sessionDate')) {
+        <span class="cyf-error-text">{{ fieldError('sessionDate') }}</span>
+      }
+    </div>
+
+    <div class="cyf-field">
+      <label class="cyf-label" for="liveSessionDescription">
+        {{ 'liveSlides.form.description' | translate }}
+      </label>
+      <textarea
+        id="liveSessionDescription"
+        class="cyf-input"
+        rows="3"
+        [ngModel]="formDescription()"
+        (ngModelChange)="formDescription.set($event)"
+        [maxlength]="limits.sessionDescription.max"
+      ></textarea>
+      @if (fieldError('description')) {
+        <span class="cyf-error-text">{{ fieldError('description') }}</span>
+      }
+    </div>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <p-button
+      severity="secondary"
+      [text]="true"
+      [label]="'actions.cancel' | translate"
+      (onClick)="formOpen.set(false)"
+    />
+    <p-button
+      [label]="'actions.save' | translate"
+      [loading]="busy()"
+      [disabled]="!formValid()"
+      (onClick)="saveSession()"
+    />
+  </ng-template>
+</p-dialog>

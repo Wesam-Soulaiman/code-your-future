@@ -92,6 +92,19 @@ const SENSITIVE_KEY_FRAGMENTS: readonly string[] = [
   // swallow harmless keys like `storageIsUsable`. No log call site anywhere
   // passes a field with this name, so nothing useful is lost.
   'storagekey',
+  // A Student's Live Slides answer ⟨CP6⟩. The primary protection is the
+  // payload omission below — these four are defence in depth, for the case
+  // where an answer reaches a log line that names no Live Slides subject.
+  //
+  // Only names that exist nowhere else are listed. `question`, `content`, and
+  // `description` are deliberately **absent**: `description` alone appears in
+  // Batch logs, Resource logs, and every `@ParseField` declaration, and masking
+  // it globally would blank a great deal of harmless output to protect one
+  // module. Scope, not breadth.
+  'textanswer',
+  'selectedoptionid',
+  'selectedoptionids',
+  'answervalue',
 ];
 
 /**
@@ -369,9 +382,114 @@ const KEY_VALUE_PAIR = new RegExp(
   'g'
 );
 
+/**
+ * Payloads that are omitted **whole**, by the surface they belong to ⟨CP6⟩.
+ *
+ * ── Why this is not a longer key list ───────────────────────────────────────
+ * Live Slides moves questions, option labels, and Students' answers about
+ * themselves. The obvious fix is to add `question`, `content`, `options`, and
+ * `description` to the sensitive-key list — and it is the wrong one:
+ * `description` alone appears in Batch logs, Resource logs, and every
+ * `@ParseField` declaration, so masking it globally would blank a great deal of
+ * useful, harmless output to protect one module.
+ *
+ * The narrow fix is to recognise **whose payload it is**. Parse writes one line
+ * per cloud-function call and per trigger, and both name their subject:
+ *
+ *     Ran cloud function submitLiveResponse for user … with:
+ *       Input: {"slideId":"…","textAnswer":"…"}
+ *     beforeSave triggered for LiveSlide for user …:
+ *       Input: {"question":"…","options":[…]}
+ *
+ * When the subject is a Live Slides class or operation, the whole `Input:` and
+ * `Result:` block is replaced. Every other surface's logs are untouched, and no
+ * field name has to be predicted in advance — which matters, because the field
+ * that leaks is always the one nobody thought of.
+ */
+export const OMITTED_PAYLOAD_SUBJECTS: readonly string[] = [
+  // Classes, for the trigger lines.
+  'LiveSlideSession',
+  'LiveSlide',
+  'LiveResponse',
+  // Cloud functions, for the call lines. **Named explicitly, not matched by a
+  // pattern.** An earlier version tested names against a regular expression and
+  // it silently missed `getPresenterState` and `getResultsByQuestion` — whose
+  // results carry every answer in the room *and* the name of the Student who
+  // gave each one. A list is checkable; a pattern is a guess.
+  //
+  // `liveSlidesPayloadCoverage` in the CP6 suite asserts this list covers every
+  // registered Live Slides operation, so a nineteenth one fails the build
+  // rather than quietly logging its payload.
+  'listLiveSessions',
+  'getLiveSession',
+  'createLiveSession',
+  'updateLiveSession',
+  'markLiveSessionReady',
+  'returnLiveSessionToDraft',
+  'duplicateLiveSession',
+  'addLiveSlide',
+  'updateLiveSlide',
+  'duplicateLiveSlide',
+  'deleteLiveSlide',
+  'reorderLiveSlides',
+  'startLiveSession',
+  'getPresenterState',
+  'previousLiveSlide',
+  'nextLiveSlide',
+  'endLiveSession',
+  'listLiveResponses',
+  'getResultsByStudent',
+  'getResultsByQuestion',
+  'getMyLiveState',
+  'submitLiveResponse',
+  'listMyLiveResponses',
+  'listStudentLiveAnswers',
+];
+
+/** True when this log line belongs to a surface whose payload is omitted whole. */
+function hasOmittedPayload(message: string): boolean {
+  const subject = /(?:triggered for|cloud function)\s+([A-Za-z0-9_]+)/.exec(message);
+  return subject !== null && OMITTED_PAYLOAD_SUBJECTS.includes(subject[1]);
+}
+
+/**
+ * Replace everything after an `Input:` or `Result:` label on that line.
+ *
+ * ── Why this is line-scoped rather than brace-matched ───────────────────────
+ * The first version matched a balanced `{…}` with a lazy quantifier and a
+ * lookahead for the end of the block. It worked on a small payload and silently
+ * failed on a large one: the runtime validation found a `Result:` carrying five
+ * questions that survived untouched while the `Input:` on the line above was
+ * redacted correctly.
+ *
+ * Parse writes each label on its own line, so the end of the line is the end of
+ * the payload — a boundary no amount of nesting, escaping, or sheer length can
+ * move. The trailing metadata object on a `Result:` line goes with it, which
+ * costs nothing: the function name is already on the header line above.
+ */
+function omitPayloadBlocks(message: string): string {
+  // Split rather than a multiline regex. An earlier version used
+  // `/(Input|Result):.+$/gm` and, for reasons that were not worth chasing,
+  // redacted nothing when called through `redactMessage` while working
+  // perfectly in isolation. Walking the lines cannot fail that way, and the
+  // intent reads directly off the code.
+  const NEWLINE = String.fromCharCode(10);
+  return message
+    .split(NEWLINE)
+    .map(line => {
+      const label = /^(\s*(?:Input|Result):)\s*(.*)$/.exec(line);
+      if (!label || label[2].length === 0) return line;
+      return `${label[1]} ${REDACTED}`;
+    })
+    .join(NEWLINE);
+}
+
+
 export function redactMessage(message: string): string {
+  const scoped = hasOmittedPayload(message) ? omitPayloadBlocks(message) : message;
+
   return (
-    message
+    scoped
       // "key": "value" | "key": value | key=value  (JSON and query-string shapes)
       .replace(KEY_VALUE_PAIR, (match, quote, key, separator, value) => {
         if (isSensitiveKey(key)) return `${quote}${key}${quote}${separator}"${REDACTED}"`;

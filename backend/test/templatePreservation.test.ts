@@ -409,6 +409,14 @@ describe('no future product feature leaked into the frontend', () => {
       'batch-detail',
       'invitation-card',
       'batch-resources',
+      // Live Slides ⟨CP6⟩. Four Admin components: the tab host, the Draft
+      // builder, the Presenter, and the completed results — plus the answer
+      // history that hangs off Student Detail.
+      'live-slides',
+      'slide-builder',
+      'live-presenter',
+      'live-results',
+      'student-live-answers',
       'students',
       'student-detail',
     ];
@@ -425,6 +433,7 @@ describe('no future product feature leaked into the frontend', () => {
       'student-batches',
       'student-batch-detail',
       'student-batch-resources',
+      'student-live-slides',
     ];
     for (const name of readdirSync(join(pages, 'student'))) {
       assert.ok(
@@ -435,15 +444,15 @@ describe('no future product feature leaked into the frontend', () => {
   });
 
   test('no page exists for a feature that does not ⟨CP4⟩', () => {
-    // The inverse check, by name: Live Slides, Tasks, Final Tasks, Pinned
-    // Students, and Talent Reels are all later checkpoints. Resources shipped
-    // in Checkpoint 5 and are no longer on this list.
+    // The inverse check, by name: Tasks, Final Tasks, Pinned Students, and
+    // Talent Reels are all later checkpoints. Resources shipped in Checkpoint 5
+    // and Live Slides in Checkpoint 6, so neither is on this list any more.
     const pages = join(FRONTEND_SRC, 'app', 'pages');
     const everyFile: string[] = [];
     for (const dir of readdirSync(pages)) {
       for (const name of readdirSync(join(pages, dir))) everyFile.push(name.toLowerCase());
     }
-    for (const forbidden of ['slide', 'task', 'pinned', 'reel', 'submission']) {
+    for (const forbidden of ['task', 'pinned', 'reel', 'submission']) {
       assert.ok(
         !everyFile.some(name => name.includes(forbidden)),
         `a ${forbidden} page belongs to a later checkpoint`

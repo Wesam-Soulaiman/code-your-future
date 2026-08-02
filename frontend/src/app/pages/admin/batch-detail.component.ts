@@ -37,17 +37,18 @@ import {
 import { BatchErrorKey, mapBatchError } from '../../utils/batch-error';
 import { formatCalendarDate, formatInstant } from '../../utils/calendar-date';
 import { BatchResourcesComponent } from './batch-resources.component';
+import { LiveSlidesComponent } from './live-slides.component';
 import { InvitationCardComponent } from './invitation-card.component';
 
 /**
- * The four tabs. There is no fifth: nothing else exists yet to put in one.
+ * The five tabs.
  *
  * Resources joined in Checkpoint 5 and sits here rather than in the sidebar,
  * because a Resource has no meaning away from its Batch — a top-level
  * "Resources" item would be a list of files with nothing to say which cohort
  * each belongs to.
  */
-type BatchTab = 'overview' | 'students' | 'invitation' | 'resources';
+type BatchTab = 'overview' | 'students' | 'invitation' | 'resources' | 'live-slides';
 
 /** A roster row with its joined date already rendered. */
 interface StudentRow {
@@ -90,6 +91,7 @@ interface StudentRow {
     AlertComponent,
     InvitationCardComponent,
     BatchResourcesComponent,
+    LiveSlidesComponent,
     DataTableComponent,
     ColTemplateDirective,
     GridCardTemplateDirective,
@@ -144,6 +146,7 @@ export class AdminBatchDetailComponent {
     { id: 'students', labelKey: 'admin.batches.tabs.students' },
     { id: 'invitation', labelKey: 'admin.batches.tabs.invitation' },
     { id: 'resources', labelKey: 'admin.batches.tabs.resources' },
+    { id: 'live-slides', labelKey: 'admin.batches.tabs.liveSlides' },
   ];
 
   protected batchId = signal('');

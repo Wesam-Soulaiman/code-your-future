@@ -298,6 +298,15 @@
         <cyf-batch-resources [batchId]="batchId()" [archived]="readOnly()" />
       </div>
     }
+
+    <!-- ══ Live Slides ══════════════════════════════════════════════════ -->
+    @if (activeTab() === 'live-slides') {
+      <div class="cyf-card cyf-card-padded cyf-batch-detail-panel">
+        <!-- Mounted only while the tab is open. That also stops the presenter's
+             poll the moment the Admin navigates away from it. -->
+        <cyf-live-slides [batchId]="batchId()" [archived]="readOnly()" />
+      </div>
+    }
   }
 </div>
 

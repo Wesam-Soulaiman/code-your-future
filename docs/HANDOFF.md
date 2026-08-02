@@ -1,21 +1,27 @@
-# Handoff — Checkpoint 5 (Private Batch Resources)
+# Handoff — Checkpoint 6 (Interactive Live Slides and Immutable Student Answers)
 
-**Checkpoint:** 5 — Private Batch Resources
+**Checkpoint:** 6 — Interactive Live Slides and Immutable Student Answers
 **Date:** 2026-08-02
 **Branch:** `master` (never left)
-**Baseline commit:** `673f898` — *feat: add batches invitations and student enrollment*
+**Baseline commit:** `9422243` — *feat: add shared data tables*
 **Ready for review:** **Yes.**
 
-This is the work the plan scheduled as **Checkpoint 7 — Resources**, and it is the
-checkpoint that answers **OQ-10** and closes **S-20**: the general mechanism for
-private files that are too large to store inline.
+Interactive Live Slides: an Admin presents a deck to a room, Students answer
+Question slides from their own devices, and every submitted answer becomes a
+permanent, unchangeable part of that Student's profile history.
+
+The visual language follows `docs/prototypes/slides.html` — the blue Information
+gradient, the purple Question gradient, the two-column builder, the dark
+presenter stage, the response side panel — rebuilt on this application's tokens
+so it carries the dark theme, RTL, and the focus ring the prototype had no
+concept of. None of the prototype's demo scaffolding was reproduced: no Split
+Demo, no flow tracker, no Reset, no fake Students, no fake responses.
 
 Nothing was committed, staged, or pushed. Nothing was reset, cleaned, stashed,
-restored, or discarded. The working tree contains **20 new paths and 19
-modifications**, all listed in §8.
+restored, or discarded.
 
-Earlier handoffs are preserved in history: Checkpoint 4 at `673f898`, 3A at
-`70735bc`, 2B at `79fea2b`, 2A at `9ec03df`, 1 at `0344a43`, Phase 0 at `a796aa0`.
+Earlier handoffs are preserved in history: Checkpoint 5 at `c4166e9`, 4 at
+`673f898`, 3A at `70735bc`, 2B at `79fea2b`, 2A at `9ec03df`, 1 at `0344a43`.
 
 ---
 
@@ -34,24 +40,63 @@ The tree was clean.
 
 ## 2. What this checkpoint is
 
-An Admin uploads files to a Batch and manages their titles, descriptions, and
-order. Students enrolled in that Batch list them and download them. Nobody else
-can do either.
+An Admin builds a deck of Information and Question slides before a lecture,
+presents it in the room, and sees answers arrive as Students submit them. Every
+answer becomes a permanent part of that Student's profile history.
 
-- Eight formats: `.pdf .html .htm .docx .pptx .xlsx .txt .md`. **20 MiB** each.
-- Files are stored **privately in GridFS**, addressed by a random key that never
-  leaves the server. There is no public URL, no storage path in any response, and
-  nothing in the browser that could build one.
-- Every download is an authenticated, **streamed attachment** — HTML included.
-- **No file replacement.** Metadata is editable; the bytes are frozen at creation
-  by a database trigger.
-- An archived Batch is **read-only, not invisible**: everything stays listed and
-  downloadable and every write is refused.
+- **Two slide types**, **five answer types**, both lists closed and mirrored.
+- **A submitted answer can never change** — enforced by `beforeSave`/`beforeDelete`
+  on the model, not by the operation that happens to write it. There is no edit
+  or delete endpoint for either role.
+- **One answer per Student per Question** and **one live session per Batch**, both
+  by unique index rather than by an application check.
+- **Locking is one-way** and happens in the same server operation as the slide
+  move. **No Answer is derived**, never stored.
+- **Realtime is a sanitized poll**, because LiveQuery would deliver raw Parse
+  objects and hand every subscriber every answer in the room.
 
-`/api/files/*` is still 403. `File`, `IMG`, `fileAdapter.ts`, and the Checkpoint
-3A profile-photo route are untouched.
+### Post-implementation: visual validation and two fixed defects
 
----
+The visual pass that Checkpoint 6 originally left undone is now complete, and it
+found nothing in Live Slides: no console errors, no failed requests, no
+horizontal overflow, no clipped Arabic, across English and Arabic × 1440/390/360
+× light and dark, over Draft, Ready, Live and Completed sessions.
+
+Two real defects were found and fixed on the **Complete Profile** page, both
+outside Live Slides:
+
+**The education-status "glitch" was not a grid reflow.** My first diagnosis said
+it was, and it was wrong — `offsetTop` was identical before and after, so nothing
+reflowed. A visually-hidden `position: absolute` radio whose containing block was
+the shell's `position: fixed` `main` made the browser scroll `main` on focus, and
+`main` is `overflow: hidden`, so the page moved with no way back. Fixed by giving
+the two labels that wrap focusable `.cyf-sr-only` controls their own containing
+block. Measured at 0px jump in all five language/viewport combinations.
+
+**The Expected Graduation picker was a dead control** — the only one with both
+`readonlyInput` and `showOnFocus=false`, so it could neither be typed into nor
+opened. It now opens from the whole control.
+
+### The three things most worth reviewing
+
+**`slideAsInput` in `adminFunctions.ts`.** Found by runtime validation: every
+session containing a Short or Long Answer question was impossible to mark Ready,
+because the rebuild always passed `options: []` and a text answer may carry none.
+The unit tests could not see it — they called the validator with hand-written
+input that never had the empty array.
+
+**`omitPayloadBlocks` in `redact.ts`.** Also found by runtime validation. The
+brace-matching version redacted a small `Input:` and silently missed a large
+`Result:` carrying five questions and their option labels. It is now a line walk,
+and `OMITTED_PAYLOAD_SUBJECTS` is an explicit list that a test asserts covers
+every registered operation — so a twenty-fifth operation fails the build rather
+than quietly logging its payload.
+
+**The `liveForBatch` sentinel.** "One live session per Batch" is a unique partial
+index on a pointer that exists only while a session runs. Two simultaneous starts
+both pass every check and then one loses the index, which is reported as
+`LIVE_SESSION_ALREADY_ACTIVE` rather than as a failure — because that is what
+happened.
 
 ## 3. The four decisions worth reviewing
 
@@ -200,8 +245,8 @@ above. `backend/src/cloudCode/database/`, `models/User.ts`, `models/IMG.ts`,
 
 | Suite | Before | After |
 |---|---|---|
-| Backend (`node:test`) | 872 | **999 pass, 0 fail** |
-| Frontend (Vitest) | 648 | **707 pass, 0 fail** |
+| Backend (`node:test`) | 1008 | **1123 pass, 0 fail** |
+| Frontend (Vitest) | 707 | **727 pass, 0 fail** |
 
 No new dependency for either suite, and none for the feature.
 

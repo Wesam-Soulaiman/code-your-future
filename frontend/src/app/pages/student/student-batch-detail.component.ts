@@ -20,9 +20,10 @@ import { BATCH_STATUS_TONE, BatchStatus } from '../../utils/batch-constants';
 import { BatchErrorKey, mapBatchError } from '../../utils/batch-error';
 import { formatCalendarDate, formatInstant } from '../../utils/calendar-date';
 import { StudentBatchResourcesComponent } from './student-batch-resources.component';
+import { StudentLiveSlidesComponent } from './student-live-slides.component';
 
-/** Two tabs: what the Batch is, and what was shared with it. */
-type StudentBatchTab = 'overview' | 'resources';
+/** Three tabs: what the Batch is, what was shared, and what is happening. */
+type StudentBatchTab = 'overview' | 'resources' | 'live-slides';
 
 /**
  * One Batch, as the Student who belongs to it sees it.
@@ -41,7 +42,13 @@ type StudentBatchTab = 'overview' | 'resources';
  */
 @Component({
   selector: 'app-student-batch-detail',
-  imports: [TranslateModule, ButtonModule, AlertComponent, StudentBatchResourcesComponent],
+  imports: [
+    TranslateModule,
+    ButtonModule,
+    AlertComponent,
+    StudentBatchResourcesComponent,
+    StudentLiveSlidesComponent,
+  ],
   templateUrl: './student-batch-detail.component.html',
   styleUrl: './student-batch-detail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -59,6 +66,7 @@ export class StudentBatchDetailComponent {
   protected readonly tabs: { id: StudentBatchTab; labelKey: string }[] = [
     { id: 'overview', labelKey: 'student.batches.tabs.overview' },
     { id: 'resources', labelKey: 'student.batches.tabs.resources' },
+    { id: 'live-slides', labelKey: 'student.batches.tabs.liveSlides' },
   ];
 
   protected batch = signal<StudentBatch | null>(null);

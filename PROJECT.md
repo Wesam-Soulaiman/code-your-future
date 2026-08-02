@@ -625,6 +625,69 @@ Future has no manual user-administration requirement.
 - **There is no public URL for a Resource**, and nothing in the browser can build
   one. `/api/files/*` remains closed.
 
+### `LiveSlideSession`, `LiveSlide`, `LiveResponse` ⟨CP6⟩
+
+An interactive in-person lecture. An Admin presents slides; Students answer
+Question slides from their own devices; the answers become part of each
+Student's permanent profile history.
+
+**Exactly two slide types** — `INFORMATION` and `QUESTION`. **Exactly five
+answer types** — `SHORT_ANSWER`, `LONG_ANSWER`, `POLL`, `SINGLE_CHOICE`,
+`MULTIPLE_CHOICE`. Both lists are closed and mirrored on the browser.
+
+**Lifecycle:** `draft → ready`, `ready → draft | live`, `live → completed`.
+Completed is terminal, nothing changes status on its own, and a live session
+never returns to editing — reopening would change the question Students already
+answered.
+
+**One LIVE session per Batch** is a unique partial index on a `liveForBatch`
+sentinel pointer that exists only while the session is running, not an
+application check two concurrent starts could both pass.
+
+**A submitted answer can never change.** `LiveResponse.beforeSave` refuses every
+update *including with the master key*, and `beforeDelete` refuses every
+deletion. There is no edit or delete operation anywhere, for either role.
+**One answer per (session, slide, student)** is a unique compound index; the
+loser of a race is told `ALREADY_SUBMITTED` and shown the answer that stands.
+
+**Question locking** happens server-side in the same operation as the slide
+move, before the move. It is one-way: returning to a Question is presentation
+only. **"No Answer" is derived** — an enrolled Student, a locked Question, and
+no response — and no row is ever written to represent silence.
+
+**Answers link to `StudentProfile` by pointer**, indexed with `submittedAt`.
+The profile itself carries no answers array: an unbounded column would be loaded
+whole on every profile read, could not carry a unique index, and would be
+editable by anything that can write a profile.
+
+No score, grade, correct answer, feedback, evaluation, ranking, attendance,
+image, or file exists anywhere in this feature — asserted against the models,
+the DTOs, and the registered operation names.
+
+### Realtime is a sanitized poll, not LiveQuery ⟨CP6⟩
+
+Each live page asks one authoritative endpoint every two seconds and receives a
+DTO chosen for the caller's role. Every event the product needs — session
+started, slide changed, question locked, answer submitted, session completed,
+connection lost and restored — is a change in that answer.
+
+The repository's `LiveQueryService` was evaluated and rejected: it is dormant
+(`liveQuery.classNames` is empty), enabling a class would mean relaxing its
+deny-all CLP, and LiveQuery delivers **raw Parse objects** — so every subscriber
+to `LiveResponse` would receive every `textAnswer` in the room, including other
+Students'. The cost of polling is that a slide change appears within two seconds
+rather than instantly, which is not a meaningful difference for people sitting in
+the same room as the screen.
+
+### Visually-hidden controls need their own containing block
+
+`.cyf-sr-only` is `position: absolute`. Any label wrapping a **focusable** one
+must be `position: relative`, or the hidden control's containing block becomes
+the shell's `main` — which is `position: fixed` — and focusing it scrolls the
+page with no scrollbar to scroll back. Found on the Complete Profile education
+choices and the photo-upload button; asserted by tests so a third one cannot
+reintroduce it.
+
 ### Schema reconciliation at startup
 - Parse **adds** fields to `_SCHEMA` and never removes them, so a `required`
   field left behind by an earlier shape of a model refuses **every** create on

@@ -1,0 +1,436 @@
+<!-- The Draft builder, and the Ready summary ⟨CP6⟩. -->
+<div class="cyf-stack-lg">
+  <div class="cyf-page-status" aria-live="polite">
+    @if (errorKey()) {
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ errorKey()! | translate }}
+      </cyf-alert>
+    }
+  </div>
+
+  @if (isReady()) {
+    <cyf-alert variant="success">{{ 'liveSlides.ready.notice' | translate }}</cyf-alert>
+  }
+
+  <div class="cyf-builder">
+    <!-- ── The deck ──────────────────────────────────────────────────────── -->
+    <aside class="cyf-slide-list">
+      <div class="cyf-slide-list-head">
+        <strong class="cyf-label">{{ 'liveSlides.builder.slides' | translate }}</strong>
+        @if (editable()) {
+          <p-button
+            size="small"
+            [label]="'liveSlides.builder.addSlide' | translate"
+            icon="fa-solid fa-plus"
+            [disabled]="busy()"
+            (onClick)="addOpen.set(true)"
+          />
+        }
+      </div>
+
+      @for (slide of slides(); track slide.id; let index = $index; let first = $first; let last = $last) {
+        <div
+          class="cyf-slide-item"
+          [class.is-selected]="slide.id === selected()?.id"
+          role="button"
+          tabindex="0"
+          [attr.aria-current]="slide.id === selected()?.id ? 'true' : null"
+          (click)="select(slide.id)"
+          (keydown.enter)="select(slide.id)"
+          (keydown.space)="$event.preventDefault(); select(slide.id)"
+        >
+          <span class="cyf-slide-number">{{ index + 1 }}</span>
+          <span class="cyf-slide-item-copy">
+            <span class="cyf-slide-item-title">{{ slideLabel(slide) }}</span>
+            <span class="cyf-slide-item-kind">
+              <i [class]="slideIcon(slide.type)" aria-hidden="true"></i>
+              {{ 'liveSlides.slideTypes.' + slide.type | translate }}
+            </span>
+          </span>
+
+          @if (editable()) {
+            <span class="cyf-slide-item-actions">
+              <button
+                type="button"
+                class="cyf-icon-button"
+                [attr.aria-label]="'liveSlides.builder.moveUp' | translate"
+                [disabled]="first || busy()"
+                (click)="$event.stopPropagation(); move(slide, -1)"
+              >
+                <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                class="cyf-icon-button"
+                [attr.aria-label]="'liveSlides.builder.moveDown' | translate"
+                [disabled]="last || busy()"
+                (click)="$event.stopPropagation(); move(slide, 1)"
+              >
+                <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
+              </button>
+            </span>
+          }
+        </div>
+      }
+    </aside>
+
+    <!-- ── The editor and preview ────────────────────────────────────────── -->
+    <section class="cyf-editor">
+      @if (selected(); as slide) {
+        <div class="cyf-flex-between cyf-wrap cyf-gap-3">
+          <h4 class="cyf-card-title">
+            {{ 'liveSlides.builder.editing' | translate: { type: ('liveSlides.slideTypes.' + slide.type | translate) } }}
+          </h4>
+          <span class="cyf-body-sm cyf-numeric">
+            {{ 'liveSlides.builder.position' | translate: { index: selectedIndex() + 1, total: slides().length } }}
+          </span>
+        </div>
+
+        @if (editable()) {
+          <div class="cyf-stack cyf-mt-4">
+            @if (slide.type === SLIDE_TYPE.INFORMATION) {
+              <div class="cyf-field">
+                <label class="cyf-label" for="slideTitle">
+                  {{ 'liveSlides.builder.slideTitle' | translate }} *
+                </label>
+                <input
+                  id="slideTitle"
+                  class="cyf-input"
+                  type="text"
+                  [ngModel]="draftTitle()"
+                  (ngModelChange)="draftTitle.set($event)"
+                  [maxlength]="limits.slideTitle.max"
+                />
+                @if (fieldError('title')) {
+                  <span class="cyf-error-text">{{ fieldError('title') }}</span>
+                }
+              </div>
+
+              <div class="cyf-field">
+                <label class="cyf-label" for="slideContent">
+                  {{ 'liveSlides.builder.slideContent' | translate }} *
+                </label>
+                <!-- Plain text. There is no rich editor and no HTML here. -->
+                <textarea
+                  id="slideContent"
+                  class="cyf-input"
+                  rows="5"
+                  [ngModel]="draftContent()"
+                  (ngModelChange)="draftContent.set($event)"
+                  [maxlength]="limits.slideContent.max"
+                ></textarea>
+                @if (fieldError('content')) {
+                  <span class="cyf-error-text">{{ fieldError('content') }}</span>
+                }
+              </div>
+            } @else {
+              <div class="cyf-field">
+                <label class="cyf-label" for="slideQuestion">
+                  {{ 'liveSlides.builder.question' | translate }} *
+                </label>
+                <textarea
+                  id="slideQuestion"
+                  class="cyf-input"
+                  rows="2"
+                  [ngModel]="draftQuestion()"
+                  (ngModelChange)="draftQuestion.set($event)"
+                  [maxlength]="limits.question.max"
+                ></textarea>
+                @if (fieldError('question')) {
+                  <span class="cyf-error-text">{{ fieldError('question') }}</span>
+                }
+              </div>
+
+              <div class="cyf-field">
+                <label class="cyf-label" for="slideDescription">
+                  {{ 'liveSlides.builder.description' | translate }}
+                </label>
+                <textarea
+                  id="slideDescription"
+                  class="cyf-input"
+                  rows="2"
+                  [ngModel]="draftDescription()"
+                  (ngModelChange)="draftDescription.set($event)"
+                  [maxlength]="limits.questionDescription.max"
+                ></textarea>
+              </div>
+
+              <div class="cyf-field">
+                <label class="cyf-label" for="slideAnswerType">
+                  {{ 'liveSlides.builder.answerType' | translate }} *
+                </label>
+                <p-select
+                  inputId="slideAnswerType"
+                  [options]="answerTypeOptions()"
+                  optionLabel="label"
+                  optionValue="value"
+                  [ngModel]="draftAnswerType()"
+                  (ngModelChange)="draftAnswerType.set($event)"
+                  [appendTo]="'body'"
+                  styleClass="w-full"
+                />
+                @if (fieldError('answerType')) {
+                  <span class="cyf-error-text">{{ fieldError('answerType') }}</span>
+                }
+              </div>
+
+              @if (showOptions()) {
+                <div class="cyf-field">
+                  <span class="cyf-label">
+                    {{ 'liveSlides.builder.options' | translate }} *
+                  </span>
+                  <!-- No correct-answer checkbox. There are no correct answers. -->
+                  <span class="cyf-helper">
+                    {{ 'liveSlides.builder.optionsHelp' | translate: { min: optionCount.min, max: optionCount.max } }}
+                  </span>
+
+                  @for (option of draftOptions(); track $index; let index = $index; let first = $first; let last = $last) {
+                    <div class="cyf-option-row">
+                      <input
+                        class="cyf-input"
+                        type="text"
+                        [attr.aria-label]="'liveSlides.builder.optionLabel' | translate: { index: index + 1 }"
+                        [ngModel]="option.text"
+                        (ngModelChange)="setOption(index, $event)"
+                        [maxlength]="limits.optionText.max"
+                      />
+                      <span class="cyf-option-actions">
+                        <button
+                          type="button"
+                          class="cyf-icon-button"
+                          [attr.aria-label]="'liveSlides.builder.moveUp' | translate"
+                          [disabled]="first"
+                          (click)="moveOption(index, -1)"
+                        >
+                          <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
+                        </button>
+                        <button
+                          type="button"
+                          class="cyf-icon-button"
+                          [attr.aria-label]="'liveSlides.builder.moveDown' | translate"
+                          [disabled]="last"
+                          (click)="moveOption(index, 1)"
+                        >
+                          <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
+                        </button>
+                        <button
+                          type="button"
+                          class="cyf-icon-button"
+                          [attr.aria-label]="'liveSlides.builder.removeOption' | translate"
+                          [disabled]="draftOptions().length <= optionCount.min"
+                          (click)="removeOption(index)"
+                        >
+                          <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                        </button>
+                      </span>
+                    </div>
+                  }
+
+                  <div class="cyf-mt-2">
+                    <p-button
+                      size="small"
+                      severity="secondary"
+                      [text]="true"
+                      icon="fa-solid fa-plus"
+                      [label]="'liveSlides.builder.addOption' | translate"
+                      [disabled]="draftOptions().length >= optionCount.max"
+                      (onClick)="addOption()"
+                    />
+                  </div>
+
+                  @if (fieldError('options')) {
+                    <span class="cyf-error-text">{{ fieldError('options') }}</span>
+                  }
+                </div>
+              }
+            }
+
+            <div class="cyf-flex cyf-gap-2 cyf-wrap">
+              <p-button
+                [label]="'actions.save' | translate"
+                [loading]="busy()"
+                (onClick)="saveSlide()"
+              />
+              <p-button
+                severity="secondary"
+                [outlined]="true"
+                icon="fa-solid fa-copy"
+                [label]="'liveSlides.builder.duplicate' | translate"
+                [disabled]="busy()"
+                (onClick)="duplicateSlide(slide)"
+              />
+              <p-button
+                severity="danger"
+                [text]="true"
+                icon="fa-solid fa-trash"
+                [label]="'liveSlides.builder.delete' | translate"
+                [disabled]="busy()"
+                (onClick)="confirmDelete.set(slide)"
+              />
+            </div>
+          </div>
+        }
+
+        <!-- ── Preview: exactly what the room will see ────────────────────── -->
+        <div class="cyf-mt-6">
+          <h5 class="cyf-label">{{ 'liveSlides.builder.preview' | translate }}</h5>
+          <div
+            class="cyf-slide cyf-mt-2"
+            [class.cyf-slide-question]="slide.type === SLIDE_TYPE.QUESTION"
+          >
+            <div class="cyf-slide-inner">
+              <span class="cyf-slide-kind">
+                <i [class]="slideIcon(slide.type)" aria-hidden="true"></i>
+                {{ 'liveSlides.slideTypes.' + slide.type | translate }}
+              </span>
+              <h3 class="cyf-slide-title">
+                {{ slide.type === SLIDE_TYPE.QUESTION ? draftQuestion() : draftTitle() }}
+              </h3>
+              @if (slide.type === SLIDE_TYPE.QUESTION ? draftDescription() : draftContent()) {
+                <p class="cyf-slide-body">
+                  {{ slide.type === SLIDE_TYPE.QUESTION ? draftDescription() : draftContent() }}
+                </p>
+              }
+            </div>
+          </div>
+        </div>
+      } @else {
+        <p class="cyf-body-sm">{{ 'liveSlides.builder.empty' | translate }}</p>
+      }
+    </section>
+  </div>
+
+  <!-- ── Session-level actions ─────────────────────────────────────────────── -->
+  <div class="cyf-flex-between cyf-wrap cyf-gap-3">
+    <span class="cyf-body-sm cyf-numeric">
+      {{ 'liveSlides.meta.slides' | translate: { count: slides().length } }} ·
+      {{ 'liveSlides.meta.questions' | translate: { count: questionCount() } }}
+    </span>
+
+    <div class="cyf-flex cyf-gap-2 cyf-wrap">
+      @if (editable()) {
+        <p-button
+          severity="secondary"
+          [outlined]="true"
+          [label]="'liveSlides.actions.editDetails' | translate"
+          (onClick)="editMetadata.emit()"
+        />
+        <p-button
+          severity="success"
+          [label]="'liveSlides.actions.markReady' | translate"
+          [loading]="busy()"
+          [disabled]="!canMarkReady()"
+          (onClick)="markReady()"
+        />
+      }
+      @if (isReady() && !readOnly()) {
+        <p-button
+          severity="secondary"
+          [outlined]="true"
+          [label]="'liveSlides.actions.backToDraft' | translate"
+          [loading]="busy()"
+          (onClick)="backToDraft()"
+        />
+        <p-button
+          [label]="'liveSlides.actions.start' | translate"
+          icon="fa-solid fa-play"
+          [loading]="busy()"
+          [disabled]="!canStart()"
+          (onClick)="confirmStart.set(true)"
+        />
+      }
+    </div>
+  </div>
+
+  @if (isReady() && !canStart()) {
+    <cyf-alert variant="info">{{ 'liveSlides.batchNotActive' | translate }}</cyf-alert>
+  }
+  @if (editable() && !canMarkReady()) {
+    <!-- Says what is missing rather than leaving a disabled button unexplained. -->
+    <cyf-alert variant="info">{{ 'liveSlides.builder.needsQuestion' | translate }}</cyf-alert>
+  }
+</div>
+
+<!-- ══ Add Slide ══ -->
+<p-dialog
+  [visible]="addOpen()"
+  (visibleChange)="addOpen.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: 'min(34rem, 92vw)' }"
+  [header]="'liveSlides.builder.addSlide' | translate"
+>
+  <!-- Exactly two types. There is no third. -->
+  <div class="cyf-stack">
+    <button type="button" class="cyf-choice" (click)="addSlide(SLIDE_TYPE.INFORMATION)">
+      <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+      <span class="cyf-choice-text">
+        <strong>{{ 'liveSlides.slideTypes.INFORMATION' | translate }}</strong>
+        <span class="cyf-body-sm">{{ 'liveSlides.builder.informationHint' | translate }}</span>
+      </span>
+    </button>
+    <button type="button" class="cyf-choice" (click)="addSlide(SLIDE_TYPE.QUESTION)">
+      <i class="fa-solid fa-circle-question" aria-hidden="true"></i>
+      <span class="cyf-choice-text">
+        <strong>{{ 'liveSlides.slideTypes.QUESTION' | translate }}</strong>
+        <span class="cyf-body-sm">{{ 'liveSlides.builder.questionHint' | translate }}</span>
+      </span>
+    </button>
+  </div>
+</p-dialog>
+
+<!-- ══ Delete confirmation ══ -->
+<p-dialog
+  [visible]="confirmDelete() !== null"
+  (visibleChange)="!$event && confirmDelete.set(null)"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(30rem, 92vw)' }"
+  [header]="'liveSlides.builder.deleteTitle' | translate"
+>
+  <p class="cyf-body-sm">{{ 'liveSlides.builder.deleteBody' | translate }}</p>
+  <ng-template pTemplate="footer">
+    <p-button
+      severity="secondary"
+      [text]="true"
+      [label]="'actions.cancel' | translate"
+      (onClick)="confirmDelete.set(null)"
+    />
+    <p-button
+      severity="danger"
+      [label]="'liveSlides.builder.delete' | translate"
+      [loading]="busy()"
+      (onClick)="deleteSlide()"
+    />
+  </ng-template>
+</p-dialog>
+
+<!-- ══ Start confirmation ══ -->
+<p-dialog
+  [visible]="confirmStart()"
+  (visibleChange)="confirmStart.set($event)"
+  [modal]="true"
+  [draggable]="false"
+  [style]="{ width: 'min(32rem, 92vw)' }"
+  [header]="'liveSlides.start.title' | translate"
+>
+  <p class="cyf-body-sm">{{ 'liveSlides.start.body' | translate }}</p>
+  <p class="cyf-body-sm cyf-numeric cyf-mt-2">
+    {{ 'liveSlides.meta.slides' | translate: { count: slides().length } }} ·
+    {{ 'liveSlides.meta.questions' | translate: { count: questionCount() } }}
+  </p>
+  <ng-template pTemplate="footer">
+    <p-button
+      severity="secondary"
+      [text]="true"
+      [label]="'actions.cancel' | translate"
+      (onClick)="confirmStart.set(false)"
+    />
+    <p-button
+      [label]="'liveSlides.actions.start' | translate"
+      [loading]="busy()"
+      (onClick)="startSession()"
+    />
+  </ng-template>
+</p-dialog>

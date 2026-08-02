@@ -103,5 +103,14 @@
           <cyf-student-batch-resources [batchId]="batchId()" />
         </article>
       }
+
+      <!-- ══ Live Slides ════════════════════════════════════════════════ -->
+      @if (activeTab() === 'live-slides') {
+        <article class="cyf-card cyf-card-padded cyf-batch-card">
+          <!-- Mounted only while the tab is open, which is also what stops the
+               poll when the Student navigates away. -->
+          <cyf-student-live-slides [batchId]="batchId()" />
+        </article>
+      }
     }
 </div>

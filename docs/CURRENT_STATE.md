@@ -773,6 +773,129 @@ and the "a failed count means there might be data" rule.
 
 ---
 
+## 7k. Live Slides ⟨CP6⟩
+
+| Concern | Where it lives |
+|---|---|
+| Session lifecycle | `modules/LiveSlides/constants.ts` — four statuses, four legal moves |
+| One live session per Batch | `LiveSlideSession` unique partial index on `_p_liveForBatch` |
+| Immutable answers | `LiveResponse.onBeforeSave` (create-only) and `onBeforeDelete` (always refuses) |
+| One answer per Student per Question | `LiveResponse` unique index on `(_p_session, _p_slide, _p_student)` |
+| Locking + navigation | `presenterFunctions.moveSlide` — lock first, then move, one operation |
+| No Answer | Derived from the roster; no row is written |
+| Profile history | `LiveResponse.studentProfile` + `(_p_studentProfile, submittedAt)` index |
+| Realtime | `LiveSessionPollService` — an authenticated poll of one sanitized endpoint |
+
+### Two bugs the runtime validation found that the unit tests could not
+
+**`markLiveSessionReady` refused every session containing a text question.**
+Rebuilding a stored Slide as validator input always passed `options`, and for a
+Short or Long Answer that is `[]` — which trips the "a text answer carries no
+options" rule. The unit tests called `validateSlide` with hand-written input
+that never contained the empty array. Fixed by a single `slideAsInput` helper
+used by all three rebuild sites.
+
+**The payload omission redacted `Input:` and not `Result:`.** The first version
+matched a balanced `{…}` with a lazy quantifier; it worked on a small payload
+and silently failed on a large one, leaving five questions and their option
+labels in the log while the line above them was correctly masked. Replaced with
+a line walk, which cannot be defeated by nesting, escaping, or length.
+
+### Runtime validation
+
+**79 checks, all passing**, against the real backend on an isolated database:
+every answer type submits, an invented option is refused, a submitted response
+cannot be updated or deleted even with the master key, a second live session for
+one Batch is refused, locking is one-way, No Answer is derived, results and
+history are correct, all six physical indexes exist, and no question, answer,
+option label, slide content, or Student email appears anywhere in the real log.
+
+---
+
+## 7l. The Complete Profile layout jump, and what it actually was
+
+Reported as "selecting Education Status makes the page glitch and not work".
+
+**The first diagnosis was wrong.** Measuring `getBoundingClientRect().top`
+around the click showed the control moving 452px, and the reflow of the
+two-column `.cyf-profile-grid` looked like the obvious culprit — a conditional
+field changing CSS Grid auto-placement. It was written up as that, and it was
+not that.
+
+`offsetTop` is the measurement that settled it. Every child of the Education
+grid had an **identical `offsetTop` before and after** the click; the grid simply
+grew downwards by the height of the new field. Nothing reflowed. What moved was
+a scroll — and not the one anybody was watching:
+
+```
+before: anyScrolled = [ DIV.shell-scroll = 822 ]
+after : anyScrolled = [ MAIN.shell-content = 452, DIV.shell-scroll = 822 ]
+```
+
+Every section moved by exactly −452 with unchanged heights, which is a scroll,
+not a layout change.
+
+### Root cause
+
+`.cyf-sr-only` — the standard visually-hidden recipe — is `position: absolute`.
+The labels wrapping the education-status radios and the photo-upload input were
+`position: static`, so those hidden inputs' containing block was the **shell's
+`main`**, which is `position: fixed` and therefore the nearest positioned
+ancestor.
+
+Clicking a label focuses its hidden radio. The browser scrolls the nearest
+scrollable ancestor to reveal a focused element, and `main` carries Tailwind's
+`overflow-hidden` — which still scrolls programmatically but shows no scrollbar
+and takes no wheel input. So the page moved and **nobody could move it back**.
+That is the whole of "glitches and doesn't work".
+
+### The fix
+
+`position: relative` on the two labels that wrap a focusable `.cyf-sr-only`
+control, giving each hidden input its own containing block. Two declarations, no
+grid changes, no scroll manipulation, no fixed heights, no negative margins.
+
+Measured after the fix, with a real dispatched mouse click and no harness
+scrolling:
+
+| | jump | `offsetTop` | graduation field |
+|---|---|---|---|
+| English 1440 | **0px** | 1142 → 1142 | appears, clears |
+| Arabic 1440 (RTL) | **0px** | 1191 → 1191 | appears, clears |
+| English 390 | **0px** | 1568 → 1568 | appears, clears |
+| Arabic 390 (RTL) | **0px** | 1557 → 1557 | appears, clears |
+| Arabic 360 (RTL) | **0px** | 1593 → 1593 | appears, clears |
+
+Five regression tests assert the containing block on both labels, the general
+rule for any future visually-hidden control, that the fieldset does not move
+when the graduation field appears, and that no duplicate control is rendered.
+
+## 7m. The Expected Graduation DatePicker was a dead control
+
+It was the only picker in the application with **both** `readonlyInput=true` and
+`showOnFocus=false`: it could not be typed into and would not open, so clicking
+it did nothing at all. The other four are typeable, where clicking to type is
+the correct behaviour and the icon opens the calendar.
+
+Set `showOnFocus=true` on that one picker, so the whole control opens. Verified
+in a browser: clicking the input opens the month panel, Escape closes it, and no
+scroll side-effect. Date of Birth still focuses for typing, unchanged.
+
+## 7n. Live Slides visual validation
+
+Walked in the real application against seeded Draft, Ready, Live, and Completed
+sessions, across English and Arabic × 1440/390/360 × light and dark, covering
+the Admin session list, session view, presenter, results, the Student live view,
+and Complete Profile.
+
+**No console errors, no failed requests, no horizontal overflow, no clipped
+text** in any combination. The only reported item was `A.nav-item` sitting
+outside the viewport at 390 and 360 — the collapsed off-canvas mobile sidebar,
+which is correct and appears on every page including ones this checkpoint did
+not touch.
+
+---
+
 ## 8. Product features not implemented
 
 None of the following exists in any form — no model, no cloud function, no route, no page, no DTO:

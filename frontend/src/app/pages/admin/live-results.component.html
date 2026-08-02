@@ -1,0 +1,168 @@
+<!-- A completed session's results ⟨CP6⟩. Read-only, in both views. -->
+<div class="cyf-stack-lg">
+  <div class="cyf-page-status" aria-live="polite">
+    @if (errorKey()) {
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ errorKey()! | translate }}
+      </cyf-alert>
+    }
+  </div>
+
+  @if (loading()) {
+    <p class="cyf-body-sm">{{ 'common.loading' | translate }}</p>
+  } @else {
+    <div class="cyf-stat-grid">
+      <div class="cyf-stat">
+        <span class="cyf-label">{{ 'liveSlides.results.students' | translate }}</span>
+        <strong class="cyf-stat-value">{{ studentCount() }}</strong>
+        <span class="cyf-helper">{{ 'liveSlides.results.inBatch' | translate }}</span>
+      </div>
+      <div class="cyf-stat">
+        <span class="cyf-label">{{ 'liveSlides.results.participants' | translate }}</span>
+        <strong class="cyf-stat-value">{{ participantCount() }}</strong>
+        <!-- A participant submitted at least one answer. Opening the page is
+             not attendance, and this product records no attendance. -->
+        <span class="cyf-helper">{{ 'liveSlides.results.atLeastOne' | translate }}</span>
+      </div>
+      <div class="cyf-stat">
+        <span class="cyf-label">{{ 'liveSlides.results.questions' | translate }}</span>
+        <strong class="cyf-stat-value">{{ questionCount() }}</strong>
+      </div>
+      <div class="cyf-stat">
+        <span class="cyf-label">{{ 'liveSlides.results.answers' | translate }}</span>
+        <strong class="cyf-stat-value">{{ responseCount() }}</strong>
+      </div>
+    </div>
+
+    <div class="cyf-flex cyf-gap-2 cyf-wrap" role="tablist">
+      <p-button
+        size="small"
+        [severity]="view() === 'student' ? 'primary' : 'secondary'"
+        [outlined]="view() !== 'student'"
+        role="tab"
+        [attr.aria-selected]="view() === 'student'"
+        [label]="'liveSlides.results.byStudent' | translate"
+        (onClick)="view.set('student')"
+      />
+      <p-button
+        size="small"
+        [severity]="view() === 'question' ? 'primary' : 'secondary'"
+        [outlined]="view() !== 'question'"
+        role="tab"
+        [attr.aria-selected]="view() === 'question'"
+        [label]="'liveSlides.results.byQuestion' | translate"
+        (onClick)="view.set('question')"
+      />
+    </div>
+
+    @if (view() === 'student') {
+      <div class="cyf-session-grid">
+        @for (row of byStudent()?.items ?? []; track row.studentId) {
+          <article class="cyf-session-card">
+            <div class="cyf-session-copy">
+              <h4 class="cyf-card-title">{{ row.studentName }}</h4>
+              <p class="cyf-body-sm cyf-numeric">
+                {{ 'liveSlides.results.answeredOf' | translate: { answered: row.answered, total: row.questionCount } }}
+              </p>
+            </div>
+            <p-button
+              size="small"
+              severity="secondary"
+              [outlined]="true"
+              [label]="'liveSlides.results.viewAnswers' | translate"
+              (onClick)="openStudent.set(row)"
+            />
+          </article>
+        }
+      </div>
+    } @else {
+      <div class="cyf-session-grid">
+        @for (row of byQuestion()?.items ?? []; track row.slide.id) {
+          <article class="cyf-session-card" style="display: block">
+            <h4 class="cyf-card-title">{{ row.slide.question }}</h4>
+            <p class="cyf-body-sm cyf-numeric">
+              {{ 'liveSlides.presenter.submitted' | translate: { count: row.submitted } }} ·
+              {{ 'liveSlides.results.noAnswerCount' | translate: { count: row.unanswered } }}
+            </p>
+
+            @if (needsOptions(row.slide.answerType)) {
+              @for (entry of row.tally; track entry.optionId) {
+                <div class="cyf-tally-row">
+                  <div class="cyf-tally-head">
+                    <span>{{ entry.text }}</span>
+                    <span class="cyf-tally-count">{{ entry.count }} · {{ entry.percent }}%</span>
+                  </div>
+                  <div
+                    class="cyf-tally-track"
+                    role="progressbar"
+                    [attr.aria-valuenow]="entry.percent"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    [attr.aria-label]="entry.text"
+                  >
+                    <div class="cyf-tally-fill" [style.width.%]="entry.percent"></div>
+                  </div>
+                </div>
+              }
+            } @else {
+              @for (response of row.responses; track response.id) {
+                <article class="cyf-response-card">
+                  <span class="cyf-response-name">{{ response.studentName }}</span>
+                  <p class="cyf-response-answer">{{ response.textAnswer }}</p>
+                </article>
+              } @empty {
+                <p class="cyf-body-sm cyf-mt-2">
+                  {{ 'liveSlides.presenter.noResponses' | translate }}
+                </p>
+              }
+            }
+          </article>
+        }
+      </div>
+    }
+
+    @if (!readOnly()) {
+      <div class="cyf-flex cyf-gap-2 cyf-wrap">
+        <!-- Copies metadata and Slides. Never responses, locks, or live state. -->
+        <p-button
+          severity="secondary"
+          [outlined]="true"
+          icon="fa-solid fa-copy"
+          [label]="'liveSlides.actions.duplicateAsDraft' | translate"
+          [loading]="busy()"
+          (onClick)="duplicate()"
+        />
+      </div>
+    }
+  }
+</div>
+
+<!-- ══ One Student's answers ══ -->
+<p-dialog
+  [visible]="openStudent() !== null"
+  (visibleChange)="!$event && openStudent.set(null)"
+  [modal]="true"
+  [draggable]="false"
+  [dismissableMask]="true"
+  [style]="{ width: 'min(40rem, 92vw)' }"
+  [header]="openStudent()?.studentName ?? ''"
+>
+  @if (openStudent(); as row) {
+    @for (response of row.responses; track response.id) {
+      <div class="cyf-answer-history-item">
+        @if (response.textAnswer) {
+          <p class="cyf-answer-history-answer">{{ response.textAnswer }}</p>
+        }
+        @if (response.selectedOptionLabels?.length) {
+          <p class="cyf-answer-history-answer">{{ response.selectedOptionLabels!.join(' · ') }}</p>
+        }
+      </div>
+    } @empty {
+      <!-- Derived, not stored: no response exists for this Student. -->
+      <p class="cyf-body-sm cyf-no-answer">{{ 'liveSlides.results.noAnswer' | translate }}</p>
+    }
+  }
+  <ng-template pTemplate="footer">
+    <p-button [label]="'actions.close' | translate" (onClick)="openStudent.set(null)" />
+  </ng-template>
+</p-dialog>
