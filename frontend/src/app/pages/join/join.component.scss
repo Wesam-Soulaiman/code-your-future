@@ -1,0 +1,115 @@
+/* The public invitation landing page — scoped styles.
+   Composition only. Every colour, space, radius, and size comes from the
+   Checkpoint 2A token layer, and all box properties are logical so one
+   stylesheet serves LTR and RTL. Nothing global is changed. */
+
+:host {
+  display: block;
+}
+
+.cyf-join-page {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+}
+
+.cyf-join-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cyf-space-4);
+  flex-wrap: wrap;
+  padding: var(--cyf-space-4) var(--cyf-space-6);
+  border-block-end: 1px solid var(--cyf-border);
+  background: var(--cyf-surface);
+}
+
+/* Centred vertically as well as horizontally: this is a landing page somebody
+   arrives at from a QR code, often on a phone, and it holds one card. */
+.cyf-join-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-block: var(--cyf-space-8);
+}
+
+.cyf-join-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-3);
+  inline-size: 100%;
+}
+
+.cyf-join-card {
+  inline-size: 100%;
+}
+
+.cyf-join-eyebrow {
+  margin: 0 0 var(--cyf-space-2);
+  text-transform: uppercase;
+}
+
+.cyf-join-title {
+  margin: 0 0 var(--cyf-space-2);
+}
+
+.cyf-join-description {
+  margin: 0 0 var(--cyf-space-5);
+}
+
+/* Reserved status space so a message never resizes the card under a thumb. */
+.cyf-join-status {
+  min-block-size: var(--cyf-space-2);
+  margin-block-end: var(--cyf-space-4);
+}
+
+.cyf-join-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-6);
+  margin: 0 0 var(--cyf-space-5);
+  padding-block: var(--cyf-space-4);
+  border-block: 1px solid var(--cyf-border);
+}
+
+.cyf-join-fact {
+  dt {
+    margin-block-end: var(--cyf-space-1);
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.cyf-join-prompt {
+  margin: 0 0 var(--cyf-space-5);
+}
+
+.cyf-join-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-3);
+}
+
+.cyf-join-note {
+  margin-block-start: var(--cyf-space-4);
+}
+
+/* On a phone the primary action spans the card, so it is a comfortable target
+   for a thumb rather than a small button in a corner. */
+@media (max-width: 480px) {
+  .cyf-join-header {
+    padding-inline: var(--cyf-space-4);
+  }
+
+  .cyf-join-actions {
+    inline-size: 100%;
+
+    > * {
+      flex: 1 1 100%;
+    }
+  }
+}

@@ -22,9 +22,9 @@ with hard-coded state, not application code.
 | Single pnpm version | `pnpm -v` → `10.33.0` in all three directories |
 | Backend type-check | `npx tsc --noEmit` → exit 0, zero diagnostics |
 | Backend compile | `pnpm run compile` → exit 0 (now cleans `build/` first) |
-| **Backend tests** | `pnpm run test` → **739 pass, 0 fail**, exits cleanly with no force-exit |
+| **Backend tests** | `pnpm run test` → **868 pass, 0 fail**, exits cleanly with no force-exit |
 | Frontend production build | `pnpm run build` → exit 0, initial bundle 701.83 kB |
-| **Frontend tests** | `pnpm run test` → **509 pass, 0 fail** (18 spec files) |
+| **Frontend tests** | `pnpm run test` → **648 pass, 0 fail** (25 spec files) |
 | sharp | real WebP encode after install (44 bytes) |
 
 ### Runtime — observed against a clean isolated database
@@ -82,12 +82,15 @@ with hard-coded state, not application code.
 | `fileAdapter.ts` | Still dead code — never passed to Parse Server. Its `validateFilename()` still returns instead of throwing. |
 | `File.fileSize` | Declared, never populated. |
 | `@Cron` infrastructure | Works; `cron.ts` declares an empty class. |
-| Index application | `applyAllIndexes` still never called. Moot: no unique or compound index is declared. |
+| Index application | **Resolved in the closeout.** Applied and physically verified during normal startup, before the port opens; a missing or non-unique index fails the boot. See §7h. |
 | MongoDB validators | `applyMongoValidators` runs; almost no field constraints are declared, so validators are effectively empty. |
-| `data-table` component | Retained and functional, but unused — no list page exists. |
+| `data-table` component | Retained, untouched, and still unused **as a whole** — it carries bulk delete, XLSX export, a preview panel, column visibility, and a grid mode, and this product has none of those. Its table, its paginator, and its column-template directive **are** now used, through `cyf-record-table`. Nothing was deleted; the parts that fit are wired up and the parts that do not are still there. |
 | Web Push | `sw-push.js` and the `web-push` dependency exist; `vapidPublicKey` empty, no push function. |
-| Dashboard page | Intentionally empty — a placeholder with no fake statistics, charts, or product data. Content arrives with the Admin workspace checkpoints. |
+| Dashboard page | Intentionally empty — a placeholder with no fake statistics, charts, or product data. The Admin workspace now has two real pages beside it (Batches, Students); the dashboard itself stays empty rather than inventing numbers. |
 | Student auth page | **Live** ⟨CP2B⟩. Google Identity Services renders Google's own button; a verified credential creates or reuses a Student and establishes a session. Still no email, username, password, signup, reset, or invitation-token field. |
+| Invitation rotation under contention | The invariant holds — see §7g. The losers of a simultaneous rotation get `BATCH_SAVE_FAILED` rather than an automatic retry, so an Admin who happens to lose the race has to click again. Correct and safe; not yet pleasant. |
+| Invitation expiry | Evaluated at presentation time and retired lazily. There is no sweep, so an expired row keeps `state: current` until somebody presents it. Deliberate: a cron sweep's failure mode is an expired link that still works. |
+| Enrollment concurrency | Enforced by a unique `(batch, student)` index and exercised by the duplicate-key path in code, but **not** observed under real simultaneous redemption — that needs two live Google sessions, which the automated validation cannot produce. |
 | CORS | **Resolved in the closeout.** Fails closed on every path — see [TEMPLATE_ARCHITECTURE.md §11a](TEMPLATE_ARCHITECTURE.md). Production still requires `CORS_ORIGINS` to be set before any browser client can reach the API. |
 
 ## 3. Failing
@@ -460,15 +463,194 @@ The prefilled name and its hint at 1440 px in **English and Arabic**, and the
 hint disappearing on edit. No horizontal overflow, no console errors, and **no
 Google URL anywhere in the rendered markup**.
 
+## 7g. Checkpoint 4 — Batches, invitations, enrollment, and the Student directory ⟨implemented⟩
+
+A Batch is a group of Students going through the programme together. An Admin
+creates one, generates a link, and sends it; a Student opens the link and joins.
+Full design in [TEMPLATE_ARCHITECTURE.md §17](TEMPLATE_ARCHITECTURE.md).
+
+### What exists
+
+- **Three models** — `Batch`, `BatchInvitation`, `BatchEnrollment`. All three are
+  deny-by-default: every CLP operation grants nobody, the class ACL is empty, and
+  every column is in `protectedFields`. Nothing is readable off the class; every
+  read goes through a cloud function that authorises the caller.
+- **Eighteen operations** across four routes — `batches` (Admin), `join`
+  (public preview), `student-batches` (the Student's own), and
+  `student-directory` (Admin, read-only). **There is no delete**, for a Batch or
+  for anything under one.
+- **Four statuses** — `draft`, `active`, `completed`, `archived`. Only `active`
+  accepts enrollment. Archived is terminal and read-only. No status ever changes
+  by itself.
+- **Invitation tokens** — 32 bytes from the OS CSPRNG, base64url. Only a SHA-256
+  hash is stored; the raw token exists in exactly one response and then nowhere.
+- **A public `/join/:token` page** that works for a Visitor, a Student with an
+  unfinished profile, a Student who can join, an Admin who opened the wrong link,
+  and anybody holding a link that has expired, been revoked, or been replaced.
+
+### The two concurrency invariants are database indexes
+
+Not application checks. `BatchInvitation` carries a unique partial index on
+`_p_currentForBatch`, and `BatchEnrollment` a unique index on
+`(_p_batch, _p_student)`. A race cannot produce two live links for one Batch or
+two memberships for one pair, because the database refuses the second write.
+
+### Runtime — 51 checks observed end to end against MongoDB
+
+| Check | Result |
+|---|---|
+| `Batch` / `BatchInvitation` / `BatchEnrollment` read straight off the class | **refused**, with and without an Admin session |
+| A Batch created with `startDate: 2026-03-03` | stored and returned as `2026-03-03` — no timezone shift |
+| An end date before the start | refused, naming the field and **not** echoing the value |
+| A Batch created already `archived` | refused |
+| An `ACL` smuggled into the create input | refused, not silently ignored |
+| `draft` → `completed` | refused (`BATCH_INVALID_STATUS`) |
+| The issued token | 43 characters of base64url; **no hash in the response** |
+| Re-reading the invitation afterwards | never returns the token again |
+| A Visitor previewing a valid link | works; carries the Batch name and **no identifier of any kind** |
+| An unknown token vs a malformed one | **byte-identical answers** — nothing can be probed |
+| Rotation | old link dead immediately, new link live, version incremented |
+| A Visitor creating a Batch / listing Batches / issuing a link / reading the directory / redeeming | all **refused** |
+| An Admin redeeming a link | **refused** — an Admin cannot join a Batch |
+| An archived Batch: edit, un-archive, issue a link | all **refused** |
+| `deleteBatch`, `removeBatch`, `deleteEnrollment`, `DELETE /classes/Batch/:id` | **none exist** |
+| `limit=100000` | capped, not served |
+
+### Concurrency — observed under real contention
+
+Ten simultaneous rotations against one Batch: **three writes landed, seven were
+refused by the unique index, and exactly one link was live afterwards.** Five
+simultaneous archive requests left the Batch archived exactly once. The losing
+rotations answer `BATCH_SAVE_FAILED` — honest (the write did fail) and safe (the
+invariant held); a retry would be a nicer outcome and is noted in §2.
+
+### Logging — read from a real log file, not asserted in a test
+
+| What Parse would have printed | What the log actually contains |
+|---|---|
+| `Input: {"token":"<43 chars>"}` for every preview and redemption | `Input: {"token":"[REDACTED]"}` |
+| The stored hash on an invitation `beforeSave` | `"tokenHash":"[REDACTED]"` |
+| `"invitationUrl":"http://.../#/join/<token>"` | `"invitationUrl":"http://.../#/join/[REDACTED]"` |
+| Any 40+ character base64url string anywhere in the file | **none** |
+
+The fingerprint (`1c4e64ee`) does appear, by design: it is the first eight
+characters of the *hash*, it identifies which link is being discussed, and it
+reveals nothing about the token.
+
+## 7h. Checkpoint 4 closeout ⟨implemented⟩
+
+Three things the checkpoint left behind, plus the spacing work that came with
+them.
+
+### Index application is part of startup
+
+The handoff recorded `applyAllIndexes` as "never called". That was half right,
+and the half that was wrong mattered more.
+
+It *was* called — under its deprecated alias, **inside the `server.listen`
+callback**. So the port was open while the indexes were still being built, and
+the two indexes that are the sole enforcement of a concurrency invariant had a
+window in which they did not exist. Worse, the kit's applier cannot fail (every
+`createIndex` is wrapped and stepped over) and never reads its work back, so a
+boot with a missing unique index was indistinguishable from a healthy one.
+
+`cloudCode/startup/indexes.ts` now wraps it: ping the database, run the applier,
+then **read every declared index back out of MongoDB** and refuse to continue if
+one is absent or is not unique. `app.ts` awaits that before `server.listen`, and
+a failure exits non-zero without opening the port. Design in
+[TEMPLATE_ARCHITECTURE.md §17l](TEMPLATE_ARCHITECTURE.md).
+
+### The kit's index logging leaked duplicate values
+
+Found by reading a real log. On a duplicate-key failure the kit prints
+`createErr.message` with `console.error`, and a driver's E11000 message contains
+the colliding value — on these collections that is a token hash, a verified
+email, or a Google subject. The applier is now called with `console` captured;
+each line is redacted and replayed at debug level. §17m.
+
+### Runtime — 51 checks against an isolated database
+
+| Check | Result |
+|---|---|
+| Indexes applied and verified during normal startup | works |
+| The port opens **after** the indexes are ready | 4287 ms → 4368 ms |
+| All seven unique indexes physically present, and unique | works |
+| The current-invitation index is on `_p_currentForBatch`, partial | works |
+| The enrollment index is on `(_p_batch, _p_student)` | works |
+| A second startup | succeeds; **no index dropped or recreated** |
+| Ten simultaneous rotations | exactly one live invitation; one current row in MongoDB |
+| A duplicate enrollment inserted directly | **refused by MongoDB** |
+| A unique index blocked by planted duplicate rows | **startup refused**, exit 1, port never opened |
+| That failure's diagnostic | names the collection and index, tells an operator to clean up by hand, prints **no** duplicate row |
+| The offending rows afterwards | untouched — nothing deleted |
+| Database URI, master key, admin password, invitation token in any log | **none** |
+| Any unmasked 64-hex token hash in any log | **none** |
+
+### The template's table and paginator, restored
+
+Every list built since Checkpoint 3A had hand-rolled a bare `<table>` with its
+own stylesheet and a pair of Previous/Next buttons — while the template's
+`app-data-table` (PrimeNG `p-table`) and `app-paginator` sat unused and
+unchanged since `c1517e4`.
+
+The four implemented tables are now back on that visual language through a
+shared `cyf-record-table`: the template's `p-table` for the surface, header,
+rows, hover, and empty state, and the template's `app-paginator` **as it is** —
+page-number buttons, an active page, first/last, a rows-per-page selector, and
+the `{first} - {last} / {totalRecords}` report.
+
+Server-side paging is unchanged. The component holds no data and slices nothing;
+it renders the page it is given and emits a request for the next one.
+
+**A real defect surfaced while restoring it.** PrimeNG formats page numbers with
+`new Intl.NumberFormat(this.locale)`, and `locale` was unset — so the digits
+followed the **viewer's operating system**, not the application. On an
+Arabic-configured machine an English page rendered `١ ٢ ٣`. The paginator now
+takes an explicit locale, pinned to Latin digits like every other figure in the
+product.
+
+### One shell for both workspaces
+
+The Student area had its own header with its own navigation. Both workspaces now
+load the same `ShellComponent`, which picks its items from the session's roles.
+Admin sees Dashboard · Batches · Students · Profile Catalogs; a Student sees
+Home · My Batches · Edit Profile; an unrecognised role sees nothing, because
+every item carries explicit roles and the filter denies by default.
+
+### Visual — 24 page visits, all clean
+
+1440 / 1024 / 768 / 390 / 360 px, English and Arabic, light and dark. No console
+error, no horizontal page overflow, no untranslated key, one `main` landmark, one
+primary navigation, no navigation in the top bar, and content clear of the
+sidebar in both directions.
+
+**A false pass was caught here, which is the more useful finding.** A 390 px
+screenshot suggested the table was clipped with no way to reach the last three
+columns. The check meant to prove it was written as "if a scroller exists, is it
+reachable" — and passed silently on a build where the component had failed to
+compile and the element did not exist. Rewritten to fail when the element is
+absent, it showed that **PrimeNG already scrolls the table**: 633 px of content
+inside a 333 px card, and scrolling it brings Status, Students, and Actions into
+view. The container added in response was redundant and was removed.
+
+What is genuinely missing is keyboard access to that scroll region — PrimeNG's
+container has no `tabindex` and no accessible name. Recorded as a gap.
+
 ## 8. Product features not implemented
 
 None of the following exists in any form — no model, no cloud function, no route, no page, no DTO:
 
 Apple OAuth ·
-Student dashboard · Batch · Batch lifecycle · BatchInvitation · invitation tokens · QR generation ·
-`/join/:token` · Enrollment · the pending-invitation flow · Resources · PDF validation · resource
-ordering · authorised file download · Live Slides · Tasks · Assignment · Final Task · Submission ·
-one-submission locking · Accept-for-publication · Pinned Students · Talent Reels · sanitised public
-DTOs for Visitors.
+Resources · PDF validation · resource ordering · authorised file download · Live Slides · Tasks ·
+Assignment · Final Task · Submission · one-submission locking · Accept-for-publication ·
+Pinned Students · Talent Reels · sanitised public DTOs for Visitors · Batch capacity · trainers ·
+locations · schedules · scores · ratings · feedback · Student export · any Student write an Admin
+could perform.
 
-The frontend ships two pages: `/auth` (Admin sign-in) and `/dashboard` (placeholder).
+Batch, Batch lifecycle, BatchInvitation, invitation tokens, QR generation, `/join/:token`,
+Enrollment, and the pending-invitation flow **were** on this list and shipped in Checkpoint 4.
+
+The frontend ships: `/auth/admin`, `/auth/student`, `/join/:token`, `/student/profile`,
+`/student/welcome`, `/student/batches`, `/student/batches/:batchId`, `/dashboard`,
+`/dashboard/profile-catalogs`, `/dashboard/batches` (+ `new`, `:batchId`, `:batchId/edit`),
+`/dashboard/students`, and `/dashboard/students/:studentId`.

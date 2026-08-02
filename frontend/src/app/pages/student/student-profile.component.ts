@@ -20,9 +20,7 @@ import { finalize } from 'rxjs';
 
 import { AlertComponent } from '../../components/shared/alert.component';
 import { ImageCropperDialogComponent } from '../../components/shared/image-cropper-dialog/image-cropper-dialog.component';
-import { BrandMarkComponent } from '../../components/shared/brand-mark.component';
-import { LanguageSwitchComponent } from '../../components/shared/language-switch.component';
-import { STUDENT_HOME } from '../../guards/home-route';
+import { STUDENT_HOME, studentLandingCommands } from '../../guards/home-route';
 import { ProfileCatalogItem, ProfileCatalogMap, catalogItemName } from '../../models/ProfileCatalogItem';
 import { StudentProfile, StudentProfileInput } from '../../models/StudentProfile';
 import { ChangeLangService } from '../../services/change-lang.service';
@@ -135,8 +133,6 @@ export interface CatalogOption {
     SelectModule,
     DatePickerModule,
     AlertComponent,
-    BrandMarkComponent,
-    LanguageSwitchComponent,
   ],
   templateUrl: './student-profile.component.html',
   styleUrl: './student-profile.component.scss',
@@ -754,7 +750,10 @@ export class StudentProfileComponent implements OnDestroy {
       this.changeDetector.markForCheck();
       // Completion is the server's answer, never the form's.
       if (profile?.isComplete && !this.partialSuccess()) {
-        this.router.navigate([STUDENT_HOME]);
+        // Back to the invitation, if that is why they were filling this in.
+        // ⟨CP4⟩ The session has just been refreshed, so `profileComplete` is
+        // the server's freshly recalculated value rather than a stale hint.
+        this.router.navigate(studentLandingCommands(this.sessionService));
       }
     });
   }

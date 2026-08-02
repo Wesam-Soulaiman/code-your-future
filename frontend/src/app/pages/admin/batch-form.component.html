@@ -1,0 +1,198 @@
+<div class="cyf-batch-form-page">
+  <div class="cyf-batch-form-intro">
+    <h1 class="cyf-page-title">
+      {{ (isEditing() ? 'admin.batches.form.editTitle' : 'admin.batches.form.createTitle') | translate }}
+    </h1>
+    <p class="cyf-lead">
+      {{ (isEditing() ? 'admin.batches.form.editLead' : 'admin.batches.form.createLead') | translate }}
+    </p>
+  </div>
+
+  <div class="cyf-batch-form-status" aria-live="polite">
+    @if (errorKey()) {
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ errorKey()! | translate }}
+      </cyf-alert>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="cyf-card cyf-card-padded cyf-batch-form-loading" role="status" aria-live="polite">
+      <span class="cyf-spinner" aria-hidden="true"></span>
+      <span>{{ 'admin.batches.loadingOne' | translate }}</span>
+    </div>
+  } @else {
+    <form class="cyf-card cyf-card-padded cyf-batch-form" (ngSubmit)="submit()" novalidate>
+      <!-- ── Name ─────────────────────────────────────────────────────── -->
+      <div class="cyf-field">
+        <label class="cyf-field-label cyf-label" for="batch-name">
+          {{ 'batch.fields.name' | translate }}
+          <span class="cyf-batch-required" aria-hidden="true">*</span>
+        </label>
+        <input
+          id="batch-name"
+          type="text"
+          class="cyf-input"
+          [value]="form().name"
+          [disabled]="readOnly()"
+          [attr.maxlength]="limits.name.max"
+          [attr.aria-invalid]="fieldError('name') !== null"
+          [attr.aria-describedby]="'batch-name-message'"
+          (input)="update('name', $any($event.target).value)"
+          (blur)="markTouched('name')"
+        />
+        <p class="cyf-field-message" id="batch-name-message">
+          @if (fieldError('name')) {
+            <span class="cyf-error-text">{{ fieldError('name')! | translate }}</span>
+          }
+        </p>
+      </div>
+
+      <!-- ── Description ──────────────────────────────────────────────── -->
+      <div class="cyf-field">
+        <label class="cyf-field-label cyf-label" for="batch-description">
+          {{ 'batch.fields.description' | translate }}
+        </label>
+        <textarea
+          id="batch-description"
+          class="cyf-input cyf-textarea"
+          rows="4"
+          [value]="form().description"
+          [disabled]="readOnly()"
+          [attr.maxlength]="limits.description.max"
+          [attr.aria-invalid]="fieldError('description') !== null"
+          [attr.aria-describedby]="'batch-description-message'"
+          (input)="update('description', $any($event.target).value)"
+          (blur)="markTouched('description')"
+        ></textarea>
+        <p class="cyf-field-message cyf-field-message-row" id="batch-description-message">
+          @if (fieldError('description')) {
+            <span class="cyf-error-text">{{ fieldError('description')! | translate }}</span>
+          }
+          <span class="cyf-helper cyf-field-count">
+            {{ descriptionCount() }} / {{ limits.description.max }}
+          </span>
+        </p>
+      </div>
+
+      <!-- ── Dates ────────────────────────────────────────────────────── -->
+      <div class="cyf-batch-form-row">
+        <div class="cyf-field">
+          <label class="cyf-field-label cyf-label" for="batch-startDate">
+            {{ 'batch.fields.startDate' | translate }}
+            <span class="cyf-batch-required" aria-hidden="true">*</span>
+          </label>
+          <p-datepicker
+            inputId="batch-startDate"
+            styleClass="cyf-datepicker-control"
+            appendTo="body"
+            dateFormat="dd/mm/yy"
+            [ngModel]="form().startDate"
+            [ngModelOptions]="{ standalone: true }"
+            [disabled]="readOnly()"
+            [showIcon]="true"
+            iconDisplay="input"
+            [showClear]="false"
+            [showOnFocus]="false"
+            [placeholder]="'admin.batches.form.datePlaceholder' | translate"
+            [ariaLabel]="'batch.fields.startDate' | translate"
+            [attr.aria-invalid]="fieldError('startDate') !== null"
+            (onSelect)="update('startDate', $any($event)); markTouched('startDate')"
+          />
+          <p class="cyf-field-message">
+            @if (fieldError('startDate')) {
+              <span class="cyf-error-text">{{ fieldError('startDate')! | translate }}</span>
+            }
+          </p>
+        </div>
+
+        <div class="cyf-field">
+          <label class="cyf-field-label cyf-label" for="batch-endDate">
+            {{ 'batch.fields.endDate' | translate }}
+          </label>
+          <p-datepicker
+            inputId="batch-endDate"
+            styleClass="cyf-datepicker-control"
+            appendTo="body"
+            dateFormat="dd/mm/yy"
+            [ngModel]="form().endDate"
+            [ngModelOptions]="{ standalone: true }"
+            [disabled]="readOnly()"
+            [showIcon]="true"
+            iconDisplay="input"
+            [showClear]="true"
+            [showOnFocus]="false"
+            [minDate]="$any(minEndDate())"
+            [placeholder]="'admin.batches.form.datePlaceholder' | translate"
+            [ariaLabel]="'batch.fields.endDate' | translate"
+            [attr.aria-invalid]="fieldError('endDate') !== null"
+            (onSelect)="update('endDate', $any($event)); markTouched('endDate')"
+            (onClear)="update('endDate', null)"
+          />
+          <p class="cyf-field-message">
+            @if (fieldError('endDate')) {
+              <span class="cyf-error-text">{{ fieldError('endDate')! | translate }}</span>
+            } @else {
+              <span class="cyf-helper">{{ 'admin.batches.form.endDateHelp' | translate }}</span>
+            }
+          </p>
+        </div>
+      </div>
+
+      <!-- ── Initial status, on create only ───────────────────────────────
+           After creation, status moves through its own transition action,
+           which enforces which move is allowed from where. -->
+      @if (!isEditing()) {
+        <div class="cyf-field cyf-batch-form-status-field">
+          <label class="cyf-field-label cyf-label" for="batch-status">
+            {{ 'admin.batches.form.initialStatus' | translate }}
+          </label>
+          <p-select
+            inputId="batch-status"
+            styleClass="cyf-select-control"
+            appendTo="body"
+            [options]="creationStatuses"
+            [ngModel]="form().status"
+            [ngModelOptions]="{ standalone: true }"
+            optionValue="value"
+            [ariaLabel]="'admin.batches.form.initialStatus' | translate"
+            (ngModelChange)="update('status', $event)"
+          >
+            <ng-template #selectedItem let-option>
+              <span>{{ option.labelKey | translate }}</span>
+            </ng-template>
+            <ng-template #item let-option>
+              <span>{{ option.labelKey | translate }}</span>
+            </ng-template>
+          </p-select>
+          <p class="cyf-field-message">
+            <span class="cyf-helper">{{ 'admin.batches.form.initialStatusHelp' | translate }}</span>
+          </p>
+        </div>
+      }
+
+      <!-- ── Actions ──────────────────────────────────────────────────── -->
+      <div class="cyf-batch-form-actions">
+        <p-button
+          type="submit"
+          [disabled]="!canSubmit()"
+          [loading]="saving()"
+          styleClass="cyf-btn"
+        >
+          <span>{{ (saving() ? 'admin.batches.form.saving' : 'actions.save') | translate }}</span>
+        </p-button>
+
+        <p-button
+          type="button"
+          severity="secondary"
+          [outlined]="true"
+          [disabled]="saving()"
+          (onClick)="cancel()"
+          styleClass="cyf-btn"
+        >
+          <span>{{ 'actions.cancel' | translate }}</span>
+        </p-button>
+      </div>
+    </form>
+  }
+</div>

@@ -85,6 +85,9 @@ describe('StudentAuthComponent', () => {
     sdkState: 'idle' | 'notConfigured' | 'loading' | 'ready' | 'unavailable' = 'ready',
   ): Promise<void> {
     localStorage.clear();
+    // A pending invitation lives in sessionStorage and changes where sign-in
+    // lands, so one test must not leak it into the next. ⟨CP4⟩
+    sessionStorage.clear();
     localStorage.setItem('lang', lang);
     TestBed.resetTestingModule();
 
@@ -328,7 +331,10 @@ describe('StudentAuthComponent', () => {
       expect(localStorage.getItem('sessionToken')).toBe('r:tok');
     });
 
-    it('navigates to the Student welcome page', () => {
+    it('sends a Student with an unfinished profile to the form', () => {
+      // Straight to the form rather than to the welcome page and back out
+      // again via a guard. The response says nothing about completion, which
+      // is exactly the state a brand-new Student signs in with.
       const router = TestBed.inject(Router);
       const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
 
@@ -338,7 +344,60 @@ describe('StudentAuthComponent', () => {
         .flush({ id: 'u1', roles: ['Student'], sessionToken: 'r:tok' });
       fixture.detectChanges();
 
+      expect(navigate).toHaveBeenCalledWith(['/student/profile']);
+    });
+
+    it('sends a Student with a finished profile to the welcome page', () => {
+      const router = TestBed.inject(Router);
+      const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+      receiveCredential();
+      http.expectOne((req) => req.url.includes('loginWithGoogle')).flush({
+        id: 'u1',
+        roles: ['Student'],
+        profileComplete: true,
+        sessionToken: 'r:tok',
+      });
+      fixture.detectChanges();
+
       expect(navigate).toHaveBeenCalledWith(['/student/welcome']);
+    });
+
+    it('returns a Student holding an invitation to the join page ⟨CP4⟩', () => {
+      // Somebody who scanned a QR code and signed in to join should land back
+      // on the invitation, not on a welcome page having lost the thread.
+      sessionStorage.setItem('pendingInvitationToken', 'A'.repeat(43));
+
+      const router = TestBed.inject(Router);
+      const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+      receiveCredential();
+      http.expectOne((req) => req.url.includes('loginWithGoogle')).flush({
+        id: 'u1',
+        roles: ['Student'],
+        profileComplete: true,
+        sessionToken: 'r:tok',
+      });
+      fixture.detectChanges();
+
+      expect(navigate).toHaveBeenCalledWith(['/join', 'A'.repeat(43)]);
+    });
+
+    it('does not follow an invitation until the profile is finished ⟨CP4⟩', () => {
+      // The profile still comes first: a membership is meaningless if nobody
+      // knows who the member is.
+      sessionStorage.setItem('pendingInvitationToken', 'A'.repeat(43));
+
+      const router = TestBed.inject(Router);
+      const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+      receiveCredential();
+      http
+        .expectOne((req) => req.url.includes('loginWithGoogle'))
+        .flush({ id: 'u1', roles: ['Student'], sessionToken: 'r:tok' });
+      fixture.detectChanges();
+
+      expect(navigate).toHaveBeenCalledWith(['/student/profile']);
     });
 
     it('treats a response with no session token as a failure, not a sign-in', () => {

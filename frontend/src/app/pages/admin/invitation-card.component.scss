@@ -1,0 +1,178 @@
+/* The invitation panel — scoped styles.
+   Composition only, apart from the QR frame, which is deliberately fixed
+   black-on-white because a scanner needs it that way. Everything else comes
+   from the Checkpoint 2A token layer, with logical box properties throughout. */
+
+:host {
+  display: block;
+}
+
+.cyf-invitation-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cyf-space-3);
+  flex-wrap: wrap;
+  margin-block-end: var(--cyf-space-4);
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.cyf-invitation-lead {
+  margin: var(--cyf-space-1) 0 0;
+  color: var(--cyf-text-secondary);
+}
+
+.cyf-invitation-status:not(:empty) {
+  margin-block-end: var(--cyf-space-4);
+}
+
+.cyf-invitation-empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--cyf-space-3);
+  padding: var(--cyf-space-5);
+  background-color: var(--cyf-surface-subtle);
+  border-radius: var(--cyf-radius-md);
+
+  p {
+    margin: 0;
+  }
+}
+
+.cyf-invitation-facts {
+  display: grid;
+  gap: var(--cyf-space-5);
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  margin: 0 0 var(--cyf-space-5);
+  padding-block: var(--cyf-space-4);
+  border-block: 1px solid var(--cyf-border);
+}
+
+.cyf-invitation-fact {
+  dt {
+    margin-block-end: var(--cyf-space-1);
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* The fingerprint is a short hash prefix, so it is monospaced and always
+   left-to-right — it is a machine value, not language. */
+.cyf-invitation-fingerprint {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-family: var(--cyf-font-mono);
+  font-size: var(--cyf-text-sm);
+  padding: 0.0625rem var(--cyf-space-2);
+  background-color: var(--cyf-surface-subtle);
+  border-radius: var(--cyf-radius-sm);
+}
+
+.cyf-invitation-link {
+  padding: var(--cyf-space-4);
+  background-color: var(--cyf-surface-subtle);
+  border-radius: var(--cyf-radius-md);
+
+  > p:first-child {
+    margin: 0 0 var(--cyf-space-2);
+  }
+}
+
+.cyf-invitation-link-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+}
+
+/* A URL is not language; it stays LTR and does not wrap into the button. */
+.cyf-invitation-link-input {
+  flex: 1;
+  min-inline-size: 0;
+  font-family: var(--cyf-font-mono);
+  font-size: var(--cyf-text-sm);
+}
+
+.cyf-invitation-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cyf-space-2);
+  margin: var(--cyf-space-2) 0 0;
+  color: var(--cyf-warning);
+}
+
+.cyf-invitation-share {
+  margin-block-start: var(--cyf-space-4);
+}
+
+.cyf-invitation-gone {
+  margin: 0;
+  padding: var(--cyf-space-4);
+  background-color: var(--cyf-surface-subtle);
+  border-radius: var(--cyf-radius-md);
+}
+
+.cyf-invitation-actions {
+  display: flex;
+  gap: var(--cyf-space-2);
+  flex-wrap: wrap;
+  margin-block-start: var(--cyf-space-5);
+  padding-block-start: var(--cyf-space-5);
+  border-block-start: 1px solid var(--cyf-border);
+}
+
+.cyf-invitation-note {
+  margin: var(--cyf-space-3) 0 0;
+}
+
+/* ── QR dialog ───────────────────────────────────────────────────────────── */
+.cyf-invitation-qr {
+  display: grid;
+  justify-items: center;
+  gap: var(--cyf-space-4);
+  text-align: center;
+
+  p {
+    margin: 0;
+  }
+}
+
+/* Fixed white, in both themes. The quiet zone around the code is part of the
+   specification: without it, many scanners simply fail. */
+.cyf-invitation-qr-frame {
+  display: grid;
+  place-items: center;
+  padding: var(--cyf-space-4);
+  background-color: #ffffff;
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-md);
+}
+
+.cyf-invitation-qr-canvas {
+  display: block;
+  max-inline-size: 100%;
+  block-size: auto;
+}
+
+.cyf-invitation-qr-actions {
+  display: flex;
+  gap: var(--cyf-space-3);
+  flex-wrap: wrap;
+  justify-content: center;
+  inline-size: 100%;
+}
+
+/* ── Expiry dialog ───────────────────────────────────────────────────────── */
+.cyf-invitation-expiry {
+  display: grid;
+  gap: var(--cyf-space-4);
+
+  > p {
+    margin: 0;
+  }
+}

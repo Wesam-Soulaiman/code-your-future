@@ -1,0 +1,165 @@
+<div class="cyf-page cyf-join-page">
+  <a class="cyf-skip-link" href="#cyf-join-main">{{ 'a11y.skipToContent' | translate }}</a>
+
+  <header class="cyf-join-header">
+    <cyf-brand-mark size="md" />
+    <cyf-language-switch />
+  </header>
+
+  <main id="cyf-join-main" class="cyf-container cyf-container-narrow cyf-join-main">
+    @if (stage() === 'loading') {
+      <div class="cyf-card cyf-card-padded cyf-join-loading" role="status" aria-live="polite">
+        <span class="cyf-spinner" aria-hidden="true"></span>
+        <span>{{ 'join.loading' | translate }}</span>
+      </div>
+    } @else {
+      <div class="cyf-card cyf-card-padded cyf-join-card">
+        <!-- ── The Batch, when the link resolved to one ─────────────────── -->
+        @if (batch(); as invited) {
+          <p class="cyf-meta cyf-join-eyebrow">{{ 'join.eyebrow' | translate }}</p>
+          <h1 class="cyf-page-title cyf-join-title">{{ invited.name }}</h1>
+
+          @if (invited.description) {
+            <p class="cyf-lead cyf-join-description">{{ invited.description }}</p>
+          }
+
+          <dl class="cyf-join-facts">
+            <div class="cyf-join-fact">
+              <dt class="cyf-label">{{ 'batch.fields.startDate' | translate }}</dt>
+              <dd>{{ startDate() }}</dd>
+            </div>
+            @if (invited.endDate) {
+              <div class="cyf-join-fact">
+                <dt class="cyf-label">{{ 'batch.fields.endDate' | translate }}</dt>
+                <dd>{{ endDate() }}</dd>
+              </div>
+            }
+          </dl>
+        } @else {
+          <h1 class="cyf-page-title cyf-join-title">{{ 'join.title' | translate }}</h1>
+        }
+
+        <!-- ── Status region ────────────────────────────────────────────── -->
+        <div class="cyf-join-status" aria-live="polite">
+          @if (stage() === 'unusable') {
+            <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+              {{ unusableKey() | translate }}
+            </cyf-alert>
+          } @else if (stage() === 'joined' || stage() === 'alreadyJoined') {
+            <cyf-alert variant="success" [prefix]="'a11y.noticePrefix' | translate">
+              {{ (stage() === 'alreadyJoined' ? 'join.alreadyJoined' : 'join.joined') | translate }}
+            </cyf-alert>
+          } @else if (errorKey()) {
+            <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+              {{ errorKey()! | translate }}
+            </cyf-alert>
+          }
+        </div>
+
+        <!-- ── What we are asking for ───────────────────────────────────── -->
+        <!-- Joined and already-joined differ only in what they say, so they
+             share one block rather than duplicating the way onward. -->
+        @if (stage() === 'joined' || stage() === 'alreadyJoined') {
+          <p class="cyf-join-prompt">
+            {{
+              (stage() === 'alreadyJoined' ? 'join.prompts.alreadyJoined' : 'join.prompts.joined')
+                | translate
+            }}
+          </p>
+          <div class="cyf-join-actions">
+            <p-button type="button" (onClick)="openMyBatches()" styleClass="cyf-btn cyf-join-primary">
+              <span>{{ 'join.actions.openMyBatches' | translate }}</span>
+            </p-button>
+          </div>
+        }
+
+        @switch (stage()) {
+          @case ('signIn') {
+            <p class="cyf-join-prompt">{{ 'join.prompts.signIn' | translate }}</p>
+            <div class="cyf-join-actions">
+              <p-button type="button" (onClick)="signIn()" styleClass="cyf-btn cyf-join-primary">
+                <i class="fa-brands fa-google" aria-hidden="true"></i>
+                <span>{{ 'join.actions.signIn' | translate }}</span>
+              </p-button>
+            </div>
+            <p class="cyf-helper cyf-join-note">{{ 'join.notes.noAccountNeeded' | translate }}</p>
+          }
+
+          @case ('completeProfile') {
+            <p class="cyf-join-prompt">{{ 'join.prompts.completeProfile' | translate }}</p>
+            <div class="cyf-join-actions">
+              <p-button
+                type="button"
+                (onClick)="completeProfile()"
+                styleClass="cyf-btn cyf-join-primary"
+              >
+                <span>{{ 'join.actions.completeProfile' | translate }}</span>
+              </p-button>
+            </div>
+            <p class="cyf-helper cyf-join-note">{{ 'join.notes.returnsHere' | translate }}</p>
+          }
+
+          @case ('ready') {
+            <p class="cyf-join-prompt">{{ 'join.prompts.confirm' | translate }}</p>
+            <div class="cyf-join-actions">
+              <p-button
+                type="button"
+                [disabled]="joining()"
+                [loading]="joining()"
+                (onClick)="join()"
+                styleClass="cyf-btn cyf-join-primary cyf-join-confirm"
+              >
+                <span>
+                  {{ (joining() ? 'join.actions.joining' : 'join.actions.join') | translate }}
+                </span>
+              </p-button>
+              <p-button
+                type="button"
+                severity="secondary"
+                [outlined]="true"
+                [disabled]="joining()"
+                (onClick)="dismiss()"
+                styleClass="cyf-btn"
+              >
+                <span>{{ 'actions.cancel' | translate }}</span>
+              </p-button>
+            </div>
+          }
+
+
+          @case ('notEligible') {
+            <!-- An Admin opened a Student invitation. Said plainly, with the
+                 way back, rather than a Join button that would fail. -->
+            <p class="cyf-join-prompt">{{ 'join.prompts.notEligible' | translate }}</p>
+            <div class="cyf-join-actions">
+              <p-button
+                type="button"
+                severity="secondary"
+                [outlined]="true"
+                (onClick)="goToDashboard()"
+                styleClass="cyf-btn"
+              >
+                <span>{{ 'join.actions.goToDashboard' | translate }}</span>
+              </p-button>
+            </div>
+          }
+
+          @case ('unusable') {
+            <p class="cyf-join-prompt">{{ 'join.prompts.unusable' | translate }}</p>
+            <div class="cyf-join-actions">
+              <p-button
+                type="button"
+                severity="secondary"
+                [outlined]="true"
+                (onClick)="dismiss()"
+                styleClass="cyf-btn"
+              >
+                <span>{{ 'join.actions.continue' | translate }}</span>
+              </p-button>
+            </div>
+          }
+        }
+      </div>
+    }
+  </main>
+</div>

@@ -512,8 +512,11 @@ describe('ProfileCatalogsComponent', () => {
     });
 
     it('keeps the Arabic name column marked as Arabic', () => {
-      const cell = fixture.nativeElement.querySelector('td[dir="rtl"]');
-      expect(cell.getAttribute('lang')).toBe('ar');
+      // The marker moved from the cell to the span inside it when the table
+      // moved to the template's `p-table`, which owns the `td`.
+      const marked = fixture.nativeElement.querySelector('[dir="rtl"][lang="ar"]');
+      expect(marked).toBeTruthy();
+      expect(marked.textContent).toContain('دمشق');
     });
   });
 
@@ -531,7 +534,9 @@ describe('ProfileCatalogsComponent', () => {
     });
 
     it('lets a wide table scroll inside itself, never the page', () => {
-      expect(fixture.nativeElement.querySelector('.cyf-catalogs-table-wrap')).toBeTruthy();
+      // The scroller belongs to the restored table component now.
+      expect(fixture.nativeElement.querySelector('cyf-record-table')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('.cyf-record-table-surface')).toBeTruthy();
     });
   });
 });

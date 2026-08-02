@@ -1,0 +1,314 @@
+<div class="cyf-batch-detail">
+  <nav class="cyf-batch-detail-back" [attr.aria-label]="'a11y.breadcrumb' | translate">
+    <button type="button" class="cyf-link-button cyf-batch-detail-back-link" (click)="back()">
+      <i class="fa-solid fa-arrow-left cyf-flip-rtl" aria-hidden="true"></i>
+      <span>{{ 'admin.batches.title' | translate }}</span>
+    </button>
+  </nav>
+
+  @if (loading()) {
+    <div class="cyf-card cyf-card-padded cyf-batch-detail-state" role="status" aria-live="polite">
+      <span class="cyf-spinner" aria-hidden="true"></span>
+      <span>{{ 'admin.batches.loadingOne' | translate }}</span>
+    </div>
+  } @else if (!batch()) {
+    <div class="cyf-card cyf-card-padded">
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ (errorKey() ?? 'batch.errors.notFound') | translate }}
+      </cyf-alert>
+    </div>
+  } @else {
+    <!-- ── Heading ──────────────────────────────────────────────────────── -->
+    <header class="cyf-batch-detail-head">
+      <div class="cyf-batch-detail-title-row">
+        <h1 class="cyf-page-title">{{ batch()!.name }}</h1>
+        <span class="cyf-status-chip cyf-status-{{ tone() }}">
+          {{ 'batch.status.' + batch()!.status | translate }}
+        </span>
+      </div>
+
+      <div class="cyf-batch-detail-head-actions">
+        @if (!readOnly()) {
+          <p-button
+            type="button"
+            severity="secondary"
+            [outlined]="true"
+            [disabled]="busy()"
+            (onClick)="edit()"
+            styleClass="cyf-btn"
+          >
+            <i class="fa-solid fa-pen" aria-hidden="true"></i>
+            <span>{{ 'actions.edit' | translate }}</span>
+          </p-button>
+        }
+      </div>
+    </header>
+
+    <!-- ── Page-level status ────────────────────────────────────────────── -->
+    <div class="cyf-batch-detail-status" aria-live="polite">
+      @if (errorKey()) {
+        <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+          {{ errorKey()! | translate }}
+        </cyf-alert>
+      } @else if (noticeKey()) {
+        <cyf-alert variant="success" [prefix]="'a11y.noticePrefix' | translate">
+          {{ noticeKey()! | translate }}
+        </cyf-alert>
+      } @else if (readOnly()) {
+        <!-- Not an error; a fact about this Batch that explains every missing
+             action on the page. -->
+        <cyf-alert variant="info" [prefix]="'a11y.noticePrefix' | translate">
+          {{ 'admin.batches.archivedNotice' | translate }}
+        </cyf-alert>
+      }
+    </div>
+
+    <!-- ── Tabs ─────────────────────────────────────────────────────────── -->
+    <div
+      class="cyf-batch-detail-tabs"
+      role="tablist"
+      [attr.aria-label]="'admin.batches.tabs.label' | translate"
+    >
+      @for (tab of tabs; track tab.id) {
+        <button
+          type="button"
+          role="tab"
+          class="cyf-batch-detail-tab"
+          [class.cyf-is-active]="activeTab() === tab.id"
+          [attr.aria-selected]="activeTab() === tab.id"
+          [attr.tabindex]="activeTab() === tab.id ? 0 : -1"
+          (click)="selectTab(tab.id)"
+        >
+          {{ tab.labelKey | translate }}
+        </button>
+      }
+    </div>
+
+    <!-- ══ Overview ═════════════════════════════════════════════════════ -->
+    @if (activeTab() === 'overview') {
+      <div class="cyf-card cyf-card-padded cyf-batch-detail-panel">
+        @if (batch()!.description) {
+          <p class="cyf-body cyf-batch-detail-description">{{ batch()!.description }}</p>
+        }
+
+        <dl class="cyf-batch-detail-facts">
+          <div class="cyf-batch-detail-fact">
+            <dt class="cyf-label">{{ 'batch.fields.startDate' | translate }}</dt>
+            <dd>{{ startDate() }}</dd>
+          </div>
+
+          <div class="cyf-batch-detail-fact">
+            <dt class="cyf-label">{{ 'batch.fields.endDate' | translate }}</dt>
+            <dd>{{ endDate() || '—' }}</dd>
+          </div>
+
+          <div class="cyf-batch-detail-fact">
+            <dt class="cyf-label">{{ 'admin.batches.columns.students' | translate }}</dt>
+            <dd>{{ batch()!.enrollmentCount ?? 0 }}</dd>
+          </div>
+
+          @if (createdAt()) {
+            <div class="cyf-batch-detail-fact">
+              <dt class="cyf-label">{{ 'admin.batches.fields.createdAt' | translate }}</dt>
+              <dd>{{ createdAt() }}</dd>
+            </div>
+          }
+        </dl>
+
+        <!-- ── Lifecycle ────────────────────────────────────────────────── -->
+        @if (!readOnly()) {
+          <section class="cyf-batch-detail-lifecycle">
+            <h2 class="cyf-section-title">{{ 'admin.batches.lifecycle.title' | translate }}</h2>
+            <p class="cyf-body-sm">{{ 'admin.batches.lifecycle.lead' | translate }}</p>
+
+            <div class="cyf-batch-detail-lifecycle-actions">
+              @for (next of transitions(); track next) {
+                <p-button
+                  type="button"
+                  severity="secondary"
+                  [outlined]="true"
+                  [disabled]="busy()"
+                  (onClick)="changeStatus(next)"
+                  styleClass="cyf-btn"
+                >
+                  <span>{{ 'admin.batches.lifecycle.moveTo.' + next | translate }}</span>
+                </p-button>
+              }
+
+              @if (canArchive()) {
+                <p-button
+                  type="button"
+                  severity="danger"
+                  [outlined]="true"
+                  [disabled]="busy()"
+                  (onClick)="openArchive()"
+                  styleClass="cyf-btn"
+                >
+                  <i class="fa-solid fa-box-archive" aria-hidden="true"></i>
+                  <span>{{ 'admin.batches.lifecycle.archive' | translate }}</span>
+                </p-button>
+              }
+            </div>
+          </section>
+        }
+      </div>
+    }
+
+    <!-- ══ Students ═════════════════════════════════════════════════════ -->
+    @if (activeTab() === 'students') {
+      <div class="cyf-card cyf-card-padded cyf-batch-detail-panel">
+        <div class="cyf-toolbar">
+          <div class="cyf-field cyf-toolbar-grow">
+            <label class="cyf-sr-only" for="roster-search">{{ 'actions.search' | translate }}</label>
+            <input
+              id="roster-search"
+              type="search"
+              class="cyf-input"
+              [attr.maxlength]="limits.search.max"
+              [placeholder]="'admin.batches.roster.searchPlaceholder' | translate"
+              (input)="updateStudentSearch($any($event.target).value)"
+            />
+          </div>
+
+          <div class="cyf-toolbar-actions">
+            <p-button
+              type="button"
+              severity="secondary"
+              [outlined]="true"
+              [disabled]="studentsLoading()"
+              (onClick)="loadStudents()"
+              styleClass="cyf-btn"
+            >
+              <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+              <span>{{ 'actions.refresh' | translate }}</span>
+            </p-button>
+          </div>
+        </div>
+
+        <div class="cyf-page-status" aria-live="polite">
+          @if (studentsErrorKey()) {
+            <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+              {{ studentsErrorKey()! | translate }}
+            </cyf-alert>
+          }
+        </div>
+
+        @if (noStudents()) {
+          <!-- Nobody has joined yet. That is normal for a new Batch, and the
+               way to change it is the invitation tab. -->
+          <div class="cyf-empty">
+            <span class="cyf-empty-icon" aria-hidden="true">
+              <i class="fa-solid fa-user-group"></i>
+            </span>
+            <h3 class="cyf-card-title cyf-empty-title">
+              {{ 'admin.batches.roster.empty.title' | translate }}
+            </h3>
+            <p class="cyf-body-sm cyf-empty-text">
+              {{ 'admin.batches.roster.empty.body' | translate }}
+            </p>
+            <p-button
+              type="button"
+              severity="secondary"
+              [outlined]="true"
+              (onClick)="selectTab('invitation')"
+              styleClass="cyf-btn"
+            >
+              <span>{{ 'admin.batches.tabs.invitation' | translate }}</span>
+            </p-button>
+          </div>
+        } @else {
+          <!-- The template's table and the template's paginator. The roster is
+               paged on the server exactly as before; only the appearance of the
+               control changed. -->
+          <cyf-record-table
+            [data]="rows()"
+            [columns]="studentColumns"
+            [loading]="studentsLoading()"
+            [totalRecords]="studentTotal()"
+            [page]="studentPage()"
+            [rows]="studentPageSize()"
+            emptyMessage="admin.batches.roster.noMatch"
+            emptyIcon="fa-solid fa-user-group"
+            (pageChange)="onStudentPageChange($event)"
+          >
+            <ng-template appColTemplate="name" let-row>
+              <button type="button" class="cyf-table-link" (click)="openStudent(row.student)">
+                {{ row.student.fullName }}
+              </button>
+            </ng-template>
+
+            <ng-template appColTemplate="email" let-row>
+              <span dir="ltr">{{ row.student.verifiedEmail }}</span>
+            </ng-template>
+
+            <ng-template appColTemplate="city" let-row>{{ row.city || '—' }}</ng-template>
+            <ng-template appColTemplate="institution" let-row>
+              {{ row.institution || '—' }}
+            </ng-template>
+
+            <ng-template appColTemplate="joinedAt" let-row>
+              <span class="cyf-numeric">{{ row.joinedAt || '—' }}</span>
+            </ng-template>
+          </cyf-record-table>
+        }
+      </div>
+    }
+
+
+    <!-- ══ Invitation ═══════════════════════════════════════════════════ -->
+    @if (activeTab() === 'invitation') {
+      <div class="cyf-card cyf-card-padded cyf-batch-detail-panel">
+        <cyf-invitation-card
+          [batchId]="batchId()"
+          [batchName]="batch()!.name"
+          [initialStatus]="invitation()"
+        />
+      </div>
+    }
+  }
+</div>
+
+<!-- ── Archive confirmation ─────────────────────────────────────────────── -->
+<p-dialog
+  [visible]="confirmingArchive()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="!busy()"
+  [style]="{ width: 'min(32rem, 92vw)' }"
+  [header]="'admin.batches.archive.title' | translate"
+  (visibleChange)="$event ? null : cancelArchive()"
+>
+  <p>{{ 'admin.batches.archive.body' | translate: { name: batch()?.name ?? '' } }}</p>
+  <!-- Spelled out rather than summarised: this cannot be undone, and somebody
+       should know exactly what stops working before they agree to it. -->
+  <ul class="cyf-batch-detail-archive-list">
+    <li>{{ 'admin.batches.archive.point1' | translate }}</li>
+    <li>{{ 'admin.batches.archive.point2' | translate }}</li>
+    <li>{{ 'admin.batches.archive.point3' | translate }}</li>
+  </ul>
+  <p class="cyf-helper">{{ 'admin.batches.archive.hint' | translate }}</p>
+
+  <div class="cyf-batch-detail-dialog-actions">
+    <p-button
+      type="button"
+      severity="secondary"
+      [outlined]="true"
+      [disabled]="busy()"
+      (onClick)="cancelArchive()"
+      styleClass="cyf-btn"
+    >
+      <span>{{ 'actions.cancel' | translate }}</span>
+    </p-button>
+    <p-button
+      type="button"
+      severity="danger"
+      [disabled]="busy()"
+      [loading]="busy()"
+      (onClick)="archiveConfirmed()"
+      styleClass="cyf-btn"
+    >
+      <span>{{ 'admin.batches.lifecycle.archive' | translate }}</span>
+    </p-button>
+  </div>
+</p-dialog>

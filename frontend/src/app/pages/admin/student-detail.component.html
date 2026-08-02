@@ -1,0 +1,107 @@
+<div class="cyf-student-detail">
+  <nav class="cyf-student-detail-back" [attr.aria-label]="'a11y.breadcrumb' | translate">
+    <button type="button" class="cyf-link-button cyf-student-detail-back-link" (click)="back()">
+      <i class="fa-solid fa-arrow-left cyf-flip-rtl" aria-hidden="true"></i>
+      <span>{{ 'admin.students.title' | translate }}</span>
+    </button>
+  </nav>
+
+  @if (loading()) {
+    <div class="cyf-card cyf-card-padded cyf-student-detail-state" role="status" aria-live="polite">
+      <span class="cyf-spinner" aria-hidden="true"></span>
+      <span>{{ 'admin.students.loadingOne' | translate }}</span>
+    </div>
+  } @else if (!student()) {
+    <div class="cyf-card cyf-card-padded">
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ (errorKey() ?? 'admin.students.notFound') | translate }}
+      </cyf-alert>
+    </div>
+  } @else {
+    <article class="cyf-card cyf-card-padded cyf-student-detail-card">
+      <header class="cyf-student-detail-head">
+        <div>
+          <h1 class="cyf-page-title cyf-student-detail-title">{{ student()!.fullName }}</h1>
+          <!-- Verified at Google. Shown so two people with the same name can be
+               told apart — nothing else about the account is exposed. -->
+          <p class="cyf-body-sm cyf-student-detail-email" dir="ltr">
+            {{ student()!.verifiedEmail }}
+          </p>
+        </div>
+
+        <span
+          class="cyf-status-chip"
+          [class.cyf-status-success]="student()!.profileComplete"
+          [class.cyf-status-neutral]="!student()!.profileComplete"
+        >
+          {{
+            (student()!.profileComplete
+              ? 'admin.students.profileState.complete'
+              : 'admin.students.profileState.incomplete'
+            ) | translate
+          }}
+        </span>
+      </header>
+
+      <!-- ── Profile ──────────────────────────────────────────────────── -->
+      <section class="cyf-student-detail-section">
+        <h2 class="cyf-section-title">{{ 'admin.students.sections.profile' | translate }}</h2>
+
+        <dl class="cyf-student-detail-facts">
+          <div class="cyf-student-detail-fact">
+            <dt class="cyf-label">{{ 'student.profile.fields.city' | translate }}</dt>
+            <dd>{{ city() || '—' }}</dd>
+          </div>
+
+          <div class="cyf-student-detail-fact">
+            <dt class="cyf-label">{{ 'student.profile.fields.institution' | translate }}</dt>
+            <dd>{{ institution() || '—' }}</dd>
+          </div>
+
+          <div class="cyf-student-detail-fact">
+            <dt class="cyf-label">{{ 'student.profile.fields.major' | translate }}</dt>
+            <dd>{{ major() || '—' }}</dd>
+          </div>
+
+          <div class="cyf-student-detail-fact">
+            <dt class="cyf-label">{{ 'student.profile.fields.targetRole' | translate }}</dt>
+            <dd>{{ targetRole() || '—' }}</dd>
+          </div>
+        </dl>
+
+        <p class="cyf-helper cyf-student-detail-note">
+          {{ 'admin.students.privacyNote' | translate }}
+        </p>
+      </section>
+
+      <!-- ── Batches ──────────────────────────────────────────────────── -->
+      <section class="cyf-student-detail-section">
+        <h2 class="cyf-section-title">{{ 'admin.students.sections.batches' | translate }}</h2>
+
+        @if (rows().length === 0) {
+          <p class="cyf-body-sm cyf-student-detail-none">
+            {{ 'admin.students.noBatches' | translate }}
+          </p>
+        } @else {
+          <ul class="cyf-student-detail-batches">
+            @for (row of rows(); track row.batch.id) {
+              <li class="cyf-student-detail-batch">
+                <button
+                  type="button"
+                  class="cyf-student-detail-batch-button"
+                  (click)="openBatch(row.batch)"
+                >
+                  <span class="cyf-student-detail-batch-name">{{ row.batch.name }}</span>
+                  <span class="cyf-status-chip cyf-status-{{ row.tone }}">
+                    {{ 'batch.status.' + row.batch.status | translate }}
+                  </span>
+                  <span class="cyf-helper cyf-student-detail-batch-date">{{ row.startDate }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    </article>
+  }
+</div>

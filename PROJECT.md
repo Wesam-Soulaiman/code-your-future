@@ -130,13 +130,67 @@ rejects a client-supplied ACL. No record is created by a client today.
 Private image infrastructure with the WebP / thumbnail / blurhash pipeline intact.
 Same deny-by-default posture and ACL rejection as `File`.
 
+### `Batch`
+
+A group of Students going through the programme together. An Admin creates one,
+invites Students to it with a link, and sees who joined.
+
+| Field | Description | Required |
+|---|---|---|
+| name | 2–120 characters. **Not unique** — two intakes may share a name | Yes |
+| description | Up to 1000 characters | — |
+| startDate | A calendar date. Means the same day everywhere | Yes |
+| endDate | On or after `startDate`. A one-day Batch is allowed | — |
+| status | `draft` / `active` / `completed` / `archived`. Defaults to `draft` | Yes |
+| createdBy | The Admin who created it. Never returned to any client | — |
+
+**Only `active` accepts enrollment.** Status never changes on its own — there is
+no scheduler and no date-driven transition. The allowed moves are
+`draft → active | archived`, `active → completed | archived`, and
+`completed → archived`. **Archived is terminal and read-only**: no field, no
+status, no new invitation, no new member, ever again.
+
+There is **no delete**, here or anywhere under a Batch. Deleting one would
+silently delete the record of who was in it.
+
+Deliberately absent: capacity, maximum students, trainers, location, schedule,
+image, score, rating, and any Program field.
+
+### `BatchInvitation`
+
+The link that lets somebody into a Batch. One current invitation per Batch,
+enforced by a **unique database index** rather than an application check.
+
+| Field | Description |
+|---|---|
+| batch | The Batch it admits to |
+| tokenHash | SHA-256 of the token. **The token itself is never stored** |
+| fingerprint | First eight characters of the hash. Safe to display and to log |
+| state | `current` / `replaced` / `revoked` / `expired` |
+| version | Increments on every rotation |
+| expiresAt | Optional. Judged at the moment a token is presented |
+| currentForBatch | Set only while current. This is the indexed column |
+
+The raw token is 32 bytes of OS randomness, base64url-encoded, and is returned in
+**exactly one response**. It is never stored, never logged, and never shown
+again — only replaced. Generating a new link stops the old one working
+immediately; Students who already joined are unaffected.
+
+### `BatchEnrollment`
+
+A Student's membership of a Batch: the pair, and when they joined. One
+membership per `(Batch, Student)`, again enforced by a **unique index**, so
+redeeming the same link twice returns the existing membership rather than
+creating a second one.
+
+Carries no score, rating, grade, feedback, or note.
+
 > `AppSettings` was removed in Checkpoint 1 (resolved decision OQ-13): it had no
 > consumer, no product requirement, and it widened the API surface. A generic
 > key-value settings store is now a **prohibited pattern** — future configuration
 > needs use narrowly scoped, typed, sanitised endpoints.
 
-**Not implemented yet:** `Batch`, `BatchInvitation`,
-`Enrollment`, `Resource`, `LiveSlidesSession`, `Task`, `Submission`,
+**Not implemented yet:** `Resource`, `LiveSlidesSession`, `Task`, `Submission`,
 `PinnedStudent`, Talent Reels.
 
 ---
@@ -146,10 +200,17 @@ Same deny-by-default posture and ACL rejection as `File`.
 ```
 _User ──(membership)────── _Role {Admin, Student}
       ├──(1:1 per provider) StudentAuthIdentity {google}
-      └──(1:1)────────────── StudentProfile
-                                  │
-                                  └──(4 × N:1) ProfileCatalogItem
-                                       {CITY, INSTITUTION, MAJOR, TARGET_ROLE}
+      ├──(1:1)────────────── StudentProfile
+      │                           │
+      │                           └──(4 × N:1) ProfileCatalogItem
+      │                                {CITY, INSTITUTION, MAJOR, TARGET_ROLE}
+      └──(N:M via BatchEnrollment) Batch
+                                     │
+                                     └──(1 current, N historical) BatchInvitation
+
+Batch ──(1:N)── BatchEnrollment ──(N:1)── _User      unique on (batch, student)
+Batch ──(1:N)── BatchInvitation                      unique on currentForBatch
+
 File, IMG  — standalone private infrastructure, no product owner yet
 ```
 
@@ -157,7 +218,7 @@ File, IMG  — standalone private infrastructure, no product owner yet
 
 ## API surface
 
-Fourteen cloud functions and one authenticated binary route. Nothing else is
+Thirty-four cloud functions and one authenticated binary route. Nothing else is
 reachable.
 
 | Route | Method | Auth | Purpose |
@@ -178,6 +239,32 @@ reachable.
 | `/api/profile-catalogs/updateProfileCatalogItem` | POST | Admin session | Edit one. The category cannot move. |
 | `/api/profile-catalogs/setProfileCatalogItemActive` | POST | Admin session | Activate or deactivate. |
 | `/api/profile-catalogs/deleteProfileCatalogItem` | POST | Admin session | Delete, unless a profile references it. |
+| `/api/batches/listBatches` | GET | Admin session | A page of Batches. Search and status filter; the page size is capped server-side. |
+| `/api/batches/getBatch` | GET | Admin session | One Batch **and** its invitation status. |
+| `/api/batches/createBatch` | POST | Admin session | Create. Only `draft` or `active` may be chosen. |
+| `/api/batches/updateBatch` | POST | Admin session | Edit. Refused outright for an archived Batch. |
+| `/api/batches/changeBatchStatus` | POST | Admin session | Move status, enforcing the allowed transitions. |
+| `/api/batches/archiveBatch` | POST | Admin session | Terminal and irreversible. |
+| `/api/batches/listBatchStudents` | GET | Admin session | The roster: an allow-listed summary per Student, paged. |
+| `/api/batches/issueBatchInvitation` | POST | Admin session | Generate **or** rotate. Returns the only copy of the token. |
+| `/api/batches/getBatchInvitation` | GET | Admin session | State, fingerprint, version, expiry. **Never the token or the hash.** |
+| `/api/batches/revokeBatchInvitation` | POST | Admin session | Kill the current link. |
+| `/api/batches/expireBatchInvitation` | POST | Admin session | Expire it now. |
+| `/api/batches/setBatchInvitationExpiry` | POST | Admin session | Set or clear the expiry. |
+| `/api/join/previewInvitation` | **POST** | **none** | The only public product endpoint. Returns the Batch name and dates, or a stable reason. Carries **no identifier of any kind**. |
+| `/api/student-batches/joinBatchWithInvitation` | POST | Student session | Redeem. Idempotent — a repeat returns the existing membership. |
+| `/api/student-batches/listMyBatches` | GET | Student session | The caller's own memberships. No roster, no counts. |
+| `/api/student-batches/getMyBatch` | GET | Student session | One of them. "Not yours" and "does not exist" answer identically. |
+| `/api/student-directory/listStudents` | GET | Admin session | Read-only directory, driven by `StudentProfile`. Filters are catalog **ids**, never typed names. |
+| `/api/student-directory/getStudent` | GET | Admin session | One Student, read-only, plus the Batches they belong to. |
+
+The two operations that accept a token are **POST** so the token travels in a
+body: a GET would put it in the URL, and URLs end up in access logs, proxy logs,
+and browser history.
+
+**There is no delete** for a Batch, an invitation, or an enrollment, and no write
+of any kind against a Student — no create, edit, delete, role change, password
+reset, impersonation, rating, score, or export exists in the API.
 
 The photo endpoint is deliberately **not** a cloud function: Parse Server logs
 every cloud-function call with its serialised input and result, which wrote a
@@ -246,10 +333,36 @@ all return 403 (or 404 where the route does not resolve).
 ### Student welcome (`/student/welcome`) — Students with a complete profile
 - Branding, a greeting using the name from the saved profile, and confirmation
   that the profile is complete.
-- States that joining a batch is the next step and that it is not available yet.
-- An **Edit profile** action, a language switch, and logout.
-- **No completion percentage, batch, invitation, task, statistic, chart, or link
-  to anything that does not exist.**
+- An **Edit profile** action; the shared header carries navigation, the language
+  switch, and logout.
+- **No completion percentage, task, statistic, chart, or link to anything that
+  does not exist.**
+
+### My Batches (`/student/batches`) — Students with a complete profile
+- The Batches this Student has joined, with dates and status.
+- Empty is a normal state, not an error: joining needs somebody to send a link,
+  and the page says exactly that.
+- **No other Student appears anywhere, and no count of them.** The endpoint
+  behind the page cannot return a roster.
+
+### One Batch (`/student/batches/:batchId`) — the Student's own view
+- The Batch's details and the date this Student joined.
+- No roster, no trainer, no schedule, no score.
+- "Not yours" and "does not exist" render the identical message, because the
+  server refuses to distinguish them.
+
+### Join a Batch (`/join/:token`) — **public**
+- The only page a Visitor can open that shows real product content: a Batch name,
+  its dates, and nothing else.
+- One page, six audiences. A Visitor is asked to sign in; a Student with an
+  unfinished profile is asked to finish it; an eligible Student is offered
+  **Join this batch**; an Admin is told plainly that an admin account cannot
+  join; and an expired, revoked, replaced, or invalid link says which.
+- The invitation is remembered **before anything can navigate away**, so signing
+  in and completing a profile both come back here. It lives in `sessionStorage`,
+  dies with the tab, and is cleared on success, on an unusable link, on cancel,
+  and on sign-out.
+- The token is never rendered into the page and never written to `localStorage`.
 
 ### `/auth`
 - Redirects to `/auth/admin`. Any unknown `/auth/**` sub-route resolves there too.
@@ -271,15 +384,65 @@ the profile is complete.
   deactivating retires it without blanking anybody's answer.
 - Empty means empty: cities, majors, and target roles ship with no data.
 
+### Batches (`/dashboard/batches`) — Admins only
+- Search by name, filter by status, paged. Every filter change returns to page
+  one, because page 3 of a 2-page result reads as an empty product.
+- **New batch**, and a row that opens the Batch. **There is no delete anywhere
+  on the page, because there is none in the API.**
+
+### New / edit a Batch (`/dashboard/batches/new`, `/dashboard/batches/:batchId/edit`)
+- Name, description, start date, end date, and — on create only — the initial
+  status, which may be `draft` or `active`.
+- Dates go through the picker and are sent as calendar dates: the day that was
+  picked is the day that is stored, whatever timezone the browser is in.
+- An archived Batch never reaches this page, and the form stays disabled if
+  somebody arrives at it anyway.
+
+### One Batch (`/dashboard/batches/:batchId`) — Overview · Students · Invitation
+- **Overview** — details, the Student count, and the status transitions that are
+  legal right now, read from the shared transition map so the buttons and the
+  server cannot disagree. Archiving is confirmed in a dialog that spells out what
+  stops working rather than asking "are you sure".
+- **Students** — the roster: name, verified email, city, institution, and when
+  they joined. Read-only. There is no way to remove a Student from a Batch or to
+  act on one from here.
+- **Invitation** — generate, rotate, set an expiry, expire now, revoke, and a QR
+  code. The link is shown **once**, with a warning saying so; after that only its
+  fingerprint, version, state, and expiry remain. The QR code is drawn black on
+  white in both themes, because a scanner reads it and a themed one does not
+  scan.
+
+### Students (`/dashboard/students`) — Admins only
+- A **read-only directory**: search, and filter by Batch, city, institution,
+  major, target role, and profile completion. Every filter sends a catalog id,
+  never a typed name.
+- Driven by `StudentProfile`, so a Student appears whether or not anybody has
+  invited them anywhere — which is the point, since the directory exists to find
+  somebody to invite.
+- **Not user management.** No create, edit, delete, role change, password reset,
+  impersonation, rating, score, or export — none of them exist in the API either.
+
+### One Student (`/dashboard/students/:studentId`) — read-only
+- Name, verified email, the four catalog selections, completion, and the Batches
+  they belong to. The only interactive things on the page are links to Batches.
+- **No phone number, date of birth, or photo** — the endpoint does not return
+  them, and the page says so.
+
 ### Sidebar Navigation (Admin shell only)
 
 | Item | Route | Icon | Roles |
 |---|---|---|---|
 | Dashboard | `/dashboard` | `fa-solid fa-gauge` | Admin |
+| Batches | `/dashboard/batches` | `fa-solid fa-layer-group` | Admin |
+| Students | `/dashboard/students` | `fa-solid fa-user-group` | Admin |
+| Profile Catalogs | `/dashboard/profile-catalogs` | `fa-solid fa-list-ul` | Admin |
 
-The Student area has no navigation at all — one page, a language switch, and
-logout. No other navigation exists anywhere. Students, Batches, Resources, Live Slides, Tasks, Pinned Students,
-Talent Reels, and user management are **not** present.
+The Student area has a header with Welcome, My Batches, and My Profile — added
+when the area gained a second page, and hidden on the profile form while the
+profile is unfinished, because both other links would bounce straight back.
+
+Resources, Live Slides, Tasks, Pinned Students, Talent Reels, and user management
+are **not** present. Every navigation item leads to a page that works.
 
 The template's `/users` management screen was removed in Checkpoint 1: Code Your
 Future has no manual user-administration requirement.
@@ -350,6 +513,30 @@ Future has no manual user-administration requirement.
   treated as content: a byte count survives, the bytes never do, and no
   truncated prefix is ever kept.
 
+### Batches, invitations, and enrollment
+- A Batch is a group of Students. Only an **active** Batch accepts anybody, and
+  no status ever changes on its own.
+- **Archived is terminal**: no edit, no status change, no new link, no new
+  member. It is the retirement path, and it keeps everything — deleting a Batch
+  would silently delete the record of who was in it.
+- **One current invitation per Batch**, and **one membership per Student per
+  Batch**, both enforced by unique database indexes rather than application
+  checks. A race cannot break either: under ten simultaneous rotations the
+  database refused seven and exactly one link was live afterwards.
+- The token is 256 bits of OS randomness. **Only its SHA-256 hash is stored**;
+  the raw value exists in one response and then nowhere — not in a log, not in
+  storage, not in a URL the server sees.
+- A token that never existed and one that is malformed produce the **identical**
+  answer, so nobody probing random strings can learn which were real. Beyond that
+  point the holder demonstrably has a token we issued, so "expired", "revoked",
+  and "replaced" are told plainly.
+- Rotating retires the old link **before** creating the new one, so there is
+  never a moment when two links work.
+- Redeeming is idempotent: scanning the same code twice says "you had already
+  joined", not "joined again".
+- An Admin cannot join a Batch, and a Visitor cannot redeem a link — signing in
+  comes first, and the profile comes before the membership.
+
 ### Access boundaries
 - Deny-by-default CLP on every class.
 - A repository-owned schema guard aborts startup if a class omits explicit access
@@ -397,10 +584,16 @@ Currently unused — no list page exists.
 
 | Suite | Command | Count |
 |---|---|---|
-| Backend | `cd backend && pnpm run test` (`node:test`) | 739 |
-| Frontend | `cd frontend && pnpm run test` (Vitest) | 509 |
+| Backend | `cd backend && pnpm run test` (`node:test`) | 841 |
+| Frontend | `cd frontend && pnpm run test` (Vitest) | 590 |
 
 No new dependency was added for either suite.
+
+Beyond the suites, Checkpoint 4 was validated against a **running server on an
+isolated database**: 51 API checks, a concurrency run (ten simultaneous rotations
+→ exactly one live link), a real log file audited for a leaked token, and 121
+browser checks across both languages, both themes, and a phone width — including
+reading the QR canvas back to confirm a real, scannable symbol was drawn.
 
 ---
 
@@ -409,8 +602,18 @@ No new dependency was added for either suite.
 - Initial frontend bundle exceeds its 500 kB budget (pre-existing).
 - Port `1337` default is now overridable via `PORT`, but `serverURL` must be kept
   consistent manually.
-- `withHashLocation()` is still active, so deep links are `/#/path`. Decide before
-  invitation links are built (OQ-12).
+- `withHashLocation()` is still active, so deep links are `/#/path`. **Decided**
+  (OQ-12): invitation links are `https://host/#/join/<token>`. Keeping it needs no
+  server rewrite rule, and a fragment is never sent to the server — so the token
+  stays client-side by construction.
+- `applyAllIndexes` is still never called. Three unique indexes now exist and two
+  of them are the sole enforcement of a concurrency invariant, so a deployment
+  that skips index creation would lose those guarantees silently.
+- The losers of a simultaneous invitation rotation get `BATCH_SAVE_FAILED` rather
+  than an automatic retry. Safe, and not yet pleasant.
+- Enrollment concurrency is enforced by a unique index and exercised in code, but
+  has not been observed under two genuinely simultaneous redemptions — that needs
+  two live Google sessions.
 - CI is `.gitlab-ci.yml` targeting branch `dev` while the remote is GitHub/`master`
   (OQ-14).
 - Controlled private-file read access is designed but not implemented; the
@@ -424,13 +627,27 @@ No new dependency was added for either suite.
 |---|---|---|
 | `GOOGLE_CLIENT_ID` | `backend/.env` | Google **Web application** Client ID. Student sign-in refuses without it; Admin login is unaffected. |
 | `googleClientId` | `frontend/src/environments/environment*.ts` | The same public Client ID for the browser. |
+| `FRONTEND_ORIGIN` | `backend/.env` | **Optional.** The origin invitation links are built against. Falls back to the first usable entry of the CORS allow-list; if neither is set the API returns a **relative path** and the browser resolves it against whatever origin served the page. Never read from a request header — a link built from a caller-supplied host is a phishing primitive. |
 
 There is **no Google client secret** anywhere: this flow returns a signed ID
 token directly and never exchanges an authorization code.
 
 ## Last Updated
 
-Checkpoint 3A — Google name and photo: a Student's full name arrives prefilled
+Checkpoint 4 — Batches, invitations, enrollment, and the Admin Student directory:
+an Admin creates a Batch, generates one invitation link for it, and sees who
+joined; a Student opens the link, signs in if they need to, finishes their
+profile if they need to, and joins. One current link per Batch and one membership
+per Student per Batch are enforced by **unique database indexes**, so a race
+cannot break either. The link's token is 256 bits of OS randomness, stored only
+as a SHA-256 hash, shown exactly once, and absent from every log. There is **no
+delete** for a Batch or anything under one, and the Student directory is
+**read-only** — no create, edit, delete, role change, password reset,
+impersonation, rating, score, or export exists in the API. Resolved OQ-4 (Batch
+fields) and OQ-12 (hash routing kept, for the reasons in
+`docs/TEMPLATE_ARCHITECTURE.md` §17g).
+
+Preceded by Checkpoint 3A — Google name and photo: a Student's full name arrives prefilled
 from their verified Google claims, and their Google photo is imported when the
 profile is created — fetched server-side from a pinned host, validated and
 re-encoded exactly like an upload, and stored privately with no URL anywhere.

@@ -1,0 +1,70 @@
+/* One Batch, Student view — scoped styles.
+   Composition only. Every colour, space, radius and size comes from the
+   Checkpoint 2A token layer, and all box properties are logical so one
+   stylesheet serves LTR and RTL. */
+
+:host {
+  display: block;
+}
+
+.cyf-batch-back {
+  margin-block-end: var(--cyf-space-4);
+}
+
+.cyf-batch-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  margin-inline-start: 0;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.cyf-batch-error-actions {
+  margin-block-start: var(--cyf-space-4);
+}
+
+.cyf-batch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cyf-space-3);
+  flex-wrap: wrap;
+  margin-block-end: var(--cyf-space-4);
+}
+
+.cyf-batch-title {
+  margin: 0;
+}
+
+.cyf-batch-description {
+  margin: 0 0 var(--cyf-space-6);
+  white-space: pre-line;
+}
+
+.cyf-batch-facts {
+  display: grid;
+  gap: var(--cyf-space-5);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  margin: 0;
+  padding-block: var(--cyf-space-5);
+  border-block: 1px solid var(--cyf-border);
+}
+
+.cyf-batch-fact {
+  dt {
+    margin-block-end: var(--cyf-space-1);
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.cyf-batch-note {
+  margin: var(--cyf-space-5) 0 0;
+}

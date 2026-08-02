@@ -1,12 +1,10 @@
-<div class="cyf-page cyf-profile-page">
-  <a class="cyf-skip-link" href="#cyf-profile-main">{{ 'a11y.skipToContent' | translate }}</a>
-
-  <header class="cyf-profile-header">
-    <cyf-brand-mark size="md" />
-    <cyf-language-switch />
-  </header>
-
-  <main id="cyf-profile-main" class="cyf-container cyf-container-content cyf-profile-main">
+<!--
+  Page content only ⟨CP4 closeout⟩. The shell supplies the frame — including the
+  sidebar, which it hides nothing from: a Student with an unfinished profile can
+  see My Batches in the navigation and will be sent straight back here by the
+  profile guard if they try it. That is the guard's job, not this page's.
+-->
+<div class="cyf-page-body cyf-page-body-narrow cyf-profile-page">
     <!-- ── Page heading ─────────────────────────────────────────────────── -->
     <div class="cyf-profile-intro">
       <h1 class="cyf-page-title">
@@ -820,5 +818,4 @@
         </div>
       </form>
     }
-  </main>
 </div>

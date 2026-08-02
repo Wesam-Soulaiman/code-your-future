@@ -311,17 +311,31 @@ describe('layout', () => {
 
 describe('no future product feature leaked into the frontend', () => {
   test('the route table declares no future product route', () => {
+    // Batches, the Student directory, and the join page shipped in Checkpoint 4
+    // and are no longer future. What is still listed here belongs to a
+    // checkpoint that has not happened, and a route for one would be a stub
+    // pointing at a page that cannot exist.
     const routes = read('app/app.routes.ts');
     for (const future of [
-      "path: 'join'",
       "path: 'reels'",
-      "path: 'batches'",
-      "path: 'students'",
       "path: 'resources'",
       "path: 'tasks'",
+      "path: 'final-tasks'",
+      "path: 'live-slides'",
+      "path: 'pinned'",
     ]) {
       assert.ok(!routes.includes(future), `future route found: ${future}`);
     }
+  });
+
+  test('the join route is public — no guard may be attached to it ⟨CP4⟩', () => {
+    // A Visitor holding a link must reach the page. A guard here would bounce
+    // them to sign-in having lost the invitation they came with.
+    const routes = read('app/app.routes.ts');
+    const joinBlock = routes.slice(routes.indexOf("path: 'join/:token'"));
+    const declaration = joinBlock.slice(0, joinBlock.indexOf('},'));
+    assert.ok(declaration.includes("path: 'join/:token'"), 'the join route must exist');
+    assert.ok(!declaration.includes('canActivate'), 'the join route must carry no guard');
   });
 
   /**
@@ -381,22 +395,55 @@ describe('no future product feature leaked into the frontend', () => {
   });
 
   test('no future product page was added', () => {
+    // Every directory and every file below exists because the feature it serves
+    // works today. `join` and the Batch/Student pages arrived with Checkpoint 4;
+    // nothing here is a stub for a checkpoint that has not happened.
     const pages = join(FRONTEND_SRC, 'app', 'pages');
-    // `admin` holds Profile Catalogs, a real working page added because the
-    // feature now exists. Nothing here is a stub for a later checkpoint.
     const present = readdirSync(pages).sort();
-    assert.deepEqual(present, ['admin', 'auth', 'dashboard', 'student']);
+    assert.deepEqual(present, ['admin', 'auth', 'dashboard', 'join', 'student']);
 
-    const adminPages = readdirSync(join(pages, 'admin')).sort();
-    for (const name of adminPages) {
-      assert.ok(name.startsWith('profile-catalogs'), `unexpected Admin page: ${name}`);
+    const allowedAdmin = [
+      'profile-catalogs',
+      'batches',
+      'batch-form',
+      'batch-detail',
+      'invitation-card',
+      'students',
+      'student-detail',
+    ];
+    for (const name of readdirSync(join(pages, 'admin'))) {
+      assert.ok(
+        allowedAdmin.some(prefix => name.startsWith(`${prefix}.`)),
+        `unexpected Admin page: ${name}`
+      );
     }
 
-    const studentPages = readdirSync(join(pages, 'student')).sort();
-    for (const name of studentPages) {
+    const allowedStudent = [
+      'student-welcome',
+      'student-profile',
+      'student-batches',
+      'student-batch-detail',
+    ];
+    for (const name of readdirSync(join(pages, 'student'))) {
       assert.ok(
-        name.startsWith('student-welcome') || name.startsWith('student-profile'),
+        allowedStudent.some(prefix => name.startsWith(`${prefix}.`)),
         `unexpected Student page: ${name}`
+      );
+    }
+  });
+
+  test('no page exists for a feature that does not ⟨CP4⟩', () => {
+    // The inverse check, by name: Resources, Live Slides, Tasks, Final Tasks,
+    // Pinned Students, and Talent Reels are all later checkpoints.
+    const pages = join(FRONTEND_SRC, 'app', 'pages');
+    const everyFile: string[] = [];
+    for (const dir of readdirSync(pages)) {
+      for (const name of readdirSync(join(pages, dir))) everyFile.push(name.toLowerCase());
+    }
+    for (const forbidden of ['resource', 'slide', 'task', 'pinned', 'reel', 'submission']) {
+      assert.ok(
+        !everyFile.some(name => name.includes(forbidden)),
+        `a ${forbidden} page belongs to a later checkpoint`
       );
     }
   });

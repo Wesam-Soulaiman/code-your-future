@@ -76,7 +76,10 @@ an owning checkpoint:
 | Committed REST API key (S-13) | **Checkpoint 12** | ⏳ rotate before deploy |
 | Kit accepts a master key from the request body (S-6) | **upstream / Checkpoint 11** | ⏳ not exploitable; lives in `node_modules` |
 | Parse `Date` truncation in the interceptor (L-9) | **Checkpoint 4** | ⏳ will matter once profiles store dates |
-| Hash vs path routing (OQ-12) | **Checkpoint 6** | ⏳ decision due before invitation links |
+| Hash vs path routing (OQ-12) | **Checkpoint 4** | ✅ **decided** — hash routing kept; see TEMPLATE_ARCHITECTURE §17g |
+| `applyAllIndexes` never called during startup | **Checkpoint 4 closeout** | ✅ **fixed** — applied and verified before the port opens; see TEMPLATE_ARCHITECTURE §17l |
+| The template's table and paginator were unused; every list hand-rolled its own | **Checkpoint 4 closeout** | ✅ **fixed** — the four implemented tables are back on `p-table` + the template's `app-paginator` |
+| The Student area had its own header navigation | **Checkpoint 4 closeout** | ✅ **fixed** — both workspaces load the same role-aware shell |
 | GitLab CI targeting `dev` while the repo is GitHub/`master`; **CI runs no tests** (OQ-14) | **Checkpoint 12** | ⏳ |
 | `GENERATE.md` and `backend/CLAUDE.md` still cite `SuperAdmin`/`Employee` and `models/Employee.ts` | **Checkpoint 2** | ⏳ documentation follow-up |
 
@@ -94,7 +97,7 @@ database. See [CURRENT_STATE.md](CURRENT_STATE.md) and [HANDOFF.md](HANDOFF.md).
 | "Split the shell into an Admin workspace and a Student workspace" | Not done | The checkpoint spec forbids implementing a Student dashboard and any UI redesign. The Student workspace belongs to Checkpoints 3–4. |
 | "Add a `visitorGuard` / public layout for Talent Reels and `/join/:token`" | Not done | Those routes belong to Checkpoints 6 and 10; adding a guard for non-existent routes would be speculative. |
 | "keep Admin user administration" | **Removed instead** | The spec directs removing unsupported user management, and no authoritative document requires generic Admin account administration. Admins are provisioned by seeding. |
-| "Decide hash vs path routing (OQ-12)" | Deferred | No public link is built in this checkpoint; the decision is due before Checkpoint 6. |
+| "Decide hash vs path routing (OQ-12)" | ✅ Decided in Checkpoint 4 | Hash routing kept. Invitation links are `https://host/#/join/<token>`. |
 | `requireEnrolledStudent` helper | Not added | Enrollment does not exist until Checkpoint 6; an empty helper would be a fake API. `requireAdmin` / `requireStudent` are in place. |
 
 **Additional work not in the original plan**, required by the checkpoint spec: deny-by-default
@@ -133,7 +136,7 @@ resolved (`AppSettings` removed).
 - Split the shell into an Admin workspace and a Student workspace.
 - Make `roleGuard` role-set aware (the current guard reads only the first role).
 - Add a `visitorGuard` / public layout for Talent Reels and `/join/:token`.
-- Decide hash vs path routing (OQ-12) before any public link is built.
+- ~~Decide hash vs path routing (OQ-12) before any public link is built.~~ ✅ Decided in Checkpoint 4: hash routing kept.
 
 **Data-model scope:** no new domain classes. Role rename plus the **removal** of the `AppSettings`
 class (and its unique index). Remaining registered classes afterwards: `_User`, `File`, `IMG`.
@@ -372,17 +375,24 @@ enrollment, Tasks, and everything else listed as out of scope.
 
 ---
 
-## Checkpoint 5 — Batch management
+## Checkpoint 5 — Batch management ✅ **delivered early, inside Checkpoint 4**
 
-**Prerequisites:** Checkpoint 4; OQ-4 (Batch metadata fields) answered.
+> **Status.** Checkpoints 5 and 6 were delivered together as Checkpoint 4, because
+> splitting them would have shipped a Batch nobody could join and then an
+> invitation with nothing to invite anybody to. Everything below was implemented;
+> the two exceptions are recorded under each scope line.
+
+**Prerequisites:** Checkpoint 4; OQ-4 (Batch metadata fields) answered — ✅ **answered**.
 
 **Backend scope:** `Batch` model with `status` ∈ {draft, active, completed, archived}; a
 transition guard enforcing the exact allowed set and rejecting every backward transition and
 `draft → completed`; `archived` terminal and read-only; **no hard delete**; metadata editable in
 draft/active/completed; Admin-only list/get/create/update/transition.
-**Frontend scope:** Admin Batch list and detail with the Batch navigation (Overview, Students,
-Resources, Live Slides, Tasks, Pinned Students); status badges; transition actions with
-confirmation; read-only rendering for `archived`.
+**Frontend scope:** Admin Batch list and detail. **Delivered with three tabs, not six** —
+Overview, Students, and Invitation. Resources, Live Slides, Tasks, and Pinned Students do not
+exist, and a tab for one would be a promise the product cannot keep; they arrive with their own
+checkpoints. Status chips, transition actions, an archive confirmation that spells out what stops
+working, and read-only rendering for `archived` are all present.
 **Data-model scope:** `Batch` only. **Never** a `Program` model, route, DTO, page, or nav term.
 **Authorization and security:** all mutations Admin-only; Students see only their enrolled
 Batches; Visitors see nothing; drafts never leak into any public DTO.
@@ -396,9 +406,9 @@ reflected in the UI.
 
 ---
 
-## Checkpoint 6 — Invitations and enrollment
+## Checkpoint 6 — Invitations and enrollment ✅ **delivered early, inside Checkpoint 4**
 
-**Prerequisites:** Checkpoint 5; OQ-12 (routing mode) decided.
+**Prerequisites:** Checkpoint 5; OQ-12 (routing mode) decided — ✅ **decided**: hash routing kept.
 
 **Backend scope:** one current invitation per Batch; token from a CSPRNG, URL-safe, unpredictable,
 unrelated to `objectId`, never logged, excluded from generic DTOs; generate / expire / revoke /
@@ -411,7 +421,9 @@ profile, requires `active` Batch status, and is **idempotent**; a unique compoun
 revoke, rotate); public `/join/:token` route; the 10-step pending-invitation flow from
 PRODUCT_REQUIREMENTS §9; temporary token state cleared on success, invalid token, logout, or
 cancellation; translated invalid-token states.
-**Data-model scope:** `BatchInvitation`, `Enrollment`.
+**Data-model scope:** `BatchInvitation`, `BatchEnrollment` (named for the Batch it belongs to,
+rather than the bare `Enrollment` this plan sketched — there is only one kind, and the name says
+what it joins).
 **Authorization and security:** the token never appears in logs, generic DTOs, or error messages;
 inspect leaks nothing private; a rotated/expired/revoked token fails closed; Admin cannot enroll
 anyone manually.
@@ -425,7 +437,11 @@ fails.
 **Documentation:** `PROJECT.md`, `CURRENT_STATE.md`, `HANDOFF.md`.
 **Out of scope:** manual enrollment, approval, waiting lists, enrollment scoring, Student removal.
 **Definition of done:** the pending-invitation flow works end-to-end, is idempotent, and no token
-appears in any log or DTO.
+appears in any log or DTO. ✅ **Met**, with one part of the manual flow outstanding: the end-to-end
+walk-through requires a real Google sign-in, which needs the authorised-origin change that is still
+outstanding from Checkpoint 2B. Every step either side of the Google round trip was validated
+against a running server, and the redirect-back-to-the-invitation behaviour is covered by unit
+tests on both the sign-in and the profile-save paths.
 
 ---
 

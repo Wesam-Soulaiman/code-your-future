@@ -1,6 +1,7 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { AppRole, toAppRole } from '../config/user-roles';
 import { CurrentUser, SessionStatus } from '../models/User';
+import { clearInvitation } from '../utils/invitation-intent';
 
 const USER_KEY = 'currentUser';
 const TOKEN_KEY = 'sessionToken';
@@ -91,6 +92,10 @@ export class SessionService {
     this.userSignal.set(null);
     this.tokenSignal.set(null);
     this.statusSignal.set('unauthenticated');
+    // A pending invitation is a credential belonging to whoever was signed in.
+    // Signing out on a shared machine must not leave a working join link behind
+    // for the next person to walk into. ⟨CP4⟩
+    clearInvitation();
   }
 
   /** Mark restoration as under way. Idempotent. */

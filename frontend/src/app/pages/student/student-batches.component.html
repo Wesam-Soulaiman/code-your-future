@@ -1,0 +1,74 @@
+<!--
+  Page content only ⟨CP4 closeout⟩. The shell supplies the frame: the skip link,
+  the `main` landmark, the sidebar, the top bar, and the page heading.
+-->
+<div class="cyf-page-body cyf-student-batches">
+  <div class="cyf-page-head">
+    <div class="cyf-page-head-text">
+      <h1 class="cyf-page-title">{{ 'student.batches.title' | translate }}</h1>
+      <p class="cyf-lead">{{ 'student.batches.lead' | translate }}</p>
+    </div>
+  </div>
+    <div class="cyf-page-status" aria-live="polite">
+      @if (errorKey()) {
+        <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+          <span>{{ errorKey()! | translate }}</span>
+          <button type="button" class="cyf-link-button" (click)="load()">
+            {{ 'actions.retry' | translate }}
+          </button>
+        </cyf-alert>
+      }
+    </div>
+
+    @if (loading()) {
+      <div class="cyf-card cyf-card-padded cyf-inline-state" role="status" aria-live="polite">
+        <span class="cyf-spinner" aria-hidden="true"></span>
+        <span>{{ 'student.batches.loading' | translate }}</span>
+      </div>
+    } @else if (isEmpty()) {
+      <!-- Not an error. Joining needs somebody to send a link, so having none
+           yet is the ordinary state for most Students. -->
+      <div class="cyf-card cyf-empty">
+        <span class="cyf-empty-icon" aria-hidden="true">
+          <i class="fa-solid fa-layer-group"></i>
+        </span>
+        <h2 class="cyf-card-title cyf-empty-title">
+          {{ 'student.batches.empty.title' | translate }}
+        </h2>
+        <p class="cyf-body-sm cyf-empty-text">{{ 'student.batches.empty.text' | translate }}</p>
+      </div>
+    } @else {
+      <ul class="cyf-batches-list">
+        @for (row of rows(); track row.batch.id) {
+          <li class="cyf-card cyf-batches-item">
+            <!-- The whole card is one link, so the target is as large as it
+                 looks. The heading carries the accessible name. -->
+            <button type="button" class="cyf-batches-item-button" (click)="open(row.batch)">
+              <span class="cyf-batches-item-head">
+                <span class="cyf-card-title">{{ row.batch.name }}</span>
+                <span class="cyf-status-chip cyf-status-{{ row.tone }}">
+                  {{ 'batch.status.' + row.batch.status | translate }}
+                </span>
+              </span>
+
+              @if (row.batch.description) {
+                <span class="cyf-body-sm cyf-batches-item-description">
+                  {{ row.batch.description }}
+                </span>
+              }
+
+              <span class="cyf-helper cyf-batches-item-dates">
+                <span>
+                  <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+                  {{ 'batch.fields.startDate' | translate }}: {{ row.startDate }}
+                </span>
+                @if (row.endDate) {
+                  <span>{{ 'batch.fields.endDate' | translate }}: {{ row.endDate }}</span>
+                }
+              </span>
+            </button>
+          </li>
+        }
+      </ul>
+    }
+</div>

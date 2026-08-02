@@ -1,0 +1,230 @@
+<div class="cyf-page-body">
+  <div class="cyf-page-head">
+    <div class="cyf-page-head-text">
+      <h1 class="cyf-page-title">{{ 'admin.students.title' | translate }}</h1>
+      <p class="cyf-lead">{{ 'admin.students.lead' | translate }}</p>
+    </div>
+
+    <div class="cyf-page-head-actions">
+      @if (hasFilters()) {
+        <p-button
+          type="button"
+          severity="secondary"
+          [text]="true"
+          (onClick)="clearFilters()"
+          styleClass="cyf-btn"
+        >
+          <span>{{ 'admin.students.filters.clear' | translate }}</span>
+        </p-button>
+      }
+
+      <p-button
+        type="button"
+        severity="secondary"
+        [outlined]="true"
+        [disabled]="loading()"
+        (onClick)="load()"
+        styleClass="cyf-btn"
+      >
+        <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+        <span>{{ 'actions.refresh' | translate }}</span>
+      </p-button>
+    </div>
+  </div>
+
+  <!-- ── Search ───────────────────────────────────────────────────────── -->
+  <div class="cyf-toolbar">
+    <div class="cyf-field cyf-toolbar-grow">
+      <label class="cyf-sr-only" for="student-search">{{ 'actions.search' | translate }}</label>
+      <input
+        id="student-search"
+        type="search"
+        class="cyf-input"
+        [attr.maxlength]="limits.search.max"
+        [placeholder]="'admin.students.searchPlaceholder' | translate"
+        (input)="updateSearch($any($event.target).value)"
+      />
+    </div>
+  </div>
+
+  <!-- ── Filters ──────────────────────────────────────────────────────── -->
+  <div class="cyf-filter-grid">
+    <div class="cyf-field">
+      <label class="cyf-field-label cyf-label" for="filter-batch">
+        {{ 'admin.students.filters.batch' | translate }}
+      </label>
+      <p-select
+        inputId="filter-batch"
+        styleClass="cyf-select-control"
+        appendTo="body"
+        [options]="batchOptions()"
+        [ngModel]="batchId()"
+        optionValue="value"
+        optionLabel="label"
+        [filter]="true"
+        filterBy="label"
+        [ariaLabel]="'admin.students.filters.batch' | translate"
+        (ngModelChange)="updateFilter('batchId', $event)"
+      />
+    </div>
+
+    <div class="cyf-field">
+      <label class="cyf-field-label cyf-label" for="filter-city">
+        {{ 'student.profile.fields.city' | translate }}
+      </label>
+      <p-select
+        inputId="filter-city"
+        styleClass="cyf-select-control"
+        appendTo="body"
+        [options]="cityOptions()"
+        [ngModel]="cityId()"
+        optionValue="value"
+        optionLabel="label"
+        [filter]="true"
+        filterBy="label"
+        [ariaLabel]="'student.profile.fields.city' | translate"
+        (ngModelChange)="updateFilter('cityId', $event)"
+      />
+    </div>
+
+    <div class="cyf-field">
+      <label class="cyf-field-label cyf-label" for="filter-institution">
+        {{ 'student.profile.fields.institution' | translate }}
+      </label>
+      <p-select
+        inputId="filter-institution"
+        styleClass="cyf-select-control"
+        appendTo="body"
+        [options]="institutionOptions()"
+        [ngModel]="institutionId()"
+        optionValue="value"
+        optionLabel="label"
+        [filter]="true"
+        filterBy="label"
+        [ariaLabel]="'student.profile.fields.institution' | translate"
+        (ngModelChange)="updateFilter('institutionId', $event)"
+      />
+    </div>
+
+    <div class="cyf-field">
+      <label class="cyf-field-label cyf-label" for="filter-major">
+        {{ 'student.profile.fields.major' | translate }}
+      </label>
+      <p-select
+        inputId="filter-major"
+        styleClass="cyf-select-control"
+        appendTo="body"
+        [options]="majorOptions()"
+        [ngModel]="majorId()"
+        optionValue="value"
+        optionLabel="label"
+        [filter]="true"
+        filterBy="label"
+        [ariaLabel]="'student.profile.fields.major' | translate"
+        (ngModelChange)="updateFilter('majorId', $event)"
+      />
+    </div>
+
+    <div class="cyf-field">
+      <label class="cyf-field-label cyf-label" for="filter-targetRole">
+        {{ 'student.profile.fields.targetRole' | translate }}
+      </label>
+      <p-select
+        inputId="filter-targetRole"
+        styleClass="cyf-select-control"
+        appendTo="body"
+        [options]="targetRoleOptions()"
+        [ngModel]="targetRoleId()"
+        optionValue="value"
+        optionLabel="label"
+        [filter]="true"
+        filterBy="label"
+        [ariaLabel]="'student.profile.fields.targetRole' | translate"
+        (ngModelChange)="updateFilter('targetRoleId', $event)"
+      />
+    </div>
+
+    <div class="cyf-field">
+      <label class="cyf-field-label cyf-label" for="filter-completion">
+        {{ 'admin.students.filters.profile' | translate }}
+      </label>
+      <p-select
+        inputId="filter-completion"
+        styleClass="cyf-select-control"
+        appendTo="body"
+        [options]="completionOptions()"
+        [ngModel]="completionFilter()"
+        optionValue="value"
+        optionLabel="label"
+        [ariaLabel]="'admin.students.filters.profile' | translate"
+        (ngModelChange)="updateFilter('completionFilter', $event)"
+      />
+    </div>
+  </div>
+
+  <!-- ── Status ───────────────────────────────────────────────────────── -->
+  <div class="cyf-page-status" aria-live="polite">
+    @if (errorKey()) {
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ errorKey()! | translate }}
+      </cyf-alert>
+    }
+  </div>
+
+  <!-- ── List ─────────────────────────────────────────────────────────── -->
+  @if (isEmpty()) {
+    <div class="cyf-card cyf-empty">
+      <span class="cyf-empty-icon" aria-hidden="true">
+        <i class="fa-solid fa-user-group"></i>
+      </span>
+      <h2 class="cyf-card-title cyf-empty-title">{{ 'admin.students.empty.title' | translate }}</h2>
+      <p class="cyf-body-sm cyf-empty-text">{{ 'admin.students.empty.body' | translate }}</p>
+    </div>
+  } @else {
+    <cyf-record-table
+      [data]="rows()"
+      [columns]="columns"
+      [loading]="loading()"
+      [totalRecords]="total()"
+      [page]="page()"
+      [rows]="pageSize()"
+      emptyMessage="admin.students.noMatch"
+      emptyIcon="fa-solid fa-user-group"
+      (pageChange)="onPageChange($event)"
+    >
+      <ng-template appColTemplate="name" let-row>
+        <button type="button" class="cyf-table-link" (click)="open(row.student)">
+          {{ row.student.fullName }}
+        </button>
+      </ng-template>
+
+      <ng-template appColTemplate="email" let-row>
+        <span dir="ltr">{{ row.student.verifiedEmail }}</span>
+      </ng-template>
+
+      <ng-template appColTemplate="city" let-row>{{ row.city || '—' }}</ng-template>
+      <ng-template appColTemplate="institution" let-row>{{ row.institution || '—' }}</ng-template>
+      <ng-template appColTemplate="targetRole" let-row>{{ row.targetRole || '—' }}</ng-template>
+
+      <ng-template appColTemplate="batches" let-row>
+        <span class="cyf-numeric">{{ row.student.batchCount ?? 0 }}</span>
+      </ng-template>
+
+      <ng-template appColTemplate="profile" let-row>
+        <!-- Never colour alone: the state is a word. -->
+        <span
+          class="cyf-status-chip"
+          [class.cyf-status-success]="row.student.profileComplete"
+          [class.cyf-status-neutral]="!row.student.profileComplete"
+        >
+          {{
+            (row.student.profileComplete
+              ? 'admin.students.profileState.complete'
+              : 'admin.students.profileState.incomplete'
+            ) | translate
+          }}
+        </span>
+      </ng-template>
+    </cyf-record-table>
+  }
+</div>

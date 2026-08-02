@@ -471,14 +471,32 @@ aiming for.
 
 ---
 
-### OQ-4 — Batch metadata fields
+### OQ-4 — Batch metadata fields — ✅ RESOLVED
 **Question in full:** Which metadata fields does a Batch carry beyond `status`? Candidates include
 name/title, start date, end date, description, and capacity. Which are required, which are
 editable in `draft` / `active` / `completed`, and is Batch name uniqueness enforced?
 
-**Resolved from source:** nothing — no `Batch` model exists in any form.
-**Answer required from:** product owner.
-**Classification:** **BLOCKS-CP5** (Batch management).
+**Product-owner decision, taken for Checkpoint 4:**
+
+| Field | Required | Notes |
+|---|---|---|
+| `name` | yes | 2–120 characters. **Not unique** — two intakes may legitimately share a name, and refusing that would be an invented rule. |
+| `description` | no | Up to 1000 characters. |
+| `startDate` | yes | A calendar date, stored as UTC midnight. |
+| `endDate` | no | Must be on or after `startDate`. A one-day Batch is allowed. |
+| `status` | yes | `draft` \| `active` \| `completed` \| `archived`; defaults to `draft`. |
+
+**Deliberately absent:** capacity, maximum students, trainers, location, schedule, image, score,
+rating, and any Program field. A backend test asserts none of them exists on the model.
+
+**Editability:** every field is editable in `draft`, `active`, and `completed`. **Archived is
+terminal and read-only** — no field, and no status, can change again. Status itself is never
+changed through the edit form; it moves through its own transition operation, which enforces the
+allowed moves (`draft → active|archived`, `active → completed|archived`, `completed → archived`).
+No status ever changes on its own — there is no scheduler and no date-driven transition.
+
+**Classification:** **RESOLVED-CP4**. Implemented and verified — see
+[CURRENT_STATE.md §7g](CURRENT_STATE.md).
 
 ---
 
@@ -595,19 +613,31 @@ them, so the safe reading is "no overlap" — but this has not been confirmed.
 
 ---
 
-### OQ-12 — Routing mode for public links
+### OQ-12 — Routing mode for public links — ✅ RESOLVED
 **Question in full:** Should the frontend keep hash-based routing? With it, every invitation link
 and QR code becomes `https://host/#/join/:token` rather than `https://host/join/:token`.
 
-**Resolved from source:** hash routing is active today —
-`frontend/src/app/app.config.ts` calls `provideRouter(routes, withHashLocation(),
-withViewTransitions())`, while `frontend/src/index.html` declares `<base href="/">`. Switching to
-path-based routing requires a server rewrite rule for deep links on the deployment target.
+**Decision, taken for Checkpoint 4: keep hash routing.** Invitation links are
+`https://host/#/join/:token`.
 
-**Still open:** keep hash routing or switch. Technical decision, with a product-facing consequence
-for how invitation URLs and QR codes look.
-**Answer required from:** engineering, with product-owner sign-off on link appearance.
-**Classification:** **BLOCKS-CP6** (Invitations and enrollment). Does not block Phase 1.
+**Why.** Switching to path routing would require a rewrite rule on the deployment target that
+serves `index.html` for every unmatched path. Getting that wrong does not fail at build time or in
+review — it fails when somebody scans a QR code in a room and gets a 404, which is the worst
+possible moment to discover it. Hash routing needs no server configuration at all and cannot break
+that way. The cost is a `#` in the URL, which nobody types: these links are scanned or clicked.
+
+There is also a small, real security benefit. A URL fragment is **not sent to the server** and does
+not appear in access logs, proxy logs, or `Referer` headers. With hash routing the token stays on
+the client by construction rather than by everybody remembering to redact it.
+
+**What was actually built on the strength of this.** `buildInvitationUrl()` produces
+`${origin}/#/join/${token}`; the log redactor strips `(#?/join/)<token>` in both forms; and the
+frontend's stored-intent helper builds `#/join/<token>` from a shape-validated token and never
+stores a redirect URL. Reversing the decision later means changing one function, one regular
+expression, and adding the rewrite rule — no data migration, because no link is stored.
+
+**Classification:** **RESOLVED-CP4**. Implemented and verified — see
+[CURRENT_STATE.md §7g](CURRENT_STATE.md).
 
 ---
 
@@ -694,8 +724,6 @@ a missing native binary.
 | # | Class | Blocks | Answer from |
 |---|---|---|---|
 | OQ-1 | BLOCKS-CP2 | Checkpoint 2 | product owner |
-| OQ-4 | BLOCKS-CP5 | Checkpoint 5 | product owner |
-| OQ-12 | BLOCKS-CP6 | Checkpoint 6 | engineering + product sign-off |
 | OQ-10 | BLOCKS-CP7 | Checkpoint 7 | engineering (narrowed in CP3A; still open) |
 | OQ-5 | BLOCKS-CP8 | Checkpoint 8 (deferred) | product owner |
 | OQ-6, OQ-7, OQ-8 | BLOCKS-CP9 | Checkpoint 9 | product owner |
@@ -703,6 +731,7 @@ a missing native binary.
 | OQ-14 | BLOCKS-CP12 | Checkpoint 12 | product owner / dev-ops |
 | OQ-16 | FOLLOW-UP | — | engineering |
 | OQ-2, OQ-3 | RESOLVED-CP3A | — | product owner: answered in Checkpoint 3A |
+| OQ-4, OQ-12 | RESOLVED-CP4 | — | answered and implemented in Checkpoint 4 |
 | OQ-13 | RESOLVED-RULES | — | product owner: remove in Checkpoint 1 |
 | OQ-15 | RESOLVED-SRC | — | closed in closeout |
 

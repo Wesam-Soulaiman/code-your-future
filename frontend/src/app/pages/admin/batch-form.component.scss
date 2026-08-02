@@ -1,0 +1,71 @@
+/* Create / edit a Batch — scoped styles.
+   Composition only. Every colour, space, radius and size comes from the
+   Checkpoint 2A token layer, and all box properties are logical so one
+   stylesheet serves LTR and RTL. */
+
+:host {
+  display: block;
+}
+
+.cyf-batch-form-page {
+  max-inline-size: var(--cyf-width-content);
+}
+
+.cyf-batch-form-intro {
+  margin-block-end: var(--cyf-space-6);
+
+  h1 {
+    margin: 0 0 var(--cyf-space-2);
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+.cyf-batch-form-status:not(:empty) {
+  margin-block-end: var(--cyf-space-4);
+}
+
+.cyf-batch-form-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-3);
+}
+
+/* The two dates sit side by side on a wide screen and stack on a narrow one —
+   they are read together, so they belong together where there is room. */
+.cyf-batch-form-row {
+  display: grid;
+  gap: var(--cyf-space-5);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+/* `.cyf-field + .cyf-field` cannot reach across the grid, so the spacing above
+   and below the row is stated. */
+.cyf-batch-form-row,
+.cyf-batch-form-status-field {
+  margin-block-start: var(--cyf-space-5);
+}
+
+.cyf-batch-required {
+  color: var(--cyf-error);
+  margin-inline-start: 0.125rem;
+}
+
+.cyf-batch-form-actions {
+  display: flex;
+  gap: var(--cyf-space-3);
+  flex-wrap: wrap;
+  margin-block-start: var(--cyf-space-6);
+  padding-block-start: var(--cyf-space-5);
+  border-block-start: 1px solid var(--cyf-border);
+}
+
+@media (max-width: 480px) {
+  .cyf-batch-form-actions {
+    > * {
+      flex: 1 1 100%;
+    }
+  }
+}

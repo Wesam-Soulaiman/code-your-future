@@ -92,14 +92,14 @@ describe('StudentWelcomeComponent', () => {
 
   describe('content', () => {
     it('greets the Student by their verified name', () => {
-      const headings = fixture.nativeElement.querySelectorAll('h1');
+      const headings = fixture.nativeElement.querySelectorAll('h2');
       expect(headings.length).toBe(1);
       expect(headings[0].textContent).toContain('Lina Haddad');
     });
 
     it('falls back to a nameless greeting rather than an identifier', async () => {
       await setup('en', null, null);
-      const heading = fixture.nativeElement.querySelector('h1').textContent as string;
+      const heading = fixture.nativeElement.querySelector('h2').textContent as string;
       expect(heading).toContain('Welcome to Code Your Future');
       expect(heading).not.toContain('u1');
       expect(heading).not.toContain('gid_');
@@ -137,7 +137,7 @@ describe('StudentWelcomeComponent', () => {
       // Not the Google display name: the Student may have entered a different
       // one, and this page should use the name they chose.
       await setup('en', 'Google Name', 'Chosen Name');
-      expect(fixture.nativeElement.querySelector('h1').textContent).toContain('Chosen Name');
+      expect(fixture.nativeElement.querySelector('h2').textContent).toContain('Chosen Name');
     });
 
     it('repeats the approved invitation copy verbatim', () => {
@@ -146,13 +146,14 @@ describe('StudentWelcomeComponent', () => {
       );
     });
 
-    it('offers a language switch and a logout', () => {
-      expect(fixture.nativeElement.querySelector('cyf-language-switch')).toBeTruthy();
-      expect(text()).toContain('Logout');
-    });
-
-    it('shows Code Your Future branding', () => {
-      expect(fixture.nativeElement.querySelector('cyf-brand-mark')).toBeTruthy();
+    it('renders no chrome of its own ⟨CP4 closeout⟩', () => {
+      // Branding, the language switch, and sign-out moved to the shared shell
+      // when the Student area gained a sidebar. They are asserted there, in
+      // `shell.component.spec.ts` — a page that still drew them would be a
+      // second copy to keep in step.
+      expect(fixture.nativeElement.querySelector('cyf-brand-mark')).toBeNull();
+      expect(fixture.nativeElement.querySelector('cyf-language-switch')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.cyf-logout-btn')).toBeNull();
     });
   });
 
@@ -179,14 +180,13 @@ describe('StudentWelcomeComponent', () => {
     });
 
     it('mentions no future product feature', () => {
-      // 'batch' is deliberately absent from this list: the approved invitation
-      // copy must be reproduced verbatim, and it ends "...only to join a batch."
-      // Mentioning batches is required; offering one is what would be wrong.
+      // Batches left this list in Checkpoint 4: My Batches is a real page and
+      // the header links to it. What remains belongs to a checkpoint that has
+      // not happened, and naming one here would be a promise the product
+      // cannot keep.
       const lowered = text().toLowerCase();
       for (const forbidden of [
-        'my batch',
         'invitation code',
-        'enrol',
         'resource',
         'live slides',
         'assignment',
@@ -199,11 +199,19 @@ describe('StudentWelcomeComponent', () => {
     });
 
     it('links to no page that does not exist', () => {
+      // The header gained navigation in Checkpoint 4, so links are now allowed
+      // — but only to pages that are actually registered. An allow-list rather
+      // than "no links at all", because the failure worth catching is a link
+      // to a feature that has not shipped.
+      const allowed = ['/student/welcome', '/student/batches', '/student/profile'];
       const links = [...fixture.nativeElement.querySelectorAll('a')] as HTMLAnchorElement[];
-      const targets = links.map((link) => link.getAttribute('routerLink') ?? link.getAttribute('href'));
-      for (const target of targets) {
-        // Only the in-page skip link is allowed.
-        expect(target === null || target.startsWith('#')).toBe(true);
+
+      for (const link of links) {
+        const target = link.getAttribute('routerLink') ?? link.getAttribute('href');
+        if (target === null) continue;
+        // The in-page skip link, or a route that exists.
+        const ok = target.startsWith('#') || allowed.includes(target);
+        expect(ok, `${target} is not a page that exists`).toBe(true);
       }
     });
 
@@ -220,64 +228,11 @@ describe('StudentWelcomeComponent', () => {
     });
   });
 
-  describe('logout', () => {
-    const logoutButton = (): HTMLButtonElement =>
-      fixture.nativeElement.querySelector('.cyf-logout-btn');
-
-    function clickLogout(): void {
-      logoutButton().click();
-      fixture.detectChanges();
-    }
-
-    it('calls the logout endpoint', () => {
-      clickLogout();
-      const request = http.expectOne((req) => req.url.includes('logout'));
-      expect(request.request.method).toBe('POST');
-      request.flush({ success: true });
-    });
-
-    it('clears the session and returns to Student sign-in', async () => {
-      const router = TestBed.inject(Router);
-      const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
-
-      clickLogout();
-      http.expectOne((req) => req.url.includes('logout')).flush({ success: true });
-      fixture.detectChanges();
-
-      expect(TestBed.inject(SessionService).isLoggedIn()).toBe(false);
-      expect(localStorage.getItem('sessionToken')).toBeNull();
-      expect(navigate).toHaveBeenCalledWith(['/auth/student']);
-    });
-
-    it('clears local state even when the server call fails', () => {
-      const router = TestBed.inject(Router);
-      vi.spyOn(router, 'navigate').mockResolvedValue(true);
-
-      clickLogout();
-      http
-        .expectOne((req) => req.url.includes('logout'))
-        .flush({ error: 'boom' }, { status: 500, statusText: 'Server Error' });
-      fixture.detectChanges();
-
-      expect(TestBed.inject(SessionService).isLoggedIn()).toBe(false);
-    });
-
-    it('prevents a duplicate logout while one is in flight', () => {
-      logoutButton().click();
-      fixture.detectChanges();
-      logoutButton().click();
-      fixture.detectChanges();
-
-      // expectOne fails if a second logout was opened.
-      http.expectOne((req) => req.url.includes('logout')).flush({ success: true });
-    });
-  });
-
   describe('Arabic', () => {
     beforeEach(async () => setup('ar'));
 
     it('renders the Arabic greeting', () => {
-      expect(fixture.nativeElement.querySelector('h1').textContent).toContain('أهلاً بك');
+      expect(fixture.nativeElement.querySelector('h2').textContent).toContain('أهلاً بك');
     });
 
     it('renders the Arabic next-step copy', () => {
@@ -302,15 +257,11 @@ describe('StudentWelcomeComponent', () => {
       expect(html()).not.toMatch(/style="[^"]*width:\s*\d+px/);
     });
 
-    it('provides a skip link to the main content', () => {
-      const skip = fixture.nativeElement.querySelector('.cyf-skip-link');
-      expect(skip).toBeTruthy();
-      expect(skip.getAttribute('href')).toBe('#cyf-student-main');
-      expect(fixture.nativeElement.querySelector('#cyf-student-main')).toBeTruthy();
-    });
-
-    it('uses a main landmark', () => {
-      expect(fixture.nativeElement.querySelectorAll('main').length).toBe(1);
+    it('renders no page frame of its own ⟨CP4 closeout⟩', () => {
+      // The skip link and the `main` landmark belong to the shared shell now.
+      // Both are asserted in `shell.component.spec.ts`.
+      expect(fixture.nativeElement.querySelector('.cyf-skip-link')).toBeNull();
+      expect(fixture.nativeElement.querySelectorAll('main').length).toBe(0);
     });
   });
 });

@@ -105,23 +105,59 @@ describe('approved Student copy', () => {
 describe('route surface', () => {
   const paths = routes.map((route) => route.path);
 
-  it('exposes only /auth, the Student area, the shell, and a wildcard', () => {
-    expect(paths).toEqual(['auth', 'student', '', '**']);
+  it('exposes only /auth, the join page, the Student area, the shell, and a wildcard', () => {
+    // `join/:token` joined the top level in Checkpoint 4. It is deliberately
+    // outside every guarded branch: it has to open for a Visitor.
+    expect(paths).toEqual(['auth', 'join/:token', 'student', '', '**']);
   });
 
   it('no longer registers the /users management route', () => {
     const shell = routes.find((route) => route.path === '');
     const children = (shell?.children ?? []).map((child) => child.path);
     expect(children).not.toContain('users');
-    // Profile Catalogs was added in the Checkpoint 3A catalog work; it is a
-    // real, working Admin page, not a stub.
-    expect(children).toEqual(['', 'dashboard', 'dashboard/profile-catalogs']);
+    // Every entry here is a real, working Admin page — nothing is stubbed.
+    // Profile Catalogs arrived in Checkpoint 3A; Batches and Students in 4.
+    expect(children).toEqual([
+      '',
+      'dashboard',
+      'dashboard/profile-catalogs',
+      'dashboard/batches',
+      'dashboard/batches/new',
+      'dashboard/batches/:batchId/edit',
+      'dashboard/batches/:batchId',
+      'dashboard/students',
+      'dashboard/students/:studentId',
+    ]);
+  });
+
+  it('declares the literal batch routes before the parameterised one', () => {
+    // Order is load-bearing: `:batchId` would swallow `new`, and creating a
+    // batch would try to open one whose id is the word "new".
+    const shell = routes.find((route) => route.path === '');
+    const children = (shell?.children ?? []).map((child) => child.path ?? '');
+    expect(children.indexOf('dashboard/batches/new')).toBeLessThan(
+      children.indexOf('dashboard/batches/:batchId'),
+    );
+    expect(children.indexOf('dashboard/batches/:batchId/edit')).toBeLessThan(
+      children.indexOf('dashboard/batches/:batchId'),
+    );
   });
 
   it('registers no future-checkpoint route', () => {
-    const declared = JSON.stringify(paths);
-    for (const future of ['join', 'reels', 'batches', 'profile', 'students']) {
-      expect(declared).not.toContain(future);
+    // Batches, invitations, and the Student directory shipped in Checkpoint 4,
+    // so they are no longer on this list. Everything still here belongs to a
+    // checkpoint that has not happened.
+    const declared = JSON.stringify(routes);
+    for (const future of ['reels', 'resources', 'live-slides', 'tasks', 'pinned']) {
+      expect(declared, `${future} belongs to a later checkpoint`).not.toContain(future);
     }
+  });
+
+  it('leaves the join page unguarded', () => {
+    // The page decides what to ask a Visitor, a Student, or an Admin for. A
+    // guard here would bounce a Visitor to sign-in having lost the invitation.
+    const join = routes.find((route) => route.path === 'join/:token');
+    expect(join).toBeTruthy();
+    expect(join?.canActivate).toBeUndefined();
   });
 });

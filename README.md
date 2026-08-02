@@ -175,6 +175,7 @@ Additional environment variables read by the backend (none are secrets):
 | `LOG_LEVEL` | `error`, `warn`, `info`, or `debug` | `info` |
 | `ADMIN_USERNAME` / `ADMIN_PASSWORD` / `ADMIN_EMAIL` | Seeds the initial Admin account. **If `ADMIN_PASSWORD` is unset, seeding skips with a warning — no default password is ever invented.** | none |
 | `GOOGLE_CLIENT_ID` | Google **Web application** Client ID for Student sign-in. Not a secret — the browser holds the same value. **If unset, Student sign-in refuses with `GOOGLE_NOT_CONFIGURED` and Admin login is unaffected.** | none |
+| `FRONTEND_ORIGIN` | The origin invitation links are built against, e.g. `https://app.example.com`. Not a secret. **If unset**, the first usable entry of `CORS_ORIGINS` is used; if that is also unset, the API returns a **relative path** and the browser resolves it against whatever origin served the page. The value is never taken from a request header — a link built from a caller-supplied host would be a phishing primitive. | unset |
 
 #### Student Google sign-in
 

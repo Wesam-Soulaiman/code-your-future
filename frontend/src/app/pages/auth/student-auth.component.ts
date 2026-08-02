@@ -22,7 +22,7 @@ import { ChangeLangService } from '../../services/change-lang.service';
 import { GoogleIdentityService } from '../../services/google-identity.service';
 import { StudentAuthApiService } from '../../services/dataService/student-auth-service';
 import { SessionService } from '../../services/session.service';
-import { STUDENT_HOME } from '../../guards/home-route';
+import { studentLandingCommands } from '../../guards/home-route';
 import { GoogleAuthErrorKey, mapGoogleAuthError } from '../../utils/google-auth-error';
 
 /**
@@ -186,7 +186,9 @@ export class StudentAuthComponent implements AfterViewInit {
           }
           this.sessionService.saveSession(response, response.sessionToken);
           this.redirecting.set(true);
-          this.router.navigate([STUDENT_HOME]);
+          // Straight back to the invitation when there is one, rather than to
+          // the welcome page by way of a guard bounce. ⟨CP4⟩
+          this.router.navigate(studentLandingCommands(this.sessionService));
         },
         error: (error: unknown) => {
           // Only a mapped translation key ever reaches the template.

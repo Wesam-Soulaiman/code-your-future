@@ -1,0 +1,299 @@
+<section class="cyf-invitation">
+  <header class="cyf-invitation-head">
+    <div>
+      <h2 class="cyf-section-title">{{ 'admin.batches.invitation.title' | translate }}</h2>
+      <p class="cyf-body-sm cyf-invitation-lead">
+        {{ 'admin.batches.invitation.lead' | translate }}
+      </p>
+    </div>
+
+    @if (exists()) {
+      <span class="cyf-status-chip cyf-status-{{ tone() }}">
+        {{ 'admin.batches.invitation.state.' + state() | translate }}
+      </span>
+    }
+  </header>
+
+  <div class="cyf-invitation-status" aria-live="polite">
+    @if (errorKey()) {
+      <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+        {{ errorKey()! | translate }}
+      </cyf-alert>
+    } @else if (noticeKey()) {
+      <cyf-alert variant="success" [prefix]="'a11y.noticePrefix' | translate">
+        {{ noticeKey()! | translate }}
+      </cyf-alert>
+    }
+  </div>
+
+  <!-- ── An archived Batch cannot have its link changed ────────────────── -->
+  @if (!canManage()) {
+    <cyf-alert variant="info" [prefix]="'a11y.noticePrefix' | translate">
+      {{ 'admin.batches.invitation.readOnly' | translate }}
+    </cyf-alert>
+  }
+
+  <!-- ── No link yet ──────────────────────────────────────────────────── -->
+  @if (!exists()) {
+    <div class="cyf-invitation-empty">
+      <p class="cyf-body-sm">{{ 'admin.batches.invitation.none' | translate }}</p>
+      @if (canManage()) {
+        <p-button
+          type="button"
+          [disabled]="busy()"
+          [loading]="busy()"
+          (onClick)="issue()"
+          styleClass="cyf-btn"
+        >
+          <i class="fa-solid fa-link" aria-hidden="true"></i>
+          <span>{{ 'admin.batches.invitation.actions.generate' | translate }}</span>
+        </p-button>
+      }
+    </div>
+  } @else {
+    <!-- ── The link that exists, described without revealing it ────────── -->
+    <dl class="cyf-invitation-facts">
+      <div class="cyf-invitation-fact">
+        <dt class="cyf-label">{{ 'admin.batches.invitation.fields.fingerprint' | translate }}</dt>
+        <dd>
+          <!-- Derived from the hash, not the token. It exists so two people can
+               agree they are talking about the same link. -->
+          <code class="cyf-invitation-fingerprint">{{ status()!.fingerprint }}</code>
+        </dd>
+      </div>
+
+      <div class="cyf-invitation-fact">
+        <dt class="cyf-label">{{ 'admin.batches.invitation.fields.version' | translate }}</dt>
+        <dd>{{ status()!.version }}</dd>
+      </div>
+
+      <div class="cyf-invitation-fact">
+        <dt class="cyf-label">{{ 'admin.batches.invitation.fields.expiresAt' | translate }}</dt>
+        <dd>{{ expiresAt() || ('admin.batches.invitation.noExpiry' | translate) }}</dd>
+      </div>
+    </dl>
+
+    <!-- ── The raw link, only while this page has it ───────────────────── -->
+    @if (issuedUrl(); as url) {
+      <div class="cyf-invitation-link">
+        <p class="cyf-label">{{ 'admin.batches.invitation.linkLabel' | translate }}</p>
+
+        <div class="cyf-invitation-link-row">
+          <!-- Read-only rather than plain text, so the whole link can be
+               selected on a phone where a triple-click is not available. -->
+          <input
+            type="text"
+            class="cyf-input cyf-invitation-link-input"
+            dir="ltr"
+            readonly
+            [value]="url"
+            [attr.aria-label]="'admin.batches.invitation.linkLabel' | translate"
+          />
+
+          <button
+            type="button"
+            class="cyf-icon-button"
+            [attr.aria-label]="'actions.copy' | translate"
+            (click)="copyLink()"
+          >
+            <i class="fa-regular fa-copy" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <p class="cyf-field-message" aria-live="polite">
+          @if (copyState() === 'copied') {
+            <span class="cyf-helper">{{ 'admin.batches.invitation.copied' | translate }}</span>
+          } @else if (copyState() === 'failed') {
+            <span class="cyf-error-text">{{ 'admin.batches.invitation.copyFailed' | translate }}</span>
+          }
+        </p>
+
+        <p class="cyf-helper cyf-invitation-warning">
+          <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+          {{ 'admin.batches.invitation.oneCopyWarning' | translate }}
+        </p>
+
+        <div class="cyf-invitation-share">
+          <p-button
+            type="button"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="openQr()"
+            styleClass="cyf-btn"
+          >
+            <i class="fa-solid fa-qrcode" aria-hidden="true"></i>
+            <span>{{ 'admin.batches.invitation.actions.showQr' | translate }}</span>
+          </p-button>
+        </div>
+      </div>
+    } @else {
+      <p class="cyf-helper cyf-invitation-gone">
+        {{ 'admin.batches.invitation.tokenGone' | translate }}
+      </p>
+    }
+
+    <!-- ── Managing the link ───────────────────────────────────────────── -->
+    @if (canManage()) {
+      <div class="cyf-invitation-actions">
+        <p-button
+          type="button"
+          [disabled]="busy()"
+          [loading]="busy()"
+          (onClick)="issue()"
+          styleClass="cyf-btn"
+        >
+          <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+          <span>{{ 'admin.batches.invitation.actions.rotate' | translate }}</span>
+        </p-button>
+
+        <p-button
+          type="button"
+          severity="secondary"
+          [outlined]="true"
+          [disabled]="busy()"
+          (onClick)="openExpiry()"
+          styleClass="cyf-btn"
+        >
+          <i class="fa-regular fa-clock" aria-hidden="true"></i>
+          <span>{{ 'admin.batches.invitation.actions.setExpiry' | translate }}</span>
+        </p-button>
+
+        @if (usable()) {
+          <p-button
+            type="button"
+            severity="secondary"
+            [outlined]="true"
+            [disabled]="busy()"
+            (onClick)="expireNow()"
+            styleClass="cyf-btn"
+          >
+            <span>{{ 'admin.batches.invitation.actions.expireNow' | translate }}</span>
+          </p-button>
+
+          <p-button
+            type="button"
+            severity="danger"
+            [outlined]="true"
+            [disabled]="busy()"
+            (onClick)="revoke()"
+            styleClass="cyf-btn"
+          >
+            <i class="fa-solid fa-ban" aria-hidden="true"></i>
+            <span>{{ 'admin.batches.invitation.actions.revoke' | translate }}</span>
+          </p-button>
+        }
+      </div>
+
+      <p class="cyf-helper cyf-invitation-note">
+        {{ 'admin.batches.invitation.rotateNote' | translate }}
+      </p>
+    }
+  }
+</section>
+
+<!-- ── QR dialog ────────────────────────────────────────────────────────── -->
+<p-dialog
+  [visible]="qrOpen()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(28rem, 92vw)' }"
+  [header]="'admin.batches.invitation.qr.title' | translate"
+  (visibleChange)="$event ? null : closeQr()"
+>
+  <div class="cyf-invitation-qr">
+    <p class="cyf-body-sm">{{ 'admin.batches.invitation.qr.body' | translate }}</p>
+
+    <!-- Always black on white: a QR is read by a camera, not by a person, and a
+         themed one does not scan. The frame around it carries the theme. -->
+    <div class="cyf-invitation-qr-frame">
+      <canvas
+        #qrCanvas
+        class="cyf-invitation-qr-canvas"
+        role="img"
+        [attr.aria-label]="'admin.batches.invitation.qr.alt' | translate"
+      ></canvas>
+    </div>
+
+    <div class="cyf-invitation-qr-actions">
+      <p-button type="button" (onClick)="downloadQr()" styleClass="cyf-btn">
+        <i class="fa-solid fa-download" aria-hidden="true"></i>
+        <span>{{ 'admin.batches.invitation.qr.download' | translate }}</span>
+      </p-button>
+      <p-button
+        type="button"
+        severity="secondary"
+        [outlined]="true"
+        (onClick)="closeQr()"
+        styleClass="cyf-btn"
+      >
+        <span>{{ 'actions.close' | translate }}</span>
+      </p-button>
+    </div>
+  </div>
+</p-dialog>
+
+<!-- ── Expiry dialog ────────────────────────────────────────────────────── -->
+<p-dialog
+  [visible]="expiryOpen()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="!busy()"
+  [style]="{ width: 'min(28rem, 92vw)' }"
+  [header]="'admin.batches.invitation.expiry.title' | translate"
+  (visibleChange)="$event ? null : closeExpiry()"
+>
+  <div class="cyf-invitation-expiry">
+    <p class="cyf-body-sm">{{ 'admin.batches.invitation.expiry.body' | translate }}</p>
+
+    <div class="cyf-field">
+      <label class="cyf-field-label cyf-label" for="invitation-expiry">
+        {{ 'admin.batches.invitation.fields.expiresAt' | translate }}
+      </label>
+      <p-datepicker
+        inputId="invitation-expiry"
+        styleClass="cyf-datepicker-control"
+        appendTo="body"
+        dateFormat="dd/mm/yy"
+        [ngModel]="expiryDraft()"
+        [ngModelOptions]="{ standalone: true }"
+        [showTime]="true"
+        [showIcon]="true"
+        iconDisplay="input"
+        [showClear]="true"
+        [showOnFocus]="false"
+        [minDate]="now"
+        [placeholder]="'admin.batches.invitation.expiry.placeholder' | translate"
+        [ariaLabel]="'admin.batches.invitation.fields.expiresAt' | translate"
+        (onSelect)="updateExpiryDraft($any($event))"
+        (onClear)="clearExpiryDraft()"
+      />
+      <p class="cyf-field-message">
+        <span class="cyf-helper">{{ 'admin.batches.invitation.expiry.hint' | translate }}</span>
+      </p>
+    </div>
+
+    <div class="cyf-invitation-qr-actions">
+      <p-button
+        type="button"
+        [disabled]="busy()"
+        [loading]="busy()"
+        (onClick)="applyExpiry()"
+        styleClass="cyf-btn"
+      >
+        <span>{{ 'actions.save' | translate }}</span>
+      </p-button>
+      <p-button
+        type="button"
+        severity="secondary"
+        [outlined]="true"
+        [disabled]="busy()"
+        (onClick)="closeExpiry()"
+        styleClass="cyf-btn"
+      >
+        <span>{{ 'actions.cancel' | translate }}</span>
+      </p-button>
+    </div>
+  </div>
+</p-dialog>

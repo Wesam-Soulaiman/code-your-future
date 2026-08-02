@@ -459,6 +459,12 @@ button:focus-visible,
   border-width: 0;
 }
 
+/* A directional icon — a back arrow, a chevron — must point the other way in
+   RTL. Logical properties cannot rotate a glyph, so this is stated. ⟨CP4⟩ */
+[dir='rtl'] .cyf-flip-rtl {
+  transform: scaleX(-1);
+}
+
 /* Skip link — visible only once focused. */
 .cyf-skip-link {
   position: absolute;
@@ -872,6 +878,231 @@ button:focus-visible,
   color: var(--cyf-disabled-text);
   cursor: not-allowed;
   text-decoration: none;
+}
+
+/* -----------------------------------------------------------------------------
+   Shared page layout ⟨CP4 closeout⟩
+   -----------------------------------------------------------------------------
+   One place that decides how far a page's content sits from its edges, how far
+   a heading sits from what follows it, and how far a toolbar sits from a table.
+
+   It exists because the alternative was already happening: every page was
+   inventing its own `margin-block-end` on its own intro block, and they had
+   drifted — 4, 5, and 6 steps for the same relationship on three pages that sit
+   next to each other in the sidebar. Navigating between them made the content
+   jump.
+
+   The shell already supplies the outer padding and the scroll container, so
+   nothing here adds page padding. These classes only describe internal rhythm.
+   ----------------------------------------------------------------------------- */
+
+/* The content of one routed page. Sits inside the shell's padded scroll area. */
+.cyf-page-body {
+  display: block;
+  inline-size: 100%;
+}
+
+/* A page whose content reads better bounded — a form, a single record. */
+.cyf-page-body-narrow { max-inline-size: var(--cyf-width-content); }
+
+/* Title, optional lead, optional actions. One definition for every page. */
+.cyf-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cyf-space-4);
+  flex-wrap: wrap;
+  margin-block-end: var(--cyf-space-5);
+}
+
+.cyf-page-head-text {
+  min-inline-size: 0;
+}
+
+.cyf-page-head h1,
+.cyf-page-head h2 {
+  margin: 0;
+}
+
+/* The lead sits close to its title — they are one unit, not two. */
+.cyf-page-head p {
+  margin: var(--cyf-space-2) 0 0;
+}
+
+.cyf-page-head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  flex-wrap: wrap;
+  margin-inline-start: auto;
+}
+
+/* Search, filters, and the actions that belong to a list. */
+.cyf-toolbar {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cyf-space-3);
+  flex-wrap: wrap;
+  margin-block-end: var(--cyf-space-4);
+}
+
+.cyf-toolbar-grow {
+  flex: 1 1 16rem;
+  min-inline-size: 12rem;
+}
+
+.cyf-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  flex-wrap: wrap;
+  margin-inline-start: auto;
+}
+
+/* A filter row that reflows from one column to many. */
+.cyf-filter-grid {
+  display: grid;
+  gap: var(--cyf-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  margin-block-end: var(--cyf-space-5);
+  padding: var(--cyf-space-4);
+  background-color: var(--cyf-surface-subtle);
+  border-radius: var(--cyf-radius-md);
+}
+
+/* `.cyf-field + .cyf-field` cannot reach across a grid, so the gap does it. */
+.cyf-filter-grid .cyf-field + .cyf-field { margin-block-start: 0; }
+
+/* A status region that reserves nothing when empty and spaces itself when not,
+   so a message appearing never pushes the page down. */
+.cyf-page-status:not(:empty) { margin-block-end: var(--cyf-space-4); }
+
+/* The primary way into a record from a table row. A real button, so keyboard
+   activation and the focus ring come for free. */
+.cyf-table-link {
+  padding: 0;
+  font: inherit;
+  font-weight: var(--cyf-weight-medium);
+  color: var(--cyf-primary);
+  background: none;
+  border: 0;
+  text-align: start;
+  cursor: pointer;
+}
+.cyf-table-link:hover { text-decoration: underline; }
+
+/* Figures that should line up down a column. */
+.cyf-numeric { font-variant-numeric: tabular-nums; }
+
+/* Consecutive sections of one page. */
+.cyf-page-section + .cyf-page-section {
+  margin-block-start: var(--cyf-space-6);
+}
+
+/* A loading or "no matches" line inside a card. */
+.cyf-inline-state {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-3);
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  /* On a narrow screen the actions own the row rather than crowding the title. */
+  .cyf-page-head-actions,
+  .cyf-toolbar-actions {
+    inline-size: 100%;
+    margin-inline-start: 0;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   Status chip ⟨CP4⟩
+   -----------------------------------------------------------------------------
+   A small labelled pill for a Batch status or an invitation state. It lives here
+   rather than in a component stylesheet because five pages across both
+   workspaces render the same four Batch statuses, and a status that looked
+   different depending on which page you were on would read as a different thing.
+
+   **Never colour alone.** The chip always contains the translated status word;
+   the tone is reinforcement, not the message. That is what keeps it legible in
+   greyscale, at a glance, and to a screen reader — which sees only the text.
+   ----------------------------------------------------------------------------- */
+.cyf-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  padding: 0.125rem var(--cyf-space-3);
+  font-size: var(--cyf-text-xs);
+  font-weight: var(--cyf-weight-medium);
+  line-height: var(--cyf-leading-snug);
+  border: 1px solid transparent;
+  border-radius: var(--cyf-radius-full);
+  white-space: nowrap;
+}
+
+/* A leading dot, purely decorative — the word beside it carries the meaning. */
+.cyf-status-chip::before {
+  content: '';
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: var(--cyf-radius-full);
+  background-color: currentColor;
+  flex: 0 0 auto;
+}
+
+.cyf-status-neutral {
+  color: var(--cyf-text-secondary);
+  background-color: var(--cyf-surface-subtle);
+  border-color: var(--cyf-border);
+}
+.cyf-status-success {
+  color: var(--cyf-success);
+  background-color: var(--cyf-success-subtle);
+  border-color: var(--cyf-success-border);
+}
+.cyf-status-info {
+  color: var(--cyf-info);
+  background-color: var(--cyf-info-subtle);
+  border-color: var(--cyf-info-border);
+}
+.cyf-status-warning {
+  color: var(--cyf-warning);
+  background-color: var(--cyf-warning-subtle);
+  border-color: var(--cyf-warning-border);
+}
+.cyf-status-error {
+  color: var(--cyf-error);
+  background-color: var(--cyf-error-subtle);
+  border-color: var(--cyf-error-border);
+}
+
+/* -----------------------------------------------------------------------------
+   Empty state ⟨CP4⟩ — what a page says when there is genuinely nothing to show.
+   ----------------------------------------------------------------------------- */
+.cyf-empty {
+  display: grid;
+  place-items: center;
+  gap: var(--cyf-space-3);
+  padding: var(--cyf-space-10) var(--cyf-space-6);
+  text-align: center;
+}
+.cyf-empty-icon {
+  display: grid;
+  place-items: center;
+  inline-size: 3rem;
+  block-size: 3rem;
+  border-radius: var(--cyf-radius-full);
+  background-color: var(--cyf-surface-subtle);
+  color: var(--cyf-text-muted);
+  font-size: var(--cyf-text-xl);
+}
+.cyf-empty-title {
+  margin: 0;
+}
+.cyf-empty-text {
+  margin: 0;
+  max-inline-size: 34rem;
 }
 
 /* -----------------------------------------------------------------------------

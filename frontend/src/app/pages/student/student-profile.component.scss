@@ -13,17 +13,6 @@
   min-block-size: 100dvh;
 }
 
-.cyf-profile-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cyf-space-4);
-  flex-wrap: wrap;
-  padding: var(--cyf-space-4) var(--cyf-space-6);
-  border-block-end: 1px solid var(--cyf-border);
-  background: var(--cyf-surface);
-}
-
 .cyf-profile-main {
   flex: 1;
   padding-block: var(--cyf-space-8);
@@ -251,10 +240,6 @@
 }
 
 @media (max-width: 480px) {
-  .cyf-profile-header {
-    padding-inline: var(--cyf-space-4);
-  }
-
   .cyf-profile-buttons {
     inline-size: 100%;
 

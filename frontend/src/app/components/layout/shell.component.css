@@ -89,3 +89,24 @@
 ::ng-deep .nav-collapsed-popover {
   margin-inline-start: 0.5rem;
 }
+
+/*
+  The routed page's padding ⟨CP4 closeout⟩.
+
+  It lives here rather than on each page for the reason every shared thing does:
+  it was being redeclared per page and had drifted, so navigating between two
+  siblings shifted the content sideways. Logical padding, so RTL mirrors it.
+
+  The template used `p-4 pt-0`, which left the first element of every page flush
+  against the divider above it. The top padding is restored and the heading block
+  no longer has to compensate for its absence.
+*/
+.shell-scroll {
+  padding: 1rem;
+}
+
+@media (min-width: 768px) {
+  .shell-scroll {
+    padding: 1.25rem 1.5rem;
+  }
+}

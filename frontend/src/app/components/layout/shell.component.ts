@@ -27,6 +27,7 @@ import { SessionService } from '../../services/session.service';
 import { DividerModule } from 'primeng/divider';
 import { SearchInputComponent } from '../shared/data-table/search-input.component';
 import { AppRole } from '../../config/user-roles';
+import { ADMIN_SIGN_IN, STUDENT_SIGN_IN } from '../../guards/home-route';
 import { BrandMarkComponent } from '../shared/brand-mark.component';
 
 interface NavItem {
@@ -59,6 +60,7 @@ interface NavItem {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(window:resize)': 'onResize()',
+    '(document:keydown.escape)': 'onEscape()',
   },
 })
 export class ShellComponent implements OnInit, OnDestroy {
@@ -211,15 +213,50 @@ export class ShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  // The template's /users management screen was retired in Checkpoint 1.
-  // Batch navigation (Overview, Students, Resources, Live Slides, Tasks, Pinned
-  // Students) arrives with the Batch checkpoints; nothing is stubbed here.
+  /**
+   * Every navigation item in the product, for both workspaces.
+   *
+   * ── One list, one shell ⟨CP4 closeout⟩ ────────────────────────────────────
+   * The Student area used to carry its own header with its own navigation. Two
+   * navigation implementations meant two sets of active-state rules, two
+   * responsive behaviours, and two places to forget something. There is now one
+   * shell, and `roles` decides what each person sees inside it.
+   *
+   * **Every item carries an explicit `roles`.** That is what makes the filter
+   * below deny by default: a session holding an unrecognised or legacy role
+   * matches nothing and gets no navigation at all, rather than inheriting
+   * whatever happened to be left unrestricted.
+   *
+   * The template's /users management screen was retired in Checkpoint 1.
+   * Resources, Live Slides, Tasks, Pinned Students, and Talent Reels arrive
+   * with later checkpoints; nothing is stubbed here. Every item below leads to
+   * a page that works today.
+   */
   private allNavItems: NavItem[] = [
+    // ── Admin ──────────────────────────────────────────────────────────────
     {
       id: 'dashboard',
       labelKey: 'nav.dashboard',
       icon: 'fa-solid fa-gauge',
       route: '/dashboard',
+      roles: [AppRole.ADMIN],
+    },
+    {
+      // ⟨CP4⟩
+      id: 'batches',
+      labelKey: 'nav.batches',
+      icon: 'fa-solid fa-layer-group',
+      route: '/dashboard/batches',
+      roles: [AppRole.ADMIN],
+    },
+    {
+      // ⟨CP4⟩ A read-only directory, not user management: no create, edit,
+      // delete, role change, or password reset exists behind it.
+      id: 'students',
+      labelKey: 'nav.students',
+      icon: 'fa-solid fa-user-group',
+      route: '/dashboard/students',
+      roles: [AppRole.ADMIN],
     },
     {
       // Added because the feature now exists ⟨CP3A catalog⟩. Nothing is stubbed
@@ -230,14 +267,50 @@ export class ShellComponent implements OnInit, OnDestroy {
       route: '/dashboard/profile-catalogs',
       roles: [AppRole.ADMIN],
     },
+
+    // ── Student ────────────────────────────────────────────────────────────
+    {
+      id: 'student-home',
+      labelKey: 'nav.home',
+      icon: 'fa-solid fa-house',
+      route: '/student/welcome',
+      roles: [AppRole.STUDENT],
+    },
+    {
+      // ⟨CP4⟩
+      id: 'student-batches',
+      labelKey: 'nav.myBatches',
+      icon: 'fa-solid fa-layer-group',
+      route: '/student/batches',
+      roles: [AppRole.STUDENT],
+    },
+    {
+      id: 'student-profile',
+      labelKey: 'nav.editProfile',
+      icon: 'fa-solid fa-user-pen',
+      route: '/student/profile',
+      roles: [AppRole.STUDENT],
+    },
   ];
 
-  // Role-set aware: an item without `roles` is visible to any authenticated
-  // user; otherwise the user must hold at least one listed role.
+  /**
+   * The items this session may see.
+   *
+   * Deny by default: an item with no `roles` would be visible to anybody, so
+   * none has none. A session with an unrecognised role therefore gets an empty
+   * sidebar rather than a partial one.
+   *
+   * **This is not authorization.** Hiding a link stops nobody from typing a
+   * URL. Every route is independently guarded, and every request is
+   * re-authorised server-side against live `_Role` membership.
+   */
   navItems = computed(() => {
     const held = this.sessionService.roles();
     return this.allNavItems.filter(
-      (item) => !item.roles || item.roles.some((role) => held.includes(role as AppRole)),
+      (item) =>
+        Array.isArray(item.roles) &&
+        item.roles.length > 0 &&
+        item.roles.some((role) => held.includes(role as AppRole)),
     );
   });
 
@@ -267,13 +340,32 @@ export class ShellComponent implements OnInit, OnDestroy {
       clearTimeout(this.popoverCloseTimer);
       this.popoverCloseTimer = null;
     }
+    // Never leave the page unscrollable behind a drawer that no longer exists.
+    this.lockBodyScroll(false);
   }
 
   onResize(): void {
     this.isMobile.set(window.innerWidth < 768);
     if (!this.isMobile()) {
       this.mobileMenuOpen.set(false);
+      this.lockBodyScroll(false);
     }
+  }
+
+  /** Escape closes the mobile drawer, as it does every other overlay. */
+  onEscape(): void {
+    if (this.mobileMenuOpen()) this.closeMobileMenu();
+  }
+
+  /**
+   * Stop the page behind the drawer scrolling under it.
+   *
+   * Always paired with closing, including on resize and on destroy — a page
+   * left with `overflow: hidden` on the body is permanently unscrollable, and
+   * the drawer that caused it is no longer on screen to explain why.
+   */
+  private lockBodyScroll(locked: boolean): void {
+    document.body.style.overflow = locked ? 'hidden' : '';
   }
 
   toggleTheme(): void {
@@ -290,14 +382,23 @@ export class ShellComponent implements OnInit, OnDestroy {
   toggleSidebar(): void {
     if (this.isMobile()) {
       this.mobileMenuOpen.update((v) => !v);
+      this.lockBodyScroll(this.mobileMenuOpen());
     } else {
       this.sidebarCollapsed.update((v) => !v);
     }
   }
 
+  /**
+   * Close the drawer.
+   *
+   * Called by the overlay, by Escape, and by **every navigation item** — a
+   * drawer left open over the page it just navigated to hides the result of the
+   * tap that closed it.
+   */
   closeMobileMenu(): void {
     if (this.isMobile()) {
       this.mobileMenuOpen.set(false);
+      this.lockBodyScroll(false);
     }
   }
 
@@ -317,9 +418,20 @@ export class ShellComponent implements OnInit, OnDestroy {
     return this.expandedMenus().has(id);
   }
 
+  /**
+   * Sign out, landing on the sign-in page that matches the session ⟨CP4 closeout⟩.
+   *
+   * A Student sent to `/auth` would be asked for a username and password they
+   * will never have. The role is read **before** the session is cleared, since
+   * clearing it empties the role list.
+   */
   logout(): void {
+    const target = this.sessionService.roles().includes(AppRole.STUDENT)
+      ? STUDENT_SIGN_IN
+      : ADMIN_SIGN_IN;
+
     this.authApi.logout().subscribe(() => {
-      this.router.navigate(['/auth']);
+      this.router.navigate([target]);
     });
   }
 

@@ -1,0 +1,183 @@
+/* One Batch, Admin view — scoped styles.
+   Composition only. Every colour, space, radius and size comes from the
+   Checkpoint 2A token layer, and all box properties are logical so one
+   stylesheet serves LTR and RTL. */
+
+:host {
+  display: block;
+}
+
+.cyf-batch-detail-back {
+  margin-block-end: var(--cyf-space-4);
+}
+
+.cyf-batch-detail-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  margin-inline-start: 0;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.cyf-batch-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cyf-space-4);
+  flex-wrap: wrap;
+  margin-block-end: var(--cyf-space-5);
+}
+
+.cyf-batch-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-3);
+  flex-wrap: wrap;
+
+  h1 {
+    margin: 0;
+  }
+}
+
+.cyf-batch-detail-head-actions {
+  display: flex;
+  gap: var(--cyf-space-2);
+  margin-inline-start: auto;
+}
+
+.cyf-batch-detail-status:not(:empty) {
+  margin-block-end: var(--cyf-space-4);
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────────────
+   A scrolling row on a narrow screen rather than a wrapping one: three tabs
+   that reflow onto two lines stop reading as a single control. */
+.cyf-batch-detail-tabs {
+  display: flex;
+  gap: var(--cyf-space-1);
+  margin-block-end: var(--cyf-space-5);
+  border-block-end: 1px solid var(--cyf-border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cyf-batch-detail-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.cyf-batch-detail-tab {
+  padding: var(--cyf-space-3) var(--cyf-space-4);
+  min-block-size: var(--cyf-touch-target);
+  font-size: var(--cyf-text-sm);
+  font-weight: var(--cyf-weight-medium);
+  color: var(--cyf-text-secondary);
+  background: none;
+  border: 0;
+  /* The indicator sits on the same edge as the container's border, so an
+     inactive tab reserves the space and nothing shifts when it activates. */
+  border-block-end: 2px solid transparent;
+  margin-block-end: -1px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--cyf-transition) var(--cyf-ease);
+}
+
+.cyf-batch-detail-tab:hover {
+  color: var(--cyf-text);
+}
+
+/* Never colour alone: the active tab is also bold and carries aria-selected. */
+.cyf-batch-detail-tab.cyf-is-active {
+  color: var(--cyf-primary);
+  border-block-end-color: var(--cyf-primary);
+  font-weight: var(--cyf-weight-semibold);
+}
+
+/* ── Panels ──────────────────────────────────────────────────────────────── */
+.cyf-batch-detail-state {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-3);
+  padding-block: var(--cyf-space-4);
+  margin: 0;
+}
+
+.cyf-batch-detail-description {
+  margin: 0 0 var(--cyf-space-5);
+  white-space: pre-line;
+}
+
+.cyf-batch-detail-facts {
+  display: grid;
+  gap: var(--cyf-space-5);
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  margin: 0;
+  padding-block: var(--cyf-space-4);
+  border-block: 1px solid var(--cyf-border);
+}
+
+.cyf-batch-detail-fact {
+  dt {
+    margin-block-end: var(--cyf-space-1);
+  }
+
+  dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.cyf-batch-detail-lifecycle {
+  margin-block-start: var(--cyf-space-6);
+
+  h2 {
+    margin: 0 0 var(--cyf-space-1);
+  }
+
+  p {
+    margin: 0 0 var(--cyf-space-4);
+    color: var(--cyf-text-secondary);
+  }
+}
+
+.cyf-batch-detail-lifecycle-actions {
+  display: flex;
+  gap: var(--cyf-space-2);
+  flex-wrap: wrap;
+}
+
+/* ── Roster ──────────────────────────────────────────────────────────────
+   The toolbar, the table surface, and the paginator are all shared now:
+   `.cyf-toolbar` from the layout layer and `cyf-record-table` for the table and
+   the template's paginator. Nothing roster-specific remains. */
+
+/* ── Archive dialog ──────────────────────────────────────────────────────── */
+.cyf-batch-detail-archive-list {
+  margin: var(--cyf-space-3) 0;
+  padding-inline-start: var(--cyf-space-5);
+  color: var(--cyf-text-secondary);
+  font-size: var(--cyf-text-sm);
+
+  li + li {
+    margin-block-start: var(--cyf-space-1);
+  }
+}
+
+.cyf-batch-detail-dialog-actions {
+  display: flex;
+  gap: var(--cyf-space-3);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  margin-block-start: var(--cyf-space-5);
+}
+
+@media (max-width: 640px) {
+  .cyf-batch-detail-head-actions {
+    inline-size: 100%;
+    margin-inline-start: 0;
+  }
+}

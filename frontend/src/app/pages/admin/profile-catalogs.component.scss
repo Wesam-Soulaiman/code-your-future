@@ -115,64 +115,22 @@
    The wrapper scrolls, never the page: a wide table on a narrow screen is
    the one case where horizontal scrolling is correct, and it belongs to the
    table rather than to the document. */
-.cyf-catalogs-table-wrap {
-  overflow-x: auto;
-}
-
-.cyf-catalogs-table {
-  inline-size: 100%;
-  border-collapse: collapse;
-  font-size: var(--cyf-text-sm);
-
-  th,
-  td {
-    padding: var(--cyf-space-3);
-    text-align: start;
-    border-block-end: 1px solid var(--cyf-border);
-    vertical-align: middle;
-  }
-
-  th {
-    font-weight: var(--cyf-weight-medium);
-    color: var(--cyf-text-secondary);
-    white-space: nowrap;
-  }
-
-  tbody tr:last-child td {
-    border-block-end: 0;
-  }
-
-  /* A retired row is dimmed *and* labelled, so the state survives greyscale. */
-  tbody tr.cyf-is-inactive td {
-    color: var(--cyf-text-muted);
-  }
-}
-
-.cyf-catalogs-order {
-  inline-size: 4rem;
-  font-variant-numeric: tabular-nums;
-}
+/* The table surface, header, rows, hover, and empty state all come from
+   `cyf-record-table` now — the template's own visual language. Only the two
+   cell treatments unique to a catalog are declared here. */
 
 .cyf-catalogs-code {
-  font-size: var(--cyf-text-2xs);
-  padding: 0 var(--cyf-space-1);
+  font-family: var(--cyf-font-mono);
+  font-size: var(--cyf-text-xs);
+  padding: 0.0625rem var(--cyf-space-2);
+  background-color: var(--cyf-surface-subtle);
   border-radius: var(--cyf-radius-sm);
-  background: var(--cyf-surface-subtle);
-  color: var(--cyf-text-secondary);
 }
 
-.cyf-catalogs-badge {
-  display: inline-block;
-  padding: 0 var(--cyf-space-2);
-  font-size: var(--cyf-text-2xs);
-  border-radius: var(--cyf-radius-full);
-  color: var(--cyf-success);
-  background: var(--cyf-success-subtle);
-
-  &.cyf-is-off {
-    color: var(--cyf-warning);
-    background: var(--cyf-warning-subtle);
-  }
+/* A retired item stays legible but visibly secondary. Never colour alone: the
+   status column beside it says the word. */
+.cyf-is-inactive {
+  color: var(--cyf-text-muted);
 }
 
 .cyf-catalogs-actions {
@@ -181,7 +139,6 @@
   justify-content: flex-end;
 }
 
-/* ── Dialog form ─────────────────────────────────────────────────────── */
 .cyf-catalogs-form-row {
   display: grid;
   grid-template-columns: 1fr;

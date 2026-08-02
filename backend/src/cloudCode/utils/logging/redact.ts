@@ -371,6 +371,12 @@ export function redactMessage(message: string): string {
       // A whole image inline. No prefix is kept — the first bytes of a JPEG are
       // still the first bytes of a JPEG.
       .replace(/data:[a-z0-9.+-]+\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]*/gi, REDACTED)
+      // A Batch join link ⟨CP4⟩. The token sits in a path segment rather than a
+      // key/value pair, so the rule above cannot see it — and a link pasted
+      // into a message is a working invitation for anybody who reads the log.
+      // The `/join/` prefix is kept so a line still says what kind of URL was
+      // masked; only the token itself goes.
+      .replace(/(#?\/join\/)[A-Za-z0-9_-]{16,}/g, `$1${REDACTED}`)
       .replace(/mongodb(\+srv)?:\/\/\S+/gi, 'mongodb://[REDACTED]')
       .replace(/\br:[A-Za-z0-9]{16,}\b/g, REDACTED)
   );

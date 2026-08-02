@@ -154,10 +154,23 @@ describe('auth route structure', () => {
   });
 
   it('registers no future product route', () => {
-    const declared = JSON.stringify(routes.map((r) => r.path));
-    for (const future of ['join', 'reels', 'batches', 'profile', 'students', 'resources']) {
-      expect(declared).not.toContain(future);
+    // Batches, the Student directory, and `join/:token` shipped in Checkpoint 4
+    // and are no longer future. Everything left here belongs to a checkpoint
+    // that has not happened, and a route for one would be a stub.
+    const declared = JSON.stringify(routes);
+    for (const future of ['reels', 'resources', 'live-slides', 'tasks', 'pinned', 'final-task']) {
+      expect(declared, `${future} belongs to a later checkpoint`).not.toContain(future);
     }
+  });
+
+  it('keeps the join page reachable without a session', () => {
+    // The one page a Visitor may open that shows real product content. It is
+    // top-level rather than under a guarded branch precisely so that a guard
+    // cannot be added to it by accident.
+    const join = routes.find((route) => route.path === 'join/:token');
+    expect(join).toBeTruthy();
+    expect(join?.canActivate).toBeUndefined();
+    expect(join?.canMatch).toBeUndefined();
   });
 
   it('declares no Complete Profile route yet', () => {

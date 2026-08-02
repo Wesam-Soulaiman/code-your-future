@@ -1,0 +1,130 @@
+/* One Student, read-only — scoped styles.
+   Composition only. Every colour, space, radius and size comes from the
+   Checkpoint 2A token layer, and all box properties are logical so one
+   stylesheet serves LTR and RTL. */
+
+:host {
+  display: block;
+}
+
+.cyf-student-detail {
+  max-inline-size: var(--cyf-width-content);
+}
+
+.cyf-student-detail-back {
+  margin-block-end: var(--cyf-space-4);
+}
+
+.cyf-student-detail-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-2);
+  margin-inline-start: 0;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.cyf-student-detail-state {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-3);
+}
+
+.cyf-student-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cyf-space-4);
+  flex-wrap: wrap;
+  margin-block-end: var(--cyf-space-6);
+}
+
+.cyf-student-detail-title {
+  margin: 0 0 var(--cyf-space-1);
+}
+
+/* An address is not language; it stays LTR and is isolated so a name beside it
+   in Arabic cannot reorder its parts. */
+.cyf-student-detail-email {
+  margin: 0;
+  color: var(--cyf-text-secondary);
+  unicode-bidi: isolate;
+}
+
+.cyf-student-detail-section + .cyf-student-detail-section {
+  margin-block-start: var(--cyf-space-6);
+  padding-block-start: var(--cyf-space-5);
+  border-block-start: 1px solid var(--cyf-border);
+}
+
+.cyf-student-detail-section h2 {
+  margin: 0 0 var(--cyf-space-4);
+}
+
+.cyf-student-detail-facts {
+  display: grid;
+  gap: var(--cyf-space-5);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  margin: 0;
+}
+
+.cyf-student-detail-fact {
+  dt {
+    margin-block-end: var(--cyf-space-1);
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.cyf-student-detail-note {
+  margin: var(--cyf-space-4) 0 0;
+}
+
+.cyf-student-detail-none {
+  margin: 0;
+  color: var(--cyf-text-secondary);
+}
+
+.cyf-student-detail-batches {
+  display: grid;
+  gap: var(--cyf-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cyf-student-detail-batch-button {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-3);
+  flex-wrap: wrap;
+  inline-size: 100%;
+  padding: var(--cyf-space-3) var(--cyf-space-4);
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  background-color: var(--cyf-surface-subtle);
+  border: 1px solid var(--cyf-border);
+  border-radius: var(--cyf-radius-md);
+  cursor: pointer;
+  transition: border-color var(--cyf-transition) var(--cyf-ease);
+}
+
+.cyf-student-detail-batch-button:hover {
+  border-color: var(--cyf-primary-border);
+}
+
+.cyf-student-detail-batch-name {
+  font-weight: var(--cyf-weight-medium);
+  color: var(--cyf-primary);
+}
+
+.cyf-student-detail-batch-date {
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+}

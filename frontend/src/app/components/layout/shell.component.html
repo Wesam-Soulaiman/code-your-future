@@ -24,6 +24,7 @@
 
   <!-- Sidebar - Fixed Start -->
   <aside
+    id="cyf-sidebar"
     class="shell-sidebar fixed top-0 bottom-0 inset-s-0 flex flex-col transition-all duration-300 z-50"
     [style.width]="sidebarWidth()"
     [class.-translate-x-full]="
@@ -240,11 +241,16 @@
     <!-- Start: Mobile menu button -->
     <div class="flex items-center gap-3">
       @if (isMobile()) {
+        <!-- An icon-only trigger needs a name for anything that cannot see it,
+             and a state for anything that can announce one. -->
         <p-button
           icon="fa-solid fa-bars"
           [rounded]="true"
           [text]="true"
           severity="secondary"
+          [ariaLabel]="'a11y.openMenu' | translate"
+          [attr.aria-expanded]="mobileMenuOpen()"
+          [attr.aria-controls]="'cyf-sidebar'"
           (click)="toggleSidebar()"
         />
       }
@@ -365,7 +371,7 @@
     }
 
     <!-- Scrollable Content -->
-    <div class="flex-1 overflow-auto p-4 pt-0">
+    <div class="shell-scroll flex-1 overflow-auto">
       <router-outlet />
     </div>
   </main>

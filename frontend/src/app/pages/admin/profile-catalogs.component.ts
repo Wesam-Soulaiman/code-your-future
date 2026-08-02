@@ -16,6 +16,9 @@ import { SelectModule } from 'primeng/select';
 import { finalize } from 'rxjs';
 
 import { AlertComponent } from '../../components/shared/alert.component';
+import { ColTemplateDirective } from '../../components/shared/data-table/col-template.directive';
+import { TableColumn } from '../../components/shared/data-table/data-table.component';
+import { RecordTableComponent } from '../../components/shared/record-table/record-table.component';
 import {
   ProfileCatalogItem,
   ProfileCatalogItemInput,
@@ -87,6 +90,8 @@ const EMPTY_FORM: CatalogForm = {
     FormsModule,
     ButtonModule,
     DialogModule,
+    RecordTableComponent,
+    ColTemplateDirective,
     SelectModule,
     AlertComponent,
   ],
@@ -155,6 +160,36 @@ export class ProfileCatalogsComponent {
         item.nameAr.toLowerCase().includes(term) ||
         item.code.toLowerCase().includes(term),
     );
+  });
+
+  /**
+   * The columns, in the template table's own shape.
+   *
+   * Computed rather than fixed because the institution tab carries one column
+   * the other three do not.
+   */
+  protected columns = computed<TableColumn[]>(() => {
+    const columns: TableColumn[] = [
+      { field: 'sortOrder', header: 'admin.catalogs.columns.order', template: 'order' },
+      { field: 'nameEn', header: 'admin.catalogs.columns.nameEn', template: 'nameEn' },
+      { field: 'nameAr', header: 'admin.catalogs.columns.nameAr', template: 'nameAr' },
+      { field: 'code', header: 'admin.catalogs.columns.code', template: 'code' },
+    ];
+
+    if (this.isInstitutionTab()) {
+      columns.push({
+        field: 'institutionKind',
+        header: 'admin.catalogs.columns.kind',
+        template: 'kind',
+      });
+    }
+
+    columns.push(
+      { field: 'active', header: 'admin.catalogs.columns.status', template: 'status' },
+      { field: 'actions', header: 'admin.catalogs.columns.actions', template: 'actions' },
+    );
+
+    return columns;
   });
 
   protected isEmpty = computed(() => !this.loading() && this.items().length === 0);

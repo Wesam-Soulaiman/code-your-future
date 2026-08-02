@@ -1,4 +1,6 @@
 /* Student welcome — scoped styles.
+   The page header now lives in `cyf-student-header`, which carries its own
+   styles; only what is unique to this page remains here. ⟨CP4⟩
    Composition only: every colour, space, radius and size comes from the
    Checkpoint 2A token layer, and all box properties are logical so one
    stylesheet serves LTR and RTL. */
@@ -7,38 +9,11 @@
   display: block;
 }
 
-.cyf-student-page {
-  display: flex;
-  flex-direction: column;
-  min-block-size: 100dvh;
-}
-
-.cyf-student-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cyf-space-4);
-  flex-wrap: wrap;
-  padding: var(--cyf-space-4) var(--cyf-space-6);
-  border-block-end: 1px solid var(--cyf-border);
-  background: var(--cyf-surface);
-}
-
-.cyf-student-header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--cyf-space-2);
-}
-
-.cyf-student-main {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  padding-block: var(--cyf-space-8);
-}
-
+/* Bounded rather than full width: a greeting and one action read badly
+   stretched across a 1440px workspace. */
 .cyf-student-card {
   inline-size: 100%;
+  max-inline-size: var(--cyf-width-content);
   text-align: start;
 }
 
@@ -54,7 +29,7 @@
   font-size: var(--cyf-text-xl);
 }
 
-.cyf-student-card h1 {
+.cyf-student-greeting {
   margin: 0 0 var(--cyf-space-3);
 }
 
@@ -77,10 +52,4 @@
 .cyf-student-invitation {
   margin: var(--cyf-space-6) 0 0;
   color: var(--cyf-text-secondary);
-}
-
-@media (max-width: 480px) {
-  .cyf-student-header {
-    padding-inline: var(--cyf-space-4);
-  }
 }

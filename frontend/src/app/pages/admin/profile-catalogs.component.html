@@ -24,8 +24,8 @@
   </div>
 
   <!-- ── Toolbar ──────────────────────────────────────────────────────── -->
-  <div class="cyf-catalogs-toolbar">
-    <div class="cyf-field cyf-catalogs-search">
+  <div class="cyf-toolbar">
+    <div class="cyf-field cyf-toolbar-grow">
       <label class="cyf-sr-only" for="catalog-search">{{ 'actions.search' | translate }}</label>
       <input
         id="catalog-search"
@@ -38,7 +38,7 @@
       />
     </div>
 
-    <div class="cyf-catalogs-toolbar-actions">
+    <div class="cyf-toolbar-actions">
       <p-button
         type="button"
         severity="secondary"
@@ -64,7 +64,7 @@
   </div>
 
   <!-- ── Status ───────────────────────────────────────────────────────── -->
-  <div class="cyf-catalogs-status" aria-live="polite">
+  <div class="cyf-page-status" aria-live="polite">
     @if (errorKey()) {
       <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
         {{ errorKey()! | translate }}
@@ -95,103 +95,101 @@
         <span>{{ 'admin.catalogs.actions.add' | translate }}</span>
       </p-button>
     </div>
-  } @else if (noMatches()) {
-    <div class="cyf-card cyf-card-padded cyf-catalogs-state">
-      <span>{{ 'admin.catalogs.noMatch' | translate }}</span>
-    </div>
   } @else {
-    <div class="cyf-card cyf-catalogs-table-wrap">
-      <table class="cyf-catalogs-table">
-        <caption class="cyf-sr-only">{{ 'admin.catalogs.title' | translate }}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{{ 'admin.catalogs.columns.order' | translate }}</th>
-            <th scope="col">{{ 'admin.catalogs.columns.nameEn' | translate }}</th>
-            <th scope="col">{{ 'admin.catalogs.columns.nameAr' | translate }}</th>
-            <th scope="col">{{ 'admin.catalogs.columns.code' | translate }}</th>
-            @if (isInstitutionTab()) {
-              <th scope="col">{{ 'admin.catalogs.columns.kind' | translate }}</th>
-            }
-            <th scope="col">{{ 'admin.catalogs.columns.status' | translate }}</th>
-            <th scope="col">
-              <span class="cyf-sr-only">{{ 'admin.catalogs.columns.actions' | translate }}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (item of visibleItems(); track item.id) {
-            <tr [class.cyf-is-inactive]="!item.active">
-              <td class="cyf-catalogs-order">{{ item.sortOrder }}</td>
-              <td>{{ item.nameEn }}</td>
-              <td dir="rtl" lang="ar">{{ item.nameAr }}</td>
-              <td><code class="cyf-catalogs-code">{{ item.code }}</code></td>
-              @if (isInstitutionTab()) {
-                <td>
-                  @if (item.institutionKind) {
-                    {{ 'admin.catalogs.kind.' + item.institutionKind.toLowerCase() | translate }}
-                  }
-                  @if (item.isOther) {
-                    <span class="cyf-select-tag">{{ 'admin.catalogs.otherFlag' | translate }}</span>
-                  }
-                </td>
-              }
-              <td>
-                <!-- Never colour alone: the state is a word. -->
-                <span class="cyf-catalogs-badge" [class.cyf-is-off]="!item.active">
-                  {{
-                    (item.active ? 'admin.catalogs.status.active' : 'admin.catalogs.status.inactive')
-                      | translate
-                  }}
-                </span>
-              </td>
-              <td class="cyf-catalogs-actions">
-                <button
-                  type="button"
-                  class="cyf-icon-button"
-                  [disabled]="busy()"
-                  [attr.aria-label]="
-                    ('actions.edit' | translate) + ' — ' + itemName(item)
-                  "
-                  (click)="openEdit(item)"
-                >
-                  <i class="fa-solid fa-pen" aria-hidden="true"></i>
-                </button>
+    <!-- The template's table. This list is not paged — the category is loaded
+         whole and filtered as you type, which is the behaviour it has always
+         had — so no paginator is rendered. Showing one would be inventing a
+         pagination that does not exist. -->
+    <cyf-record-table
+      [data]="visibleItems()"
+      [columns]="columns()"
+      [loading]="loading()"
+      emptyMessage="admin.catalogs.noMatch"
+      emptyIcon="fa-solid fa-list-ul"
+    >
+      <ng-template appColTemplate="order" let-item>
+        <span class="cyf-numeric">{{ item.sortOrder }}</span>
+      </ng-template>
 
-                <button
-                  type="button"
-                  class="cyf-icon-button"
-                  [disabled]="busy()"
-                  [attr.aria-label]="
-                    ((item.active
-                      ? 'admin.catalogs.actions.deactivate'
-                      : 'admin.catalogs.actions.activate'
-                    ) | translate) + ' — ' + itemName(item)
-                  "
-                  (click)="toggleActive(item)"
-                >
-                  <i
-                    class="fa-solid"
-                    [class.fa-toggle-on]="item.active"
-                    [class.fa-toggle-off]="!item.active"
-                    aria-hidden="true"
-                  ></i>
-                </button>
+      <ng-template appColTemplate="nameEn" let-item>
+        <span [class.cyf-is-inactive]="!item.active">{{ item.nameEn }}</span>
+      </ng-template>
 
-                <button
-                  type="button"
-                  class="cyf-icon-button cyf-is-danger"
-                  [disabled]="busy()"
-                  [attr.aria-label]="('actions.delete' | translate) + ' — ' + itemName(item)"
-                  (click)="confirmDelete(item)"
-                >
-                  <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
-                </button>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+      <ng-template appColTemplate="nameAr" let-item>
+        <span dir="rtl" lang="ar" [class.cyf-is-inactive]="!item.active">{{ item.nameAr }}</span>
+      </ng-template>
+
+      <ng-template appColTemplate="code" let-item>
+        <code class="cyf-catalogs-code">{{ item.code }}</code>
+      </ng-template>
+
+      <ng-template appColTemplate="kind" let-item>
+        @if (item.institutionKind) {
+          {{ 'admin.catalogs.kind.' + item.institutionKind.toLowerCase() | translate }}
+        }
+        @if (item.isOther) {
+          <span class="cyf-select-tag">{{ 'admin.catalogs.otherFlag' | translate }}</span>
+        }
+      </ng-template>
+
+      <ng-template appColTemplate="status" let-item>
+        <!-- Never colour alone: the state is a word. -->
+        <span
+          class="cyf-status-chip"
+          [class.cyf-status-success]="item.active"
+          [class.cyf-status-neutral]="!item.active"
+        >
+          {{
+            (item.active ? 'admin.catalogs.status.active' : 'admin.catalogs.status.inactive')
+              | translate
+          }}
+        </span>
+      </ng-template>
+
+      <ng-template appColTemplate="actions" let-item>
+        <div class="cyf-catalogs-actions">
+          <button
+            type="button"
+            class="cyf-icon-button"
+            [disabled]="busy()"
+            [attr.aria-label]="('actions.edit' | translate) + ' — ' + itemName(item)"
+            (click)="openEdit(item)"
+          >
+            <i class="fa-solid fa-pen" aria-hidden="true"></i>
+          </button>
+
+          <button
+            type="button"
+            class="cyf-icon-button"
+            [disabled]="busy()"
+            [attr.aria-label]="
+              ((item.active
+                ? 'admin.catalogs.actions.deactivate'
+                : 'admin.catalogs.actions.activate'
+              ) | translate) + ' — ' + itemName(item)
+            "
+            (click)="toggleActive(item)"
+          >
+            <i
+              class="fa-solid"
+              [class.fa-toggle-on]="item.active"
+              [class.fa-toggle-off]="!item.active"
+              aria-hidden="true"
+            ></i>
+          </button>
+
+          <button
+            type="button"
+            class="cyf-icon-button cyf-is-danger"
+            [disabled]="busy()"
+            [attr.aria-label]="('actions.delete' | translate) + ' — ' + itemName(item)"
+            (click)="confirmDelete(item)"
+          >
+            <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+          </button>
+        </div>
+      </ng-template>
+    </cyf-record-table>
   }
 </div>
 

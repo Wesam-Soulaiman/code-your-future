@@ -1653,7 +1653,301 @@ with no photo and an Add button — never a failed save. Verified at runtime
 against a pinned host that does not resolve: the save completes, the profile is
 complete, and no photo is stored.
 
-## 17. Known limitations of the template
+## 17. Batches, invitations, and enrollment ⟨CP4⟩
+
+Checkpoint 4 adds the first thing in this product that two people share: a Batch,
+and a link that lets somebody into it.
+
+### 17a. Three models, and why three
+
+| Model | Holds | Why not merged |
+|---|---|---|
+| `Batch` | name, description, start/end date, status, creator | — |
+| `BatchInvitation` | a token **hash**, a state, a version, an optional expiry, and a `currentForBatch` pointer | Rotation must keep history. Overwriting a token on the Batch would erase the record that an older link ever existed, and with it the ability to tell somebody their link was *replaced* rather than merely invalid. |
+| `BatchEnrollment` | a `(batch, student)` pair and a joined-at instant | A membership is a fact about two things and belongs to neither. Putting a Student array on `Batch` would make the roster unbounded, unindexable, and racy. |
+
+All three are deny-by-default: every CLP operation is `{}`, the class ACL is
+empty, and every column is in `protectedFields`. No client reads any of them
+directly; every read goes through a cloud function that authorises the caller.
+
+### 17b. The two invariants are database indexes, not code
+
+This is the most load-bearing decision in the checkpoint.
+
+```ts
+// BatchInvitation — at most one current invitation per Batch
+{fields: ['_p_currentForBatch'], unique: true, partialFilterNulls: true}
+
+// BatchEnrollment — at most one membership per (Batch, Student)
+{fields: ['_p_batch', '_p_student'], unique: true, partialFilterNulls: true}
+```
+
+Two notes a reader will need.
+
+**`_p_<field>`, not `<field>`.** A Parse Pointer occupies a MongoDB column named
+`_p_batch`, not `batch`. Indexing the logical name creates an index on a column
+that does not exist — it succeeds, it looks right in the schema, and it enforces
+nothing.
+
+**`partialFilterNulls`.** A retired invitation has no `currentForBatch`. Without
+a partial filter, every retired row would collide on `null` and a Batch could
+never be rotated twice.
+
+The reason to reach for an index rather than a check is that a check cannot win
+a race. "Read the current invitation, see none, create one" is correct only if
+nothing happens in between, and something eventually does. Under ten simultaneous
+rotations against one Batch the index let three writes through and refused seven,
+and exactly one link was live afterwards. An application check would have left
+two.
+
+### 17c. The token
+
+32 bytes from the OS CSPRNG, base64url-encoded. Base64url because the value has
+to survive a path segment and a QR code without escaping.
+
+**Only a SHA-256 hash is stored.** Plain SHA-256, deliberately — a password needs
+a slow KDF because it is drawn from a small guessable space, while this token
+carries 256 bits of uniform randomness, so there is no dictionary to attack and a
+slow hash would add latency to every redemption and buy nothing.
+
+The raw token exists in exactly one response and then nowhere: not in a log, not
+in `localStorage`, not in a service field, not in a URL the server ever sees.
+What survives is a **fingerprint** — the first eight characters of the *hash* —
+which lets two people agree which link they are discussing without either of them
+holding it.
+
+### 17d. Why a token that never existed and one that is malformed answer the same
+
+`resolveInvitationToken` returns `INVITATION_INVALID` for both. Beyond that point
+the caller demonstrably holds a token we issued, so telling them it was rotated,
+revoked, or expired costs nothing and saves them guessing — but *before* that
+point, distinguishing "no such token" from "not even a token" would let somebody
+probing random strings learn which ones were once real.
+
+Both operations that accept a token are **POST**, so the token travels in a body.
+A GET would put it in the URL, and URLs end up in access logs, proxy logs, and
+browser history.
+
+### 17e. Rotation retires before it creates
+
+`issueInvitation` retires the existing row first, freeing the unique-index slot,
+and creates the new one second. If two Admins rotate at the same instant, both
+may retire and one will lose the create — which is why the loser answers
+`BATCH_SAVE_FAILED` rather than silently producing a second live link. The order
+is what guarantees a rotation can never leave two live tokens; the index is what
+guarantees it under contention.
+
+### 17f. Expiry is evaluated, never swept
+
+There is no job that retires expired invitations. A token is judged against the
+clock **at the moment it is presented**, which is the only moment that matters,
+and the row is retired lazily when something notices. A cron sweep would add a
+moving part whose failure mode is an expired link that still works.
+
+### 17g. The invitation URL's origin
+
+`frontendOrigin()` prefers `FRONTEND_ORIGIN`, then falls back to the first usable
+entry of the existing CORS allow-list, and otherwise returns `undefined` — in
+which case the response carries a **relative path** and the browser resolves it
+against whatever origin actually served the page.
+
+It never reads a `Host`, `Origin`, or `Referer` header. A link built from a
+request-supplied host is a phishing primitive: an attacker sends a crafted
+request, gets back an invitation URL pointing at their own domain, and forwards
+it to a Student.
+
+Hash routing (OQ-12) means the link is `https://host/#/join/<token>`. A fragment
+is not sent to the server at all, so the token stays client-side by construction
+rather than by everybody remembering to redact it — and no rewrite rule is needed
+on the deployment target, which is the failure that would otherwise surface in a
+room full of people scanning a QR code.
+
+### 17h. The join page is one page for six audiences
+
+`/join/:token` is ungated by design. It has to open for a Visitor, a Student with
+an unfinished profile, a Student who can join, an Admin who clicked the wrong
+link, and anybody holding a link that has expired, been revoked, or been replaced.
+
+Rather than redirecting each of them somewhere else and losing the thread, the
+page **stays** and changes what it asks for. The invitation is remembered in
+`sessionStorage` before anything can navigate away, so signing in or completing a
+profile comes back to it.
+
+The stored value is a **token**, never a redirect URL. `invitationReturnUrl()`
+builds `#/join/<token>` from a value that has to match a strict shape; there is
+no path by which a query parameter, a header, or anything else a request supplied
+becomes somewhere the app navigates. It lives in `sessionStorage` so it dies with
+the tab, and it is cleared on success, on an unusable link, on cancellation, and
+on sign-out.
+
+### 17i. Why the Student directory is driven by `StudentProfile`
+
+Listing from `BatchEnrollment` would show only Students already in a Batch —
+useless for the one job the directory has, which is finding somebody to invite.
+Listing from `_User` would mean querying the user table by name, which is exactly
+the surface that should stay closed. `StudentProfile` is the class that holds the
+searchable, Student-authored fields, and the summary DTO is a hand-built
+allow-list: a name, the verified email (so two people with the same name can be
+told apart), the four catalog selections, a completion flag, and a Batch count.
+
+Never: phone, date of birth, photo, the Google subject, the avatar URL, the
+internal username, `authData`, a session token, or an ACL.
+
+### 17j. There is no delete
+
+Not hidden, not permission-gated: no delete operation exists for a Batch, an
+invitation, or an enrollment — not in the registry, and a `DELETE` on the REST
+class route is refused by CLP. Deleting a Batch would silently delete the record
+of who was in it. Archiving is the retirement path: it stops the Batch accepting
+anybody and stops it changing, and it keeps everything.
+
+Archived is terminal. There is no un-archive, and the Admin UI confirms the
+action by spelling out what stops working rather than asking "are you sure".
+
+### 17k. Calendar dates versus instants
+
+`startDate` and `endDate` are **calendar dates** — they mean "the 3rd of March"
+to everybody, wherever they are. They are parsed with `Date.UTC` on the way in
+and rebuilt as a *local* date on the way out. Neither `new Date('2026-03-03')`
+(which reads as UTC midnight and renders as the 2nd west of Greenwich) nor
+`toISOString()` on a picker value (which converts to UTC and sends tomorrow for
+anyone picking a date late in the evening east of it) is used anywhere.
+
+`joinedAt`, `expiresAt`, and `createdAt` are **instants** and genuinely should
+move with the reader's timezone, so they go through the ordinary path.
+
+### 17l. Index application is part of startup ⟨CP4 closeout⟩
+
+The invariants in §17b are only real if the indexes physically exist. They did
+not always.
+
+**What was wrong.** `applyAllIndexes` *was* being called — under its deprecated
+alias `applyUniqueIndexes`, from **inside the `server.listen` callback**. Three
+consequences:
+
+1. The port was open while the indexes were still being built. For most indexes
+   that is merely slow; for the two that are the sole enforcement of a
+   concurrency invariant it was a window in which the guarantee did not exist.
+2. The kit's applier **cannot fail**. Every `createIndex` is wrapped in
+   `catchError`, and a genuine failure is `console.error`-ed and stepped over. A
+   boot with a missing unique index looked exactly like a healthy one.
+3. It **never checks its own work**. Nothing read the indexes back, so a
+   silently-skipped index and a created one were indistinguishable.
+
+**What replaced it.** `cloudCode/startup/indexes.ts` wraps the kit rather than
+patching it:
+
+- it confirms the database answers (`ping`) before anything tries to build;
+- it runs the kit's applier;
+- it then **reads every declared index back out of MongoDB** and refuses to let
+  the process continue if one is absent, or if one carries the right name
+  without the uniqueness it was declared with;
+- it throws rather than returning a flag, so no caller can continue past a
+  failure;
+- `app.ts` awaits it **before** `server.listen`, and a failure exits non-zero
+  without ever opening the port.
+
+The required set is derived from the same decorator metadata the applier reads,
+so adding a `compoundIndexes` entry to a model adds it to the verification
+automatically. Seven unique indexes across five collections are required today.
+
+**Idempotent, and it destroys nothing.** A second boot creates nothing and drops
+nothing — verified by comparing the index list across two startups. When existing
+rows block a unique index the boot stops and names the collection and the index;
+it does **not** delete duplicates, rewrite records, or relax the constraint.
+
+### 17m. The kit's index logging had to be intercepted
+
+A subtle one, found by reading a real log rather than by a test.
+
+On a duplicate-key failure the kit prints `createErr.message` with
+`console.error`. A driver's E11000 message **contains the colliding value**:
+
+```
+E11000 duplicate key error … dup key: { tokenHash: "e3b0c44298fc…" }
+```
+
+On this product's collections that value is an invitation's token hash, a
+Student's verified email, or a Google subject — written straight to the log,
+outside every boundary `safeLogger` puts around Parse's own output.
+
+`node_modules` is not ours to patch, so the applier is called with `console`
+temporarily captured. Each line goes through `redactMessage` — which masks the
+value — and is replayed at **debug** level once the real console is restored. A
+normal boot shows only the structured lines the wrapper writes; `LOG_LEVEL=debug`
+still gets the kit's detail, with the sensitive part removed.
+
+The buffering matters: the first attempt forwarded straight into `safeLog`, which
+itself writes to `console`, and recursed until the boot stalled.
+
+### 17n. The tables and the paginator ⟨CP4 closeout⟩
+
+The template ships a table and a paginator. Nothing used them.
+
+`c1517e4` contains `components/shared/data-table/` — `app-data-table` (a PrimeNG
+`p-table` carrying the template's header, row, hover, and empty-state treatment)
+and `app-paginator` (a `p-paginator` with page-number buttons, first/last,
+`rowsPerPageOptions [10, 25, 50]`, and `currentPageReportTemplate
+"{first} - {last} / {totalRecords}"`). Both files are **unchanged since that
+commit**; `git log` shows a single entry for each.
+
+No page imported either. Profile Catalogs in Checkpoint 3A, then Batches,
+Students, and the Batch roster in Checkpoint 4, each hand-rolled a bare `<table>`
+with its own `.cyf-*-table` stylesheet and a pair of Previous/Next buttons — four
+near-identical stylesheets and a control that could not say which page you were
+on.
+
+`components/shared/record-table/` is the slice those four pages need: the same
+`p-table`, the same `app-paginator` **used as it is**, and the same
+`appColTemplate` directive. `app-data-table` is untouched and still exported; it
+carries bulk selection, XLSX export, a preview panel, column visibility, and a
+grid mode, none of which this product has.
+
+**Server-side paging is unchanged.** The component holds no data and slices
+nothing: it renders the page it is handed and emits `pageChange`, and the page
+turns that into the next request. Page changes, page-size changes, searches, and
+filter changes all reach the backend, and each is separately tested.
+
+**One real defect surfaced.** PrimeNG renders page numbers through
+`new Intl.NumberFormat(this.locale)`. `locale` was unset, so the digits followed
+the **viewer's operating system** rather than the application — an English page
+rendered `١ ٢ ٣` on an Arabic-configured machine. `app-paginator` gained an
+explicit `locale` input, pinned to Latin digits, matching `calendar-date.ts`,
+which pins the same for every other figure in the product.
+
+A wide table scrolls on PrimeNG's own `.p-datatable-table-container`; the card
+around it clips instead, which is what keeps the header inside the corner
+radius. That container is not focusable and carries no accessible name — a
+PrimeNG limitation recorded in the handoff, not worked around.
+
+### 17o. One shell, two workspaces ⟨CP4 closeout⟩
+
+Both protected areas load the same `ShellComponent`, which picks its navigation
+from `SessionService.roles()`:
+
+| Role | Items |
+|---|---|
+| Admin | Dashboard · Batches · Students · Profile Catalogs |
+| Student | Home · My Batches · Edit Profile |
+| Anything else | none |
+
+**Every item carries an explicit `roles` array**, and the filter requires a
+non-empty intersection. That is what makes it deny by default: a session holding
+a legacy or unrecognised role matches nothing rather than inheriting whatever was
+left unrestricted. Before, `Dashboard` had no `roles` and was visible to anybody
+signed in.
+
+**Hiding a link is not authorization.** The route guards and the backend are
+unchanged and remain the only authority; this decides what is *offered*, not what
+is *permitted*. Verified during validation, incidentally: a forged Student
+session in `localStorage` is overwritten by the server's answer on restore, and
+`studentGuard` sends the Admin holding it back to the dashboard.
+
+The routed pages carry no frame of their own — no `main`, no skip link, no
+header, no navigation. A page that supplied one would produce two landmarks and a
+second navigation with its own active state.
+
+## 18. Known limitations of the template
 
 1. No environment validation; missing `.env` keys fail at runtime.
 2. Port 1337 is hard-coded.
@@ -1678,9 +1972,13 @@ complete, and no photo is stored.
 10. `fileAdapter.ts` is dead code with a broken `validateFilename`.
 11. `toKebabPlural` mis-pluralises names ending in `s` (`app-settingses`).
 12. ⟨CP1⟩ **Fixed** — `seedAll()` is awaited.
-13. Only unique indexes are applied; `applyAllIndexes` is never called. Moot today: removing
-    `AppSettings` removed the only unique index, so startup logs `No indexes to apply`.
-14. Hash-based routing (`withHashLocation`) makes deep links `…/#/path`.
+13. ~~Only unique indexes are applied; `applyAllIndexes` is never called.~~ ⟨CP4 closeout⟩
+    **Fixed** — index application now runs during normal startup, before the port opens, and every
+    declared index is read back out of MongoDB before the process is considered ready (§17l). A
+    boot with a missing or non-unique index fails instead of succeeding quietly.
+14. Hash-based routing (`withHashLocation`) makes deep links `…/#/path`. ⟨CP4⟩ **Decided, not
+    fixed** — OQ-12 resolved in favour of keeping it, for the reasons in §17g. A deliberate trade,
+    not an outstanding defect.
 15. ⟨CP1⟩ **Fixed** — `roleGuard` and `appIfRole` are role-set aware.
 16. The interceptor truncates every Parse `Date` to `YYYY-MM-DD`, losing the time component.
 17. ⟨CP1⟩ **Fixed** — `signupUser` deleted; `_User` `create` CLP is `{}` and Parse's `POST /users`

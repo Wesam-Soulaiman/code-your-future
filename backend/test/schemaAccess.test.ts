@@ -36,6 +36,9 @@ before(async () => {
   await import('../src/cloudCode/models/StudentAuthIdentity');
   await import('../src/cloudCode/models/ProfileCatalogItem');
   await import('../src/cloudCode/models/StudentProfile');
+  await import('../src/cloudCode/models/Batch');
+  await import('../src/cloudCode/models/BatchInvitation');
+  await import('../src/cloudCode/models/BatchEnrollment');
 
   const guard = await import('../src/cloudCode/utils/config/schemaGuard');
   hardenDefinitions = guard.hardenDefinitions as typeof hardenDefinitions;
@@ -46,9 +49,12 @@ before(async () => {
 });
 
 describe('registered class surface', () => {
-  test('contains exactly the six approved classes', () => {
+  test('contains exactly the nine approved classes', () => {
     const names = definitions.map(definition => definition.className).sort();
     assert.deepEqual(names, [
+      'Batch',
+      'BatchEnrollment',
+      'BatchInvitation',
       'File',
       'IMG',
       'ProfileCatalogItem',
@@ -69,9 +75,10 @@ describe('registered class surface', () => {
 
   test('no future product model was added', () => {
     const names = definitions.map(definition => definition.className);
+    // Batch, BatchInvitation, and BatchEnrollment shipped in Checkpoint 4 and
+    // are no longer future. Everything below belongs to a checkpoint that has
+    // not happened, and a class for one would be a stub.
     const future = [
-      'Batch',
-      'BatchInvitation',
       'Enrollment',
       'Resource',
       'Task',
@@ -105,6 +112,9 @@ describe('deny-by-default access', () => {
     'StudentAuthIdentity',
     'StudentProfile',
     'ProfileCatalogItem',
+    'Batch',
+    'BatchInvitation',
+    'BatchEnrollment',
   ]) {
     test(`${className} denies every client operation`, () => {
       const definition = definitions.find(entry => entry.className === className);
@@ -177,6 +187,46 @@ describe('deny-by-default access', () => {
         assert.ok(
           protectedFields[audience].includes(field),
           `${field} must be hidden from '${audience}'`
+        );
+      }
+    }
+  });
+
+  test('BatchInvitation hides the token hash and every other column ⟨CP4⟩', () => {
+    // The hash is the one column that would matter most if it leaked: it is
+    // what a redemption is checked against. Nothing at all is readable.
+    const invitation = definitions.find(entry => entry.className === 'BatchInvitation');
+    const protectedFields = invitation!.classLevelPermissions!.protectedFields!;
+    for (const audience of ['*', 'authenticated']) {
+      for (const field of ['tokenHash', 'batch', 'currentForBatch', 'state', 'expiresAt']) {
+        assert.ok(
+          protectedFields[audience].includes(field),
+          `${field} must be hidden from '${audience}'`
+        );
+      }
+    }
+  });
+
+  test('Batch and BatchEnrollment hide every column ⟨CP4⟩', () => {
+    // An enrollment says which Student is in which Batch. Read through the
+    // cloud functions, which authorise per caller — never straight off the
+    // class, which would hand anybody the whole roster.
+    const batch = definitions.find(entry => entry.className === 'Batch');
+    for (const audience of ['*', 'authenticated']) {
+      for (const field of ['name', 'status', 'startDate', 'createdBy']) {
+        assert.ok(
+          batch!.classLevelPermissions!.protectedFields![audience].includes(field),
+          `Batch.${field} must be hidden from '${audience}'`
+        );
+      }
+    }
+
+    const enrollment = definitions.find(entry => entry.className === 'BatchEnrollment');
+    for (const audience of ['*', 'authenticated']) {
+      for (const field of ['batch', 'student', 'joinedAt']) {
+        assert.ok(
+          enrollment!.classLevelPermissions!.protectedFields![audience].includes(field),
+          `BatchEnrollment.${field} must be hidden from '${audience}'`
         );
       }
     }

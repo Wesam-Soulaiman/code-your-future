@@ -77,7 +77,10 @@
     "errorPrefix": "Error:",
     "noticePrefix": "Note:",
     "mainNavigation": "Main navigation",
-    "userMenu": "Account"
+    "userMenu": "Account",
+    "breadcrumb": "Breadcrumb",
+    "openMenu": "Open navigation",
+    "tableScroll": "Table, scrollable sideways"
   },
   "nav": {
     "home": "Home",
@@ -85,7 +88,13 @@
     "settings": "Settings",
     "management": "Management",
     "pinned": "Pinned",
-    "profileCatalogs": "Profile Catalogs"
+    "profileCatalogs": "Profile Catalogs",
+    "batches": "Batches",
+    "students": "Students",
+    "welcome": "Welcome",
+    "myBatches": "My Batches",
+    "myProfile": "My Profile",
+    "editProfile": "Edit Profile"
   },
   "actions": {
     "login": "Login",
@@ -115,7 +124,8 @@
     "unpin": "Unpin",
     "copy": "Copy",
     "next": "Next",
-    "viewDetails": "View Details"
+    "viewDetails": "View Details",
+    "retry": "Try again"
   },
   "confirm": {
     "title": "Confirmation",
@@ -144,7 +154,11 @@
     "large": "Large",
     "gridView": "Grid view",
     "tableView": "Table view",
-    "paginationTemplate": "{first} - {last} of {totalRecords}"
+    "paginationTemplate": "{first} - {last} of {totalRecords}",
+    "pagination": "Pagination",
+    "previous": "Previous",
+    "next": "Next",
+    "showingRange": "Showing {{from}}–{{to}} of {{total}}"
   },
   "notifications": {
     "title": "Notifications",
@@ -271,6 +285,18 @@
       "cropper": {
         "title": "Position your photo"
       }
+    },
+    "batches": {
+      "title": "My Batches",
+      "lead": "The batches you have joined.",
+      "loading": "Loading your batches…",
+      "loadingOne": "Loading the batch…",
+      "joinedAt": "Joined",
+      "moreSoon": "There is nothing else here yet. More arrives as the programme grows.",
+      "empty": {
+        "title": "You have not joined a batch yet",
+        "text": "You join a batch with an invitation link. Whoever runs your batch will send you one."
+      }
     }
   },
   "admin": {
@@ -343,6 +369,241 @@
         "unavailable": "We cannot reach the server right now. Please check your connection and try again.",
         "unexpected": "Something went wrong. Please try again."
       }
+    },
+    "batches": {
+      "title": "Batches",
+      "lead": "Create a batch, invite students to it, and see who has joined.",
+      "searchPlaceholder": "Search by batch name",
+      "loading": "Loading batches…",
+      "loadingOne": "Loading the batch…",
+      "noMatch": "No batch matches what you are looking for.",
+      "archivedNotice": "This batch is archived. It is read-only: it cannot be edited, its status cannot change, and it cannot accept new members.",
+      "columns": {
+        "students": "Students",
+        "actions": "Actions"
+      },
+      "fields": {
+        "createdAt": "Created"
+      },
+      "filters": {
+        "status": "Status",
+        "anyStatus": "Any status"
+      },
+      "actions": {
+        "create": "New batch"
+      },
+      "tabs": {
+        "label": "Batch sections",
+        "overview": "Overview",
+        "students": "Students",
+        "invitation": "Invitation"
+      },
+      "notices": {
+        "statusChanged": "The batch status was updated.",
+        "archived": "The batch is archived and is now read-only."
+      },
+      "empty": {
+        "title": "No batches yet",
+        "body": "A batch is a group of students going through the programme together. Create one to get started."
+      },
+      "fieldErrors": {
+        "endBeforeStart": "The end date cannot be before the start date."
+      },
+      "form": {
+        "createTitle": "New batch",
+        "createLead": "Give the batch a name and a start date. Everything else can be added later.",
+        "editTitle": "Edit batch",
+        "editLead": "Change the details of this batch.",
+        "datePlaceholder": "dd/mm/yyyy",
+        "endDateHelp": "Optional. Leave it empty if the end date is not decided yet.",
+        "initialStatus": "Start as",
+        "initialStatusHelp": "A draft batch is not visible to students and cannot be joined. An active batch can accept members straight away.",
+        "saving": "Saving…"
+      },
+      "lifecycle": {
+        "title": "Status",
+        "lead": "Only an active batch accepts new members. Status changes never happen on their own.",
+        "moveTo": {
+          "draft": "Move to draft",
+          "active": "Make active",
+          "completed": "Mark completed",
+          "archived": "Archive"
+        },
+        "archive": "Archive batch"
+      },
+      "archive": {
+        "title": "Archive this batch?",
+        "body": "You are about to archive “{{name}}”. This cannot be undone.",
+        "point1": "The batch can no longer be edited and its status cannot change again.",
+        "point2": "Its invitation link stops working and no new one can be issued.",
+        "point3": "Nobody new can join it.",
+        "hint": "Students who already joined keep their membership, and the batch stays visible to them."
+      },
+      "roster": {
+        "searchPlaceholder": "Search by name or email",
+        "loading": "Loading students…",
+        "noMatch": "No student in this batch matches what you are looking for.",
+        "joinedAt": "Joined",
+        "empty": {
+          "title": "Nobody has joined yet",
+          "body": "Students join with an invitation link. Generate one in the Invitation tab and send it to them."
+        }
+      },
+      "invitation": {
+        "title": "Invitation link",
+        "lead": "One link per batch. Anyone who has it can join, so treat it like a key.",
+        "none": "This batch has no invitation link yet.",
+        "readOnly": "This batch is archived, so its invitation link cannot be changed.",
+        "linkLabel": "Invitation link",
+        "noExpiry": "No expiry",
+        "copied": "Copied to your clipboard.",
+        "copyFailed": "We could not copy it. Select the link and copy it manually.",
+        "oneCopyWarning": "This is the only time the link is shown. Copy it now — it cannot be shown again, only replaced.",
+        "tokenGone": "The link itself is not stored anywhere and cannot be shown again. Generate a new one if you need to send it.",
+        "rotateNote": "Generating a new link immediately stops the old one from working. Students who already joined are unaffected.",
+        "fields": {
+          "fingerprint": "Reference",
+          "version": "Version",
+          "expiresAt": "Expires"
+        },
+        "state": {
+          "current": "Active",
+          "replaced": "Replaced",
+          "revoked": "Revoked",
+          "expired": "Expired"
+        },
+        "actions": {
+          "generate": "Generate link",
+          "rotate": "Generate a new link",
+          "setExpiry": "Set expiry",
+          "expireNow": "Expire now",
+          "revoke": "Revoke",
+          "showQr": "Show QR code"
+        },
+        "notices": {
+          "issued": "A new invitation link is ready. Copy it now.",
+          "revoked": "The invitation link has been revoked.",
+          "expired": "The invitation link has been expired.",
+          "expirySet": "The expiry has been updated."
+        },
+        "qr": {
+          "title": "Invitation QR code",
+          "body": "Students can scan this to open the invitation on their phone.",
+          "alt": "QR code for the invitation link",
+          "download": "Download PNG"
+        },
+        "expiry": {
+          "title": "Set an expiry",
+          "body": "After this moment the link stops working. Leave it empty for a link with no expiry.",
+          "placeholder": "dd/mm/yyyy hh:mm",
+          "hint": "Clearing the date removes the expiry entirely."
+        }
+      }
+    },
+    "students": {
+      "title": "Students",
+      "lead": "Everyone who has signed in and started a profile. Read-only.",
+      "searchPlaceholder": "Search by name or email",
+      "loading": "Loading students…",
+      "loadingOne": "Loading the student…",
+      "noMatch": "No student matches what you are looking for.",
+      "notFound": "That student could not be found.",
+      "noBatches": "This student has not joined a batch yet.",
+      "privacyNote": "Phone number, date of birth, and photo are the student’s own and are not shown here.",
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "city": "City",
+        "institution": "Institution",
+        "targetRole": "Target role",
+        "batches": "Batches",
+        "profile": "Profile"
+      },
+      "filters": {
+        "any": "Any",
+        "batch": "Batch",
+        "anyBatch": "Any batch",
+        "profile": "Profile",
+        "anyProfile": "Any profile",
+        "complete": "Complete",
+        "incomplete": "Incomplete",
+        "clear": "Clear filters"
+      },
+      "profileState": {
+        "complete": "Complete",
+        "incomplete": "Incomplete"
+      },
+      "sections": {
+        "profile": "Profile",
+        "batches": "Batches"
+      },
+      "empty": {
+        "title": "No students yet",
+        "body": "Students appear here once they sign in with Google and start their profile."
+      }
+    }
+  },
+  "batch": {
+    "fields": {
+      "name": "Batch name",
+      "description": "Description",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "status": "Status"
+    },
+    "status": {
+      "draft": "Draft",
+      "active": "Active",
+      "completed": "Completed",
+      "archived": "Archived"
+    },
+    "errors": {
+      "validation": "Some details need fixing. Check the fields marked below.",
+      "notFound": "That batch could not be found.",
+      "readOnly": "This batch is archived and can no longer be changed.",
+      "invalidStatus": "That status change is not allowed from where this batch is now.",
+      "forbidden": "You do not have permission to do that.",
+      "unavailable": "We could not reach the server. Check your connection and try again.",
+      "unexpected": "Something went wrong. Please try again."
+    }
+  },
+  "join": {
+    "title": "Join a batch",
+    "eyebrow": "You have been invited to join",
+    "loading": "Checking your invitation…",
+    "joined": "You are in.",
+    "alreadyJoined": "You had already joined this batch.",
+    "prompts": {
+      "signIn": "Sign in with Google to join. It only takes a moment, and your invitation will be waiting.",
+      "completeProfile": "Complete your profile first, then we will bring you straight back here to join.",
+      "confirm": "Joining adds you to this batch. You can see it any time under My Batches.",
+      "joined": "You are now a member of this batch.",
+      "alreadyJoined": "Nothing to do — you are already a member of this batch.",
+      "notEligible": "This invitation is for students. Your account is an admin account, so it cannot join a batch.",
+      "unusable": "Ask whoever sent it for a fresh link."
+    },
+    "actions": {
+      "signIn": "Continue with Google",
+      "completeProfile": "Complete my profile",
+      "join": "Join this batch",
+      "joining": "Joining…",
+      "openMyBatches": "Go to My Batches",
+      "goToDashboard": "Go to dashboard",
+      "continue": "Continue"
+    },
+    "notes": {
+      "noAccountNeeded": "No password to remember — you sign in with your Google account.",
+      "returnsHere": "We will bring you back to this invitation once your profile is saved."
+    },
+    "errors": {
+      "invalid": "This invitation link is not valid.",
+      "expired": "This invitation link has expired.",
+      "revoked": "This invitation link has been revoked.",
+      "replaced": "This invitation link has been replaced by a newer one.",
+      "notActive": "This batch is not accepting new members right now.",
+      "profileIncomplete": "Complete your profile before joining a batch.",
+      "notAStudent": "Only students can join a batch.",
+      "failed": "We could not add you to the batch. Please try again."
     }
   }
 }

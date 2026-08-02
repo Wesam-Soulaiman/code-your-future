@@ -1478,14 +1478,19 @@ describe('StudentProfileComponent', () => {
       expect(html()).not.toMatch(/style="[^"]*width:\s*\d+px/);
     });
 
-    it('provides a skip link to the main content', () => {
-      const skip = fixture.nativeElement.querySelector('.cyf-skip-link');
-      expect(skip.getAttribute('href')).toBe('#cyf-profile-main');
-      expect(fixture.nativeElement.querySelector('#cyf-profile-main')).toBeTruthy();
+    it('renders no page frame of its own ⟨CP4 closeout⟩', () => {
+      // The skip link and the `main` landmark moved to the shared shell, which
+      // now wraps every protected page. A page that still supplied its own
+      // would produce two landmarks and a second skip target — see
+      // `shell.component.spec.ts`, where both are asserted.
+      expect(fixture.nativeElement.querySelectorAll('main').length).toBe(0);
+      expect(fixture.nativeElement.querySelector('.cyf-skip-link')).toBeNull();
     });
 
-    it('uses one main landmark', () => {
-      expect(fixture.nativeElement.querySelectorAll('main').length).toBe(1);
+    it('renders no navigation of its own', () => {
+      // One primary navigation, in the sidebar. A second here would be two
+      // places to keep in step and two active states to disagree.
+      expect(fixture.nativeElement.querySelectorAll('nav').length).toBe(0);
     });
 
     it('renders every overlay into the body, so no card can clip a dropdown', () => {

@@ -1,0 +1,75 @@
+<!--
+  Page content only ⟨CP4 closeout⟩. The shell supplies the page frame.
+-->
+<div class="cyf-page-body cyf-page-body-narrow">
+    <nav class="cyf-batch-back" [attr.aria-label]="'a11y.breadcrumb' | translate">
+      <button type="button" class="cyf-link-button cyf-batch-back-link" (click)="back()">
+        <i class="fa-solid fa-arrow-left cyf-flip-rtl" aria-hidden="true"></i>
+        <span>{{ 'student.batches.title' | translate }}</span>
+      </button>
+    </nav>
+
+    @if (loading()) {
+      <div class="cyf-card cyf-card-padded cyf-inline-state" role="status" aria-live="polite">
+        <span class="cyf-spinner" aria-hidden="true"></span>
+        <span>{{ 'student.batches.loadingOne' | translate }}</span>
+      </div>
+    } @else if (errorKey()) {
+      <!-- One message for "no such Batch" and "not yours". The server does not
+           distinguish them and neither does this page. -->
+      <div class="cyf-card cyf-card-padded cyf-batch-error">
+        <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+          {{ errorKey()! | translate }}
+        </cyf-alert>
+        <div class="cyf-batch-error-actions">
+          <p-button
+            type="button"
+            severity="secondary"
+            [outlined]="true"
+            (onClick)="back()"
+            styleClass="cyf-btn"
+          >
+            <span>{{ 'student.batches.title' | translate }}</span>
+          </p-button>
+        </div>
+      </div>
+    } @else if (batch(); as mine) {
+      <article class="cyf-card cyf-card-padded cyf-batch-card">
+        <header class="cyf-batch-head">
+          <h1 class="cyf-page-title cyf-batch-title">{{ mine.name }}</h1>
+          <span class="cyf-status-chip cyf-status-{{ tone() }}">
+            {{ 'batch.status.' + mine.status | translate }}
+          </span>
+        </header>
+
+        @if (mine.description) {
+          <p class="cyf-body cyf-batch-description">{{ mine.description }}</p>
+        }
+
+        <dl class="cyf-batch-facts">
+          <div class="cyf-batch-fact">
+            <dt class="cyf-label">{{ 'batch.fields.startDate' | translate }}</dt>
+            <dd>{{ startDate() }}</dd>
+          </div>
+
+          @if (mine.endDate) {
+            <div class="cyf-batch-fact">
+              <dt class="cyf-label">{{ 'batch.fields.endDate' | translate }}</dt>
+              <dd>{{ endDate() }}</dd>
+            </div>
+          }
+
+          @if (joinedAt()) {
+            <div class="cyf-batch-fact">
+              <dt class="cyf-label">{{ 'student.batches.joinedAt' | translate }}</dt>
+              <dd>{{ joinedAt() }}</dd>
+            </div>
+          }
+        </dl>
+
+        <!-- Said plainly, because the page would otherwise look unfinished:
+             there is nothing else here yet, and that is the truth. -->
+        <p class="cyf-helper cyf-batch-note">{{ 'student.batches.moreSoon' | translate }}</p>
+      </article>
+    }
+</div>

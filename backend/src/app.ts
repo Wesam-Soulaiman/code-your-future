@@ -9,8 +9,14 @@
  *   5. Mount Parse Server on the configured mountPath
  *   6. Register cloud functions, triggers, and cron jobs
  *   7. Setup Swagger API docs
- *   8. Start HTTP server + LiveQuery WebSocket server
- *   9. Await database seed, then apply indexes and validators
+ *   8. Seed, then **apply and verify every declared index** ⟨CP4 closeout⟩
+ *   9. Only then start the HTTP server + LiveQuery WebSocket server
+ *
+ * Step 8 used to run *inside* the listen callback, so the port was open while
+ * the indexes were still being built. Two of those indexes are the sole
+ * enforcement of a concurrency invariant, so that window was a window in which
+ * the guarantee did not exist. Readiness now waits for them, and a failure
+ * stops the boot rather than being logged and stepped over.
  */
 
 import express = require('express');
@@ -41,10 +47,15 @@ importFiles(mainModelsPath);
 import {seedAll} from './cloudCode/database/seed';
 import {
   CloudFunctionRegistry, TriggerRegistry, CronRegistry,
-  catchError, applyMongoValidators, applyUniqueIndexes,
+  catchError, applyMongoValidators,
   conditionalJsonMiddleware, removeResultMiddleware,
   restrictRoutes, validateEntityRoutes, validateFunctionRoutes,
 } from '@90soft/parse-server-kit';
+import {
+  IndexStartupError,
+  applyAndVerifyIndexes,
+  indexFailureGuidance,
+} from './cloudCode/startup/indexes';
 import {initializeParseServer} from './cloudCode/utils/config/parseConfig';
 import {buildCorsOptions, logCorsPolicy} from './cloudCode/utils/config/cors';
 import {googleAuthStatus} from './cloudCode/modules/StudentAuth/googleConfig';
@@ -182,56 +193,70 @@ async function main() {
   // Sanitized error handler must be registered last.
   app.use(sanitizedErrorHandler);
 
-  // ── Start HTTP Server ──────────────────────────────────────
-  server.listen(PORT, async () => {
-    // Seeding is awaited so roles and the Admin account exist before indexes and
-    // validators run (the template fired it off unawaited).
-    const [seedError] = await catchError(seedAll());
-    if (seedError) {
-      safeLog.error('Seeding failed', {op: 'bootstrap', ok: false, stage: 'seedAll'});
-    }
+  // ── Prepare the database BEFORE opening the port ───────────
+  //
+  // Everything below runs to completion first. The server is not "ready" until
+  // every declared index physically exists, because two of them are the only
+  // thing standing between two concurrent requests and a broken invariant.
 
-    await applyUniqueIndexes(parseServer);
-    await applyMongoValidators(parseServer);
+  // Seeding is awaited so roles and the Admin account exist before indexes and
+  // validators run (the template fired it off unawaited).
+  const [seedError] = await catchError(seedAll());
+  if (seedError) {
+    safeLog.error('Seeding failed', {op: 'bootstrap', ok: false, stage: 'seedAll'});
+  }
 
-    // Move the Checkpoint 3A institution list into the catalog ⟨CP3A catalog⟩.
-    // Idempotent and keyed on the item code, so it creates nothing on a second
-    // boot and never overwrites an Admin's edits. Cities, majors, and target
-    // roles are deliberately NOT seeded: no authoritative list exists, and an
-    // invented one is worse than an empty one an Admin can fill in.
-    const [catalogSeedError] = await catchError(seedInstitutionCatalog());
-    if (catalogSeedError) {
-      safeLog.error('Institution catalog seeding failed', {
+  // Apply **and verify** every declared index. This throws rather than
+  // returning a flag, so there is no path that continues past a failure.
+  await applyAndVerifyIndexes(parseServer);
+  await applyMongoValidators(parseServer);
+
+  // Move the Checkpoint 3A institution list into the catalog ⟨CP3A catalog⟩.
+  // Idempotent and keyed on the item code, so it creates nothing on a second
+  // boot and never overwrites an Admin's edits. Cities, majors, and target
+  // roles are deliberately NOT seeded: no authoritative list exists, and an
+  // invented one is worse than an empty one an Admin can fill in.
+  //
+  // Runs after the indexes exist, so the unique `(type, code)` constraint is
+  // already enforcing what the seed relies on.
+  const [catalogSeedError] = await catchError(seedInstitutionCatalog());
+  if (catalogSeedError) {
+    safeLog.error('Institution catalog seeding failed', {
+      op: 'bootstrap',
+      ok: false,
+      stage: 'seedProfileCatalog',
+    });
+  }
+
+  // Student Google sign-in is optional configuration. Report presence by key
+  // name only — the value is never read into a log line — and never fail the
+  // boot: Admin password login must keep working without it.
+  const google = googleAuthStatus();
+  if (google.configured) {
+    safeLog.info('Student Google sign-in is configured', {
+      op: 'bootstrap',
+      ok: true,
+      stage: 'google-auth',
+    });
+  } else {
+    safeLog.warn(
+      'Student Google sign-in is NOT configured — the endpoint will refuse ' +
+        'with GOOGLE_NOT_CONFIGURED. Admin login is unaffected.',
+      {
         op: 'bootstrap',
         ok: false,
-        stage: 'seedProfileCatalog',
-      });
-    }
-
-    // Student Google sign-in is optional configuration. Report presence by key
-    // name only — the value is never read into a log line — and never fail the
-    // boot: Admin password login must keep working without it.
-    const google = googleAuthStatus();
-    if (google.configured) {
-      safeLog.info('Student Google sign-in is configured', {
-        op: 'bootstrap',
-        ok: true,
         stage: 'google-auth',
-      });
-    } else {
-      safeLog.warn(
-        'Student Google sign-in is NOT configured — the endpoint will refuse ' +
-          'with GOOGLE_NOT_CONFIGURED. Admin login is unaffected.',
-        {
-          op: 'bootstrap',
-          ok: false,
-          stage: 'google-auth',
-          requiredKeys: google.requiredKeys,
-        }
-      );
-    }
+        requiredKeys: google.requiredKeys,
+      }
+    );
+  }
 
-    safeLog.info('Server listening', {op: 'bootstrap', ok: true, port: PORT});
+  // ── Start HTTP Server ──────────────────────────────────────
+  await new Promise<void>(resolve => {
+    server.listen(PORT, () => {
+      safeLog.info('Server listening', {op: 'bootstrap', ok: true, port: PORT});
+      resolve();
+    });
   });
 
   // ── Start LiveQuery WebSocket Server ───────────────────────
@@ -248,8 +273,26 @@ main()
   .then(() => {
     safeLog.info('Server initialized', {op: 'bootstrap', ok: true});
   })
-  .catch(() => {
-    // Never log the raw error: a boot failure can carry the database URI.
-    safeLog.error('Server failed to start', {op: 'bootstrap', ok: false});
-    process.exitCode = 1;
+  .catch((error: unknown) => {
+    // Never log the raw error: a boot failure can carry the database URI, and a
+    // duplicate-key failure's driver message carries the duplicate **value**.
+    if (error instanceof IndexStartupError) {
+      // A required index is not in place. The collection and index names are
+      // schema, not data, so they are safe to name — and they are the only
+      // thing an operator needs to find the problem by hand.
+      safeLog.error(indexFailureGuidance(error), {
+        op: 'bootstrap',
+        ok: false,
+        stage: 'applyIndexes',
+        code: error.code,
+        collection: error.collection,
+        indexName: error.indexName,
+      });
+    } else {
+      safeLog.error('Server failed to start', {op: 'bootstrap', ok: false});
+    }
+
+    // Exit rather than linger: a process that is up but not listening looks
+    // healthy to anything watching the process table.
+    process.exit(1);
   });
