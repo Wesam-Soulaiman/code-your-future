@@ -100,6 +100,7 @@
     "login": "Login",
     "logout": "Logout",
     "profile": "Profile",
+    "accountMenu": "Open account menu",
     "expand": "Expand",
     "collapse": "Collapse",
     "lightMode": "Light mode",
@@ -183,6 +184,14 @@
       "editProfile": "Edit profile"
     },
     "profile": {
+      "onboarding": {
+        "eyebrow": "Account setup",
+        "privacy": "Your personal details stay private and are only available to you and authorised Code Your Future staff.",
+        "stepsLabel": "Account setup steps",
+        "signedIn": "Signed in",
+        "profileStep": "Complete profile",
+        "workspaceStep": "Student workspace"
+      },
       "title": "Complete your profile",
       "lead": "Tell us a little about yourself. You can change any of this later.",
       "editTitle": "Your profile",
@@ -209,7 +218,8 @@
         "verifiedEmail": "Email address",
         "verifiedEmailHelp": "Verified through your Google account. This cannot be changed here.",
         "phone": "Phone number",
-        "phoneHelp": "Include your country code, for example +963 or +49.",
+        "phoneHelp": "Enter a Syrian mobile number. It will be saved as +9639XXXXXXXX.",
+        "phonePlaceholder": "09XXXXXXXX or 9XXXXXXXX",
         "city": "City",
         "dateOfBirth": "Date of birth",
         "institution": "Institution",

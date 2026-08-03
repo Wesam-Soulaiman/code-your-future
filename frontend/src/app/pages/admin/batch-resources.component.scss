@@ -12,7 +12,7 @@
 }
 
 .cyf-resources-lead {
-  margin: var(--cyf-space-1) 0 0;
+  margin: var(--cyf-space-2) 0 0;
   color: var(--cyf-text-secondary);
 }
 
@@ -21,7 +21,7 @@
 .cyf-resource-title {
   display: flex;
   align-items: flex-start;
-  gap: var(--cyf-space-3);
+  gap: var(--cyf-space-4);
 }
 
 .cyf-resource-icon {
@@ -32,7 +32,7 @@
 
 .cyf-resource-text {
   display: grid;
-  gap: var(--cyf-space-1);
+  gap: var(--cyf-space-2);
   /* The table keeps cells on one line; these three stack, so this cell opts
      back into wrapping for the description only. */
   min-inline-size: 0;
@@ -65,7 +65,7 @@
 .cyf-resource-actions {
   display: inline-flex;
   align-items: center;
-  gap: var(--cyf-space-1);
+  gap: var(--cyf-space-2);
   justify-content: flex-end;
 }
 
@@ -87,7 +87,7 @@
 .cyf-resource-dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--cyf-space-3);
+  gap: var(--cyf-space-4);
   margin-block-start: var(--cyf-space-6);
   flex-wrap: wrap;
 }

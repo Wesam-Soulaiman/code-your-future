@@ -31,6 +31,7 @@ let registry: typeof import('@90soft/parse-server-kit').CloudFunctionRegistry;
 let dto: typeof import('../src/cloudCode/modules/StudentProfile/dto');
 let logging: typeof import('../src/cloudCode/modules/StudentProfile/logging');
 let constants: typeof import('../src/cloudCode/modules/StudentProfile/constants');
+let syrianPhone: typeof import('../src/cloudCode/modules/StudentProfile/syrianPhone');
 let errors: typeof import('../src/cloudCode/modules/StudentProfile/errors');
 let schema: {
   className: string;
@@ -55,6 +56,7 @@ before(async () => {
   dto = await import('../src/cloudCode/modules/StudentProfile/dto');
   logging = await import('../src/cloudCode/modules/StudentProfile/logging');
   constants = await import('../src/cloudCode/modules/StudentProfile/constants');
+  syrianPhone = await import('../src/cloudCode/modules/StudentProfile/syrianPhone');
   errors = await import('../src/cloudCode/modules/StudentProfile/errors');
 
   const decorators = await import('@90soft/parse-server-kit');
@@ -455,6 +457,10 @@ describe('the backend and the browser share one set of rules', () => {
     join(REPO_ROOT, 'frontend', 'src', 'app', 'utils', 'student-profile-constants.ts'),
     'utf8'
   );
+  const frontendPhoneSource = readFileSync(
+    join(REPO_ROOT, 'frontend', 'src', 'app', 'utils', 'syrian-phone.ts'),
+    'utf8'
+  );
 
   test('neither side hard-codes an institution list any more', () => {
     // It moved into ProfileCatalogItem, so an Admin edits it rather than a
@@ -506,7 +512,8 @@ describe('the backend and the browser share one set of rules', () => {
     }
   });
 
-  test('the phone pattern is identical', () => {
-    assert.ok(frontendSource.includes(String(constants.PHONE_PATTERN)));
+  test('the Syrian phone rule is mirrored in the browser', () => {
+    assert.ok(frontendPhoneSource.includes(String(syrianPhone.SYRIAN_MOBILE_PATTERN)));
+    assert.ok(frontendPhoneSource.includes('normaliseSyrianPhone'));
   });
 });

@@ -1,19 +1,118 @@
-<!--
-  Page content only ⟨CP4 closeout⟩. The shell supplies the frame — including the
-  sidebar, which it hides nothing from: a Student with an unfinished profile can
-  see My Batches in the navigation and will be sent straight back here by the
-  profile guard if they try it. That is the guard's job, not this page's.
--->
-<div class="cyf-page-body cyf-page-body-narrow cyf-profile-page">
-    <!-- ── Page heading ─────────────────────────────────────────────────── -->
-    <div class="cyf-profile-intro">
+<div
+  [class]="
+    inWorkspaceLayout
+      ? 'cyf-page-body cyf-page-body-narrow cyf-profile-page'
+      : 'cyf-page min-h-dvh bg-surface-50 text-surface-950 dark:bg-surface-950 dark:text-surface-0'
+  "
+>
+  @if (!inWorkspaceLayout) {
+    <a class="cyf-skip-link" href="#profile-main">{{ 'a11y.skipToContent' | translate }}</a>
+
+    <header
+      class="sticky top-0 z-20 border-b border-surface-200 bg-surface-0/95 backdrop-blur dark:border-surface-800 dark:bg-surface-950/95"
+    >
+      <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 md:px-8">
+        <cyf-brand-mark />
+
+        <div class="flex items-center gap-2 md:gap-4">
+          <cyf-language-switch />
+          <p-button
+            type="button"
+            size="small"
+            icon="fa-solid fa-right-from-bracket"
+            severity="secondary"
+            [outlined]="true"
+            [label]="'actions.logout' | translate"
+            [loading]="loggingOut()"
+            [disabled]="loggingOut() || saving()"
+            (onClick)="logout()"
+          />
+        </div>
+      </div>
+    </header>
+  }
+
+  @if (inWorkspaceLayout) {
+    <ng-container [ngTemplateOutlet]="profileContent" />
+  } @else {
+    <main id="profile-main" class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8" tabindex="-1">
+      <ng-container [ngTemplateOutlet]="profileContent" />
+    </main>
+  }
+
+  <ng-template #profileContent>
+    <div
+      [class]="
+        inWorkspaceLayout
+          ? 'cyf-profile-intro'
+          : 'mb-8 rounded-2xl border border-primary-200 bg-primary-50 p-4 shadow-sm dark:border-primary-800 dark:bg-primary-950 md:p-8'
+      "
+    >
+      @if (!inWorkspaceLayout) {
+        <p class="mb-2 text-sm font-semibold text-primary-700 dark:text-primary-300">
+          {{ 'student.profile.onboarding.eyebrow' | translate }}
+        </p>
+      }
       <h1 class="cyf-page-title">
-        {{ (isEditing() ? 'student.profile.editTitle' : 'student.profile.title') | translate }}
+        {{
+          (inWorkspaceLayout || isEditing()
+            ? 'student.profile.editTitle'
+            : 'student.profile.title') | translate
+        }}
       </h1>
-      <p class="cyf-lead cyf-profile-lead">
-        {{ (isEditing() ? 'student.profile.editLead' : 'student.profile.lead') | translate }}
+      <p class="cyf-lead cyf-profile-lead mt-2">
+        {{
+          (inWorkspaceLayout || isEditing()
+            ? 'student.profile.editLead'
+            : 'student.profile.lead') | translate
+        }}
       </p>
+
+      @if (!inWorkspaceLayout) {
+        <p class="mt-4 flex items-start gap-2 text-sm text-surface-600 dark:text-surface-300">
+          <i class="fa-solid fa-lock mt-2 text-primary-600" aria-hidden="true"></i>
+          <span>{{ 'student.profile.onboarding.privacy' | translate }}</span>
+        </p>
+      }
+
+      @if (!inWorkspaceLayout && !loading() && !isEditing()) {
+        <ol
+          class="mt-8 grid gap-2 md:grid-cols-3"
+          [attr.aria-label]="'student.profile.onboarding.stepsLabel' | translate"
+        >
+          <li class="flex items-center gap-2 rounded-lg bg-surface-0 p-4 dark:bg-surface-900">
+            <span
+              class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary-600 text-primary-contrast"
+              aria-hidden="true"
+            >
+              <i class="fa-solid fa-check"></i>
+            </span>
+            <span class="text-sm font-medium">{{ 'student.profile.onboarding.signedIn' | translate }}</span>
+          </li>
+          <li
+            class="flex items-center gap-2 rounded-lg border border-primary-500 bg-surface-0 p-4 dark:bg-surface-900"
+            aria-current="step"
+          >
+            <span
+              class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary-600 font-semibold text-primary-contrast"
+              aria-hidden="true"
+              >2</span
+            >
+            <span class="text-sm font-semibold">{{ 'student.profile.onboarding.profileStep' | translate }}</span>
+          </li>
+          <li class="flex items-center gap-2 rounded-lg bg-surface-100 p-4 text-surface-500 dark:bg-surface-800">
+            <span
+              class="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-surface-300 font-semibold dark:border-surface-600"
+              aria-hidden="true"
+              >3</span
+            >
+            <span class="text-sm font-medium">{{ 'student.profile.onboarding.workspaceStep' | translate }}</span>
+          </li>
+        </ol>
+      }
     </div>
+
+    <div [class.cyf-page-body]="!inWorkspaceLayout">
 
     @if (loading()) {
       <div class="cyf-card cyf-card-padded cyf-profile-loading" role="status" aria-live="polite">
@@ -207,13 +306,15 @@
                 type="tel"
                 class="cyf-input"
                 autocomplete="tel"
+                inputmode="tel"
                 dir="ltr"
+                [placeholder]="'student.profile.fields.phonePlaceholder' | translate"
                 [attr.aria-invalid]="hasError('phone')"
                 [attr.aria-describedby]="hasError('phone') ? 'phone-error' : 'phone-help'"
                 [value]="form().phone"
                 [attr.maxlength]="limits.phone.max"
                 (input)="update('phone', $any($event.target).value)"
-                (blur)="markTouched('phone')"
+                (blur)="normalisePhone()"
               />
               <p class="cyf-field-message" id="phone-error">
                 @if (fieldError('phone')) {
@@ -228,11 +329,12 @@
 
             <!-- City — a searchable catalog select -->
             <div class="cyf-field">
-              <label class="cyf-field-label cyf-label" for="cityId">
+              <label id="cityId-label" class="cyf-field-label cyf-label">
                 {{ 'student.profile.fields.city' | translate }}
                 <span class="cyf-profile-required" aria-hidden="true">*</span>
               </label>
               <p-select
+                size="small"
                 inputId="cityId"
                 styleClass="cyf-select-control"
                 appendTo="body"
@@ -255,6 +357,7 @@
                 [emptyMessage]="'student.profile.catalog.empty' | translate"
                 [emptyFilterMessage]="'student.profile.catalog.noMatch' | translate"
                 [ariaLabel]="'student.profile.fields.city' | translate"
+                ariaLabelledBy="cityId-label"
                 [attr.aria-invalid]="hasError('cityId')"
                 [attr.aria-describedby]="hasError('cityId') ? 'cityId-error' : null"
                 (onChange)="update('cityId', $any($event).value)"
@@ -287,6 +390,7 @@
                 <span class="cyf-profile-optional">{{ 'student.profile.optional' | translate }}</span>
               </label>
               <p-datepicker
+                size="small"
                 inputId="dateOfBirth"
                 styleClass="cyf-datepicker-control"
                 appendTo="body"
@@ -333,11 +437,12 @@
           <div class="cyf-profile-grid">
             <!-- Institution — a searchable catalog select -->
             <div class="cyf-field">
-              <label class="cyf-field-label cyf-label" for="institutionId">
+              <label id="institutionId-label" class="cyf-field-label cyf-label">
                 {{ 'student.profile.fields.institution' | translate }}
                 <span class="cyf-profile-required" aria-hidden="true">*</span>
               </label>
               <p-select
+                size="small"
                 inputId="institutionId"
                 styleClass="cyf-select-control"
                 appendTo="body"
@@ -360,6 +465,7 @@
                 [emptyMessage]="'student.profile.catalog.empty' | translate"
                 [emptyFilterMessage]="'student.profile.catalog.noMatch' | translate"
                 [ariaLabel]="'student.profile.fields.institution' | translate"
+                ariaLabelledBy="institutionId-label"
                 [attr.aria-invalid]="hasError('institutionId')"
                 [attr.aria-describedby]="'institutionId-error'"
                 (onChange)="update('institutionId', $any($event).value)"
@@ -431,11 +537,12 @@
 
             <!-- Major — a searchable catalog select -->
             <div class="cyf-field">
-              <label class="cyf-field-label cyf-label" for="majorId">
+              <label id="majorId-label" class="cyf-field-label cyf-label">
                 {{ 'student.profile.fields.major' | translate }}
                 <span class="cyf-profile-required" aria-hidden="true">*</span>
               </label>
               <p-select
+                size="small"
                 inputId="majorId"
                 styleClass="cyf-select-control"
                 appendTo="body"
@@ -458,6 +565,7 @@
                 [emptyMessage]="'student.profile.catalog.empty' | translate"
                 [emptyFilterMessage]="'student.profile.catalog.noMatch' | translate"
                 [ariaLabel]="'student.profile.fields.major' | translate"
+                ariaLabelledBy="majorId-label"
                 [attr.aria-invalid]="hasError('majorId')"
                 [attr.aria-describedby]="'majorId-error'"
                 (onChange)="update('majorId', $any($event).value)"
@@ -530,6 +638,7 @@
                   <span class="cyf-profile-required" aria-hidden="true">*</span>
                 </label>
                 <p-datepicker
+                  size="small"
                   inputId="expectedGraduationMonth"
                   styleClass="cyf-datepicker-control"
                   appendTo="body"
@@ -577,11 +686,12 @@
 
           <!-- Target role — optional, and clearable because it is optional -->
           <div class="cyf-field">
-            <label class="cyf-field-label cyf-label" for="targetRoleId">
+            <label id="targetRoleId-label" class="cyf-field-label cyf-label">
               {{ 'student.profile.fields.targetRole' | translate }}
               <span class="cyf-profile-optional">{{ 'student.profile.optional' | translate }}</span>
             </label>
             <p-select
+              size="small"
               inputId="targetRoleId"
               styleClass="cyf-select-control"
               appendTo="body"
@@ -605,6 +715,7 @@
               [emptyMessage]="'student.profile.catalog.empty' | translate"
               [emptyFilterMessage]="'student.profile.catalog.noMatch' | translate"
               [ariaLabel]="'student.profile.fields.targetRole' | translate"
+              ariaLabelledBy="targetRoleId-label"
               [attr.aria-describedby]="'targetRoleId-help'"
               (onChange)="update('targetRoleId', $any($event).value ?? '')"
               (onClear)="update('targetRoleId', '')"
@@ -775,7 +886,9 @@
         </section>
 
         <!-- ── Actions ────────────────────────────────────────────────────── -->
-        <div class="cyf-profile-actions">
+        <div
+          class="cyf-profile-actions sticky bottom-0 z-10 rounded-xl border border-surface-200 bg-surface-0/95 p-4 shadow-lg backdrop-blur dark:border-surface-800 dark:bg-surface-900/95"
+        >
           @if (hasUnsavedChanges()) {
             <p class="cyf-helper cyf-profile-unsaved" role="status">
               <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
@@ -787,6 +900,7 @@
             @if (isEditing()) {
               <p-button
                 type="button"
+                size="small"
                 severity="secondary"
                 [outlined]="true"
                 [disabled]="saving()"
@@ -799,6 +913,7 @@
 
             <p-button
               type="submit"
+              size="small"
               [disabled]="saving() || photoBusy()"
               [loading]="saving()"
               styleClass="cyf-btn cyf-profile-save-btn"
@@ -818,4 +933,6 @@
         </div>
       </form>
     }
+    </div>
+  </ng-template>
 </div>

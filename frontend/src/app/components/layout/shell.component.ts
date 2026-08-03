@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { TitleCasePipe } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { TooltipModule } from 'primeng/tooltip';
 import { AvatarModule } from 'primeng/avatar';
@@ -27,7 +27,7 @@ import { SessionService } from '../../services/session.service';
 import { DividerModule } from 'primeng/divider';
 import { SearchInputComponent } from '../shared/data-table/search-input.component';
 import { AppRole } from '../../config/user-roles';
-import { ADMIN_SIGN_IN, STUDENT_SIGN_IN } from '../../guards/home-route';
+import { ADMIN_SIGN_IN, STUDENT_PROFILE_EDIT, STUDENT_SIGN_IN } from '../../guards/home-route';
 import { BrandMarkComponent } from '../shared/brand-mark.component';
 
 interface NavItem {
@@ -69,6 +69,7 @@ export class ShellComponent implements OnInit, OnDestroy {
   protected sessionService = inject(SessionService);
   private router = inject(Router);
   protected langService = inject(ChangeLangService);
+  private translate = inject(TranslateService);
   protected pageTitleService = inject(PageTitleService);
   sidebarCollapsed = signal(false);
   mobileMenuOpen = signal(false);
@@ -284,13 +285,6 @@ export class ShellComponent implements OnInit, OnDestroy {
       route: '/student/batches',
       roles: [AppRole.STUDENT],
     },
-    {
-      id: 'student-profile',
-      labelKey: 'nav.editProfile',
-      icon: 'fa-solid fa-user-pen',
-      route: '/student/profile',
-      roles: [AppRole.STUDENT],
-    },
   ];
 
   /**
@@ -314,10 +308,29 @@ export class ShellComponent implements OnInit, OnDestroy {
     );
   });
 
-  userMenuItems: MenuItem[] = [
-    { separator: true },
-    { label: 'Logout', icon: 'fa-solid fa-right-from-bracket', command: () => this.logout() },
-  ];
+  userMenuItems = computed<MenuItem[]>(() => {
+    // The language signal makes the popup labels change with the rest of the shell.
+    this.langService.currentLang();
+
+    const items: MenuItem[] = [];
+    if (this.sessionService.roles().includes(AppRole.STUDENT)) {
+      items.push({
+        label: this.translate.instant('actions.profile'),
+        icon: 'fa-solid fa-user-pen',
+        routerLink: [STUDENT_PROFILE_EDIT],
+      });
+    }
+
+    items.push(
+      { separator: true },
+      {
+        label: this.translate.instant('actions.logout'),
+        icon: 'fa-solid fa-right-from-bracket',
+        command: () => this.logout(),
+      },
+    );
+    return items;
+  });
 
   ngOnInit(): void {
     // Global font size

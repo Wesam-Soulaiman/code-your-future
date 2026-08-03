@@ -191,8 +191,7 @@ export class LiveSlidesComponent {
 
   /** A child changed the session; keep the open copy and the list in step. */
   protected onSessionChanged(session: LiveSession): void {
-    this.openSession.set(session);
-    this.load();
+    this.syncSession(session);
   }
 
   // ── Create and edit ───────────────────────────────────────────────────────
@@ -261,8 +260,7 @@ export class LiveSlidesComponent {
         next: (session) => {
           this.formOpen.set(false);
           this.noticeKey.set(id ? 'liveSlides.notices.updated' : 'liveSlides.notices.created');
-          this.openSession.set(session);
-          this.load();
+          this.syncSession(session);
         },
         error: (error) => this.fail(error),
       });
@@ -297,7 +295,7 @@ export class LiveSlidesComponent {
         next: (session) => {
           this.noticeKey.set(noticeKey);
           onDone?.(session);
-          this.load();
+          this.syncSession(session);
         },
         error: (error) => this.fail(error),
       });
@@ -308,6 +306,30 @@ export class LiveSlidesComponent {
     this.errorKey.set(failure.key);
     this.fieldErrors.set(failure.fields);
     this.noticeKey.set(null);
+  }
+
+  /** Update the open session and its list summary without unmounting the builder. */
+  private syncSession(session: LiveSession): void {
+    const summary: SessionSummary = {
+      id: session.id,
+      title: session.title,
+      description: session.description,
+      sessionDate: session.sessionDate,
+      status: session.status,
+      slideCount: session.slideCount,
+      questionCount: session.questionCount,
+      responseCount: session.responseCount,
+      startedAt: session.startedAt,
+      completedAt: session.completedAt,
+      createdAt: session.createdAt,
+    };
+
+    this.openSession.set(session);
+    this.sessions.update((items) => {
+      const index = items.findIndex((item) => item.id === session.id);
+      if (index < 0) return [summary, ...items];
+      return items.map((item) => (item.id === session.id ? summary : item));
+    });
   }
 
   protected dismissNotice(): void {

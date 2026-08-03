@@ -21,15 +21,13 @@ import {
   EducationStatus,
   GRADUATION_YEAR,
   LIMITS,
-  PHONE_MAX_DIGITS,
-  PHONE_MIN_DIGITS,
-  PHONE_PATTERN,
   REQUIRED_PROFILE_FIELDS,
   URL_HOSTS,
   URL_SCHEMES,
   WRITABLE_PROFILE_FIELDS,
 } from './constants';
 import {FieldErrors, FieldReason} from './errors';
+import {normaliseSyrianPhone} from './syrianPhone';
 
 /**
  * The normalised, storable **scalar** shape produced by a successful validation.
@@ -200,11 +198,6 @@ function validateDateOfBirth(raw: unknown): {value?: Date; reason?: keyof typeof
   return {value: parsed};
 }
 
-/** Count the digits in a phone string, ignoring formatting. */
-function digitCount(value: string): number {
-  return (value.match(/\d/g) ?? []).length;
-}
-
 /**
  * Validate and normalise everything a client may send.
  *
@@ -226,16 +219,12 @@ export function validateProfileInput(
   if (fullNameReason) errors['fullName'] = FieldReason[fullNameReason];
 
   // ── Personal ─────────────────────────────────────────────────────────────
-  const phone = normaliseText(input['phone']);
-  if (phone.length === 0) {
+  const rawPhone = normaliseText(input['phone']);
+  const phone = normaliseSyrianPhone(rawPhone);
+  if (rawPhone.length === 0) {
     errors['phone'] = FieldReason.REQUIRED;
-  } else if (!PHONE_PATTERN.test(phone)) {
+  } else if (!phone) {
     errors['phone'] = FieldReason.INVALID;
-  } else {
-    const digits = digitCount(phone);
-    if (digits < PHONE_MIN_DIGITS || digits > PHONE_MAX_DIGITS) {
-      errors['phone'] = FieldReason.INVALID;
-    }
   }
 
   const dob = validateDateOfBirth(input['dateOfBirth']);
@@ -305,7 +294,7 @@ export function validateProfileInput(
 
   const values: NormalisedProfile = {
     fullName,
-    phone,
+    phone: phone ?? '',
     educationStatus: educationStatus as EducationStatus,
   };
 

@@ -15,6 +15,7 @@ import { pendingInvitationToken } from '../utils/invitation-intent';
 export const ADMIN_HOME = '/dashboard';
 export const STUDENT_HOME = '/student/welcome';
 export const STUDENT_PROFILE = '/student/profile';
+export const STUDENT_PROFILE_EDIT = '/student/profile/edit';
 export const ADMIN_SIGN_IN = '/auth/admin';
 export const STUDENT_SIGN_IN = '/auth/student';
 

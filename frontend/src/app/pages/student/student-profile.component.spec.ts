@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Component, DebugElement } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { Router, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { TranslateService, provideTranslateService } from '@ngx-translate/core';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { DatePicker } from 'primeng/datepicker';
@@ -93,6 +93,7 @@ describe('StudentProfileComponent', () => {
     profile: StudentProfile = EMPTY_PROFILE,
     lang: 'en' | 'ar' = 'en',
     catalog: ProfileCatalogMap = CATALOG,
+    inWorkspaceLayout = false,
   ): Promise<void> {
     localStorage.clear();
     localStorage.setItem('lang', lang);
@@ -103,6 +104,10 @@ describe('StudentProfileComponent', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([{ path: '**', component: StubComponent }]),
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { data: { inWorkspaceLayout } } },
+        },
         provideTranslateService({ fallbackLang: 'en' }),
         MessageService,
         ConfirmationService,
@@ -283,6 +288,26 @@ describe('StudentProfileComponent', () => {
     it('marks required fields and optional fields distinctly', () => {
       expect(fixture.nativeElement.querySelectorAll('.cyf-profile-required').length).toBeGreaterThan(4);
       expect(fixture.nativeElement.querySelectorAll('.cyf-profile-optional').length).toBeGreaterThan(3);
+    });
+
+    it('associates every native label for attribute with a labelable form control', () => {
+      const labels = [
+        ...fixture.nativeElement.querySelectorAll('label[for]'),
+      ] as HTMLLabelElement[];
+
+      expect(labels.length).toBeGreaterThan(0);
+      for (const label of labels) expect(label.control, label.htmlFor).toBeTruthy();
+    });
+
+    it('labels each PrimeNG combobox through aria-labelledby', () => {
+      for (const id of ['cityId', 'institutionId', 'majorId', 'targetRoleId']) {
+        const label = fixture.nativeElement.querySelector(`#${id}-label`) as HTMLLabelElement;
+        const combobox = fixture.nativeElement.querySelector(`#${id}`) as HTMLElement;
+
+        expect(label).toBeTruthy();
+        expect(combobox.getAttribute('role')).toBe('combobox');
+        expect(combobox.getAttribute('aria-labelledby')).toBe(label.id);
+      }
     });
 
     it('shows a real count of what is still required, not a percentage', () => {
@@ -788,10 +813,26 @@ describe('StudentProfileComponent', () => {
       expect(text()).toContain('Please check this value');
     });
 
-    it('accepts an international phone number', () => {
+    it('rejects a non-Syrian phone number', () => {
       type('phone', '+49 151 23456789');
-      expect(text()).not.toContain('Please check this value');
+      expect(text()).toContain('Please check this value');
     });
+
+    for (const [label, value] of [
+      ['a local number with zero', '0911111111'],
+      ['a local number without zero', '911111111'],
+      ['a formatted international number', '+963 (911) 111-111'],
+      ['Arabic-Indic digits', '\u0660\u0669\u0661\u0661\u0661\u0661\u0661\u0661\u0661\u0661'],
+    ] as const) {
+      it(`normalises ${label} when leaving the field`, () => {
+        type('phone', value);
+        field('phone').dispatchEvent(new Event('blur'));
+        fixture.detectChanges();
+
+        expect(field('phone').value).toBe('+963911111111');
+        expect(text()).not.toContain('Please check this value');
+      });
+    }
 
     for (const [label, value] of [
       ['a javascript: URL', 'javascript:alert(1)'],
@@ -821,6 +862,17 @@ describe('StudentProfileComponent', () => {
   });
 
   describe('saving', () => {
+    it('submits a canonical Syrian number even when the field was not blurred', () => {
+      fillRequired();
+      type('phone', '911111111');
+      submit();
+
+      const request = http.expectOne((req) => req.url.includes('saveMyStudentProfile'));
+      expect(request.request.body.phone).toBe('+963911111111');
+      request.flush(SAVED_PROFILE);
+      flushSession();
+    });
+
     it('sends only the writable fields', () => {
       fillRequired();
       submit();
@@ -936,6 +988,24 @@ describe('StudentProfileComponent', () => {
     });
   });
 
+  describe('standalone navigation', () => {
+    it('lets the Student sign out without entering the workspace', async () => {
+      const buttons = [
+        ...fixture.nativeElement.querySelectorAll('header button'),
+      ] as HTMLButtonElement[];
+      const logout = buttons.find((button) => button.textContent?.includes('Logout'));
+      expect(logout).toBeTruthy();
+
+      logout!.click();
+      fixture.detectChanges();
+      http.expectOne((req) => req.url.includes('/users/logout')).flush({ success: true });
+      await fixture.whenStable();
+
+      expect(TestBed.inject(SessionService).isLoggedIn()).toBe(false);
+      expect(TestBed.inject(Router).url).toBe('/auth/student');
+    });
+  });
+
   describe('editing an existing profile', () => {
     beforeEach(async () => setup(SAVED_PROFILE));
 
@@ -958,6 +1028,31 @@ describe('StudentProfileComponent', () => {
 
     it('shows no outstanding-fields notice', () => {
       expect(text()).not.toMatch(/required field/i);
+    });
+  });
+
+  describe('editing inside the workspace layout', () => {
+    beforeEach(async () => setup(SAVED_PROFILE, 'en', CATALOG, true));
+
+    it('renders page content without standalone onboarding chrome', () => {
+      expect(fixture.nativeElement.querySelector('main')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.cyf-skip-link')).toBeNull();
+      expect(fixture.nativeElement.querySelector('header')).toBeNull();
+      expect(fixture.nativeElement.querySelector('cyf-brand-mark')).toBeNull();
+      expect(text()).toContain('Your profile');
+    });
+
+    it('stays on the edit page after saving', async () => {
+      const router = TestBed.inject(Router);
+      const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+      submit();
+      http.expectOne((req) => req.url.includes('saveMyStudentProfile')).flush(SAVED_PROFILE);
+      flushSession();
+      await fixture.whenStable();
+
+      expect(navigate).not.toHaveBeenCalled();
+      expect(text()).toContain('Your profile has been saved');
     });
   });
 
@@ -1313,9 +1408,8 @@ describe('StudentProfileComponent', () => {
     });
 
     it('adds no country, timezone, or remote-attendance field', () => {
-      // Asserted against the *controls*, not the prose: the phone helper
-      // legitimately mentions a country code, and matching on words alone
-      // would fail for the wrong reason.
+      // Asserted against the *controls*, not the prose: the phone helper names
+      // the Syrian international storage format, which is not a country field.
       const controls = [
         ...fixture.nativeElement.querySelectorAll('input, textarea, select, p-select, p-datepicker'),
       ] as HTMLElement[];
@@ -1559,13 +1653,24 @@ describe('StudentProfileComponent', () => {
       expect(html()).not.toMatch(/style="[^"]*width:\s*\d+px/);
     });
 
-    it('renders no page frame of its own ⟨CP4 closeout⟩', () => {
-      // The skip link and the `main` landmark moved to the shared shell, which
-      // now wraps every protected page. A page that still supplied its own
-      // would produce two landmarks and a second skip target — see
-      // `shell.component.spec.ts`, where both are asserted.
-      expect(fixture.nativeElement.querySelectorAll('main').length).toBe(0);
-      expect(fixture.nativeElement.querySelector('.cyf-skip-link')).toBeNull();
+    it('renders a standalone onboarding frame instead of the workspace shell', () => {
+      expect(fixture.nativeElement.querySelectorAll('main').length).toBe(1);
+      expect(fixture.nativeElement.querySelector('.cyf-skip-link')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('header cyf-brand-mark')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('header cyf-language-switch')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('app-shell')).toBeNull();
+    });
+
+    it('shows the signed-in, profile, and workspace onboarding steps', () => {
+      const steps = fixture.nativeElement.querySelectorAll('ol[aria-label] > li');
+      expect(steps.length).toBe(3);
+      expect(fixture.nativeElement.querySelector('[aria-current="step"]')?.textContent).toContain(
+        'Complete profile',
+      );
+    });
+
+    it('keeps the save action available at the bottom of the viewport', () => {
+      expect(fixture.nativeElement.querySelector('.cyf-profile-actions.sticky')).toBeTruthy();
     });
 
     it('renders no navigation of its own', () => {

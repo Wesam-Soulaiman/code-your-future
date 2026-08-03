@@ -8,15 +8,16 @@
  *   /join/:token       — the public invitation landing page (anybody)
  *   /student           — redirects to the Student's current home
  *     /student/profile — Complete Profile (Students only)
+ *     /student/profile/edit — Edit Profile inside the Student shell
  *     /student/welcome — the Student area (Students with a complete profile)
  *     /student/batches — My Batches (Students with a complete profile)
  *     /student/batches/:batchId — one Batch this Student belongs to
  *
- * Both protected areas load the same `ShellComponent`. It renders the sidebar,
- * the top bar, and the page header, and picks its navigation items from the
- * session's roles — an Admin never sees a Student item and a Student never sees
- * an Admin one. Hiding a link is not authorization: every route below is
- * guarded, and every request is re-authorised server-side.
+ * The completed Student and Admin workspaces load the same `ShellComponent`.
+ * Profile onboarding is intentionally outside it, so an unfinished Student
+ * cannot see workspace navigation before they are allowed to use it. Hiding a
+ * link is not authorization: every route below is guarded, and every request is
+ * re-authorised server-side.
  *
  *   /student           — Student shell (Students only)
  *   /                  — Admin shell (Admins only)
@@ -33,6 +34,7 @@
  *   authGuard    — Admin workspace; Visitor → /auth/admin, Student → their own area
  *   studentGuard — Student area; Visitor → /auth/student, Admin → the dashboard
  *   profileCompleteGuard — sends a Student with an unfinished profile to the form
+ *   profileOnboardingGuard — sends a completed Student to profile editing in the shell
  *   guestGuard   — sends an authenticated user away from the auth pages, to the
  *                  landing route for the role they actually hold
  *   roleGuard    — restricts a route to the supplied application roles
@@ -53,6 +55,7 @@ import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 import { profileCompleteGuard } from './guards/profile-complete.guard';
+import { profileOnboardingGuard } from './guards/profile-onboarding.guard';
 import { adminGuard } from './guards/role.guard';
 import { studentGuard } from './guards/student.guard';
 
@@ -100,29 +103,29 @@ export const routes: Routes = [
 
   // ── Student area ─────────────────────────────────────────────────────────
   //
-  // ⟨CP4 closeout⟩ Loads the **same** shell the Admin workspace does. The shell
-  // decides which navigation items to render from the session's roles, so one
-  // component serves both workspaces and the two cannot drift apart in layout,
-  // active-state handling, or responsive behaviour.
+  // Profile onboarding is a protected, standalone page. Declaring the more
+  // specific route before the Student shell keeps the stable URL while ensuring
+  // the shell is never activated for an unfinished profile.
+  {
+    path: 'student/profile',
+    title: 'Code Your Future — Complete your profile',
+    canActivate: [studentGuard, profileOnboardingGuard],
+    loadComponent: () =>
+      import('./pages/student/student-profile.component').then(
+        (m) => m.StudentProfileComponent,
+      ),
+  },
+
+  // The completed Student workspace uses the same shell as the Admin workspace.
+  // The completion guard sits on the branch itself, so no workspace navigation
+  // or header is activated before onboarding is finished.
   {
     path: 'student',
-    canActivate: [studentGuard],
+    canActivate: [studentGuard, profileCompleteGuard],
     loadComponent: () =>
       import('./components/layout/shell.component').then((m) => m.ShellComponent),
     children: [
       { path: '', redirectTo: 'welcome', pathMatch: 'full' },
-      {
-        path: 'profile',
-        title: 'Code Your Future — Complete your profile',
-        // Deliberately NOT behind profileCompleteGuard: this is where an
-        // incomplete Student is sent, and guarding it would loop. A Student who
-        // has already finished may open it any time to edit.
-        canActivate: [studentGuard],
-        loadComponent: () =>
-          import('./pages/student/student-profile.component').then(
-            (m) => m.StudentProfileComponent,
-          ),
-      },
       {
         path: 'welcome',
         title: 'Code Your Future — Welcome',
@@ -133,6 +136,16 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/student/student-welcome.component').then(
             (m) => m.StudentWelcomeComponent,
+          ),
+      },
+      {
+        path: 'profile/edit',
+        title: 'Code Your Future — Edit your profile',
+        canActivate: [studentGuard, profileCompleteGuard],
+        data: { inWorkspaceLayout: true },
+        loadComponent: () =>
+          import('./pages/student/student-profile.component').then(
+            (m) => m.StudentProfileComponent,
           ),
       },
       {

@@ -2,12 +2,14 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
   input,
   signal,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
@@ -55,10 +57,16 @@ import { LiveSlidesErrorKey, mapLiveSlidesError } from '../../utils/live-slides-
   templateUrl: './student-live-slides.component.html',
   providers: [LiveSessionPollService],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:fullscreenchange)': 'onFullscreenChange()',
+    '(document:keydown.escape)': 'onEscape()',
+  },
 })
 export class StudentLiveSlidesComponent {
   private api = inject(LiveSlidesApiService);
   private changeDetector = inject(ChangeDetectorRef);
+  private document = inject(DOCUMENT);
+  private destroyRef = inject(DestroyRef);
   protected poll = inject(LiveSessionPollService);
   protected langService = inject(ChangeLangService);
 
@@ -85,6 +93,7 @@ export class StudentLiveSlidesComponent {
    */
   protected entered = signal(false);
   protected confirmSubmit = signal(false);
+  protected fullscreen = signal(false);
 
   // ── The local answer, never sent until Submit ─────────────────────────────
   protected draftText = signal('');
@@ -135,6 +144,9 @@ export class StudentLiveSlidesComponent {
         (state) => {
           const previousSlide = this.slide()?.id;
           this.state.set(state);
+          if (state.session?.status !== SESSION_STATUS.LIVE && this.fullscreen()) {
+            this.exitFullscreen();
+          }
           // A new Slide clears whatever was half-typed for the last one: it is
           // an answer to a question that is no longer being asked.
           if (state.currentSlide?.id !== previousSlide) {
@@ -146,10 +158,44 @@ export class StudentLiveSlidesComponent {
         },
       );
     });
+
+    this.destroyRef.onDestroy(() => {
+      if (this.fullscreen() && this.document.fullscreenElement) {
+        void this.document.exitFullscreen().catch(() => undefined);
+      }
+    });
   }
 
   protected enter(): void {
     this.entered.set(true);
+  }
+
+  protected onEscape(): void {
+    if (this.fullscreen()) this.exitFullscreen();
+  }
+
+  protected onFullscreenChange(): void {
+    if (!this.document.fullscreenElement && this.fullscreen()) this.fullscreen.set(false);
+  }
+
+  protected toggleFullscreen(): void {
+    if (this.fullscreen()) {
+      this.exitFullscreen();
+      return;
+    }
+
+    this.fullscreen.set(true);
+    const root = this.document.documentElement;
+    if (typeof root.requestFullscreen === 'function') {
+      void root.requestFullscreen().catch(() => undefined);
+    }
+  }
+
+  protected exitFullscreen(): void {
+    this.fullscreen.set(false);
+    if (this.document.fullscreenElement && typeof this.document.exitFullscreen === 'function') {
+      void this.document.exitFullscreen().catch(() => undefined);
+    }
   }
 
   protected toggleChoice(optionId: string): void {

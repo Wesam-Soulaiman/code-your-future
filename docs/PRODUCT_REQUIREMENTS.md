@@ -103,6 +103,9 @@ Exactly one `StudentProfile` per Student.
 **Required:** `fullName`, verified read-only `email`, `phone`, `city`, `institution`, `major`,
 `educationStatus`.
 
+`phone` accepts common Syrian mobile forms such as `0911111111`, `911111111`, or
+`+963911111111`, and is stored canonically as `+9639XXXXXXXX`.
+
 **Optional:** `photo`, `dateOfBirth`, `careerGoal`, `targetRole`, `targetRoleReason`, GitHub URL,
 LinkedIn URL, Portfolio URL.
 

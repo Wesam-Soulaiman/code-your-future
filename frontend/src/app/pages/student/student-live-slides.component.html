@@ -1,5 +1,9 @@
 <!-- The Live Slides tab on a Student's Batch ⟨CP6⟩. -->
-<div class="cyf-stack-lg">
+<div
+  class="cyf-stack-lg"
+  [class.cyf-student-live-fullscreen]="fullscreen()"
+  [class.cyf-live-fullscreen]="fullscreen()"
+>
   <div class="cyf-page-status" aria-live="polite">
     @if (errorKey()) {
       <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
@@ -9,10 +13,16 @@
   </div>
 
   @if (loading()) {
-    <p class="cyf-body-sm">{{ 'common.loading' | translate }}</p>
+    <div class="cyf-live-loading" role="status" aria-live="polite">
+      <span class="cyf-spinner" aria-hidden="true"></span>
+      <span>{{ 'common.loading' | translate }}</span>
+    </div>
   } @else if (!session()) {
     <!-- ── 1. No session ── -->
     <div class="cyf-live-intro">
+      <span class="cyf-live-intro-icon" aria-hidden="true">
+        <i class="fa-regular fa-calendar-xmark"></i>
+      </span>
       <h3 class="cyf-card-title">{{ 'liveSlides.student.none.title' | translate }}</h3>
       <p class="cyf-body-sm">{{ 'liveSlides.student.none.body' | translate }}</p>
     </div>
@@ -44,6 +54,9 @@
   } @else if (!isLive()) {
     <!-- ── 2. Ready, not started ── -->
     <div class="cyf-live-intro">
+      <span class="cyf-live-intro-icon" aria-hidden="true">
+        <i class="fa-regular fa-clock"></i>
+      </span>
       <span class="cyf-status-chip cyf-status-success">
         {{ 'liveSlides.student.upcoming' | translate }}
       </span>
@@ -59,6 +72,9 @@
   } @else if (!entered()) {
     <!-- ── 3. Live, not entered. A view transition only: nothing is recorded. ── -->
     <div class="cyf-live-intro">
+      <span class="cyf-live-intro-icon cyf-live-intro-icon-live" aria-hidden="true">
+        <i class="fa-solid fa-bolt"></i>
+      </span>
       <span class="cyf-status-chip cyf-status-error">
         {{ 'liveSlides.student.liveNow' | translate }}
       </span>
@@ -76,21 +92,62 @@
     </div>
   } @else {
     <!-- ── 4–9. The live slide, and whatever this Student may do with it ── -->
-    <div class="cyf-flex-between cyf-wrap cyf-gap-3">
-      <h3 class="cyf-section-title">{{ session()!.title }}</h3>
+    <div class="cyf-student-live-head">
+      <div>
+        <h3 class="cyf-section-title">{{ session()!.title }}</h3>
+        <p class="cyf-presenter-position cyf-numeric">
+          {{
+            'liveSlides.presenter.position'
+              | translate: { index: (state()?.currentIndex ?? 0) + 1, total: session()!.slideCount }
+          }}
+        </p>
+      </div>
+      <div class="cyf-student-live-actions">
+        <span
+          class="cyf-connection"
+          [class.is-reconnecting]="poll.connection() === 'reconnecting'"
+          [class.is-lost]="poll.connection() === 'lost'"
+          role="status"
+        >
+          <span class="cyf-connection-dot" aria-hidden="true"></span>
+          {{ 'liveSlides.connection.' + poll.connection() | translate }}
+        </span>
+        <p-button
+          size="small"
+          severity="secondary"
+          [outlined]="true"
+          [icon]="fullscreen() ? 'fa-solid fa-compress' : 'fa-solid fa-expand'"
+          [label]="
+            (fullscreen()
+              ? 'liveSlides.presenter.exitFullscreen'
+              : 'liveSlides.presenter.fullscreen') | translate
+          "
+          (onClick)="toggleFullscreen()"
+        />
+      </div>
+    </div>
+
+    <div
+      class="cyf-student-live-progress"
+      role="progressbar"
+      [attr.aria-valuenow]="(state()?.currentIndex ?? 0) + 1"
+      aria-valuemin="1"
+      [attr.aria-valuemax]="session()!.slideCount"
+    >
       <span
-        class="cyf-connection"
-        [class.is-reconnecting]="poll.connection() === 'reconnecting'"
-        [class.is-lost]="poll.connection() === 'lost'"
-        role="status"
-      >
-        <span class="cyf-connection-dot" aria-hidden="true"></span>
-        {{ 'liveSlides.connection.' + poll.connection() | translate }}
-      </span>
+        [style.width.%]="
+          session()!.slideCount
+            ? (((state()?.currentIndex ?? 0) + 1) / session()!.slideCount) * 100
+            : 0
+        "
+      ></span>
     </div>
 
     @if (slide(); as current) {
-      <div class="cyf-slide" [class.cyf-slide-question]="current.type === SLIDE_TYPE.QUESTION">
+      <div
+        class="cyf-slide cyf-student-slide"
+        [class.cyf-slide-question]="current.type === SLIDE_TYPE.QUESTION"
+      >
         <div class="cyf-slide-inner">
           <span class="cyf-slide-kind">
             <i [class]="slideIcon(current.type)" aria-hidden="true"></i>
@@ -132,6 +189,11 @@
           </div>
         } @else {
           <!-- 5. Open. What is typed here goes nowhere until Submit. -->
+          <div class="cyf-answer-head">
+            <span class="cyf-answer-step" aria-hidden="true">1</span>
+            <strong>{{ 'liveSlides.student.yourAnswer' | translate }}</strong>
+          </div>
+
           @if (isTextAnswer(current.answerType)) {
             <div class="cyf-field">
               <label class="cyf-label" for="studentAnswer">
@@ -176,13 +238,17 @@
 
           <div class="cyf-mt-4">
             <p-button
+              icon="fa-solid fa-paper-plane"
               [label]="'liveSlides.student.submit' | translate"
               [loading]="busy()"
               [disabled]="!answerReady() || busy()"
               (onClick)="confirmSubmit.set(true)"
             />
           </div>
-          <p class="cyf-helper cyf-mt-2">{{ 'liveSlides.student.privacy' | translate }}</p>
+          <p class="cyf-answer-privacy">
+            <i class="fa-solid fa-lock" aria-hidden="true"></i>
+            <span>{{ 'liveSlides.student.privacy' | translate }}</span>
+          </p>
         }
       </div>
     }
@@ -195,18 +261,21 @@
   (visibleChange)="confirmSubmit.set($event)"
   [modal]="true"
   [draggable]="false"
-  [style]="{ width: 'min(30rem, 92vw)' }"
+  styleClass="w-full max-w-lg mx-4"
   [header]="'liveSlides.student.confirm.title' | translate"
 >
   <p class="cyf-body-sm">{{ 'liveSlides.student.confirm.body' | translate }}</p>
   <ng-template pTemplate="footer">
     <p-button
+      size="small"
       severity="secondary"
       [text]="true"
       [label]="'actions.cancel' | translate"
       (onClick)="confirmSubmit.set(false)"
     />
     <p-button
+      size="small"
+      icon="fa-solid fa-paper-plane"
       [label]="'liveSlides.student.submit' | translate"
       [loading]="busy()"
       (onClick)="submit()"

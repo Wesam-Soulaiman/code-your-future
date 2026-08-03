@@ -130,7 +130,7 @@ export default class StudentProfile extends BaseModel {
   })
   verifiedEmail!: string;
 
-  @ParseField({type: 'String', description: 'Contact phone, as entered'})
+  @ParseField({type: 'String', description: 'Syrian mobile in canonical +9639XXXXXXXX format'})
   phone!: string;
 
   /**

@@ -326,7 +326,9 @@ array; the catalog work replaced both with the shape the owner finally chose:
 - Complete Profile — the first real product page — in four sections on the
   Checkpoint 2A design system, with searchable PrimeNG Selects, polished
   DatePickers, conditional fields, inline validation, unsaved-change protection,
-  a save-then-upload photo flow, and full RTL.
+  a save-then-upload photo flow, and full RTL. It is a standalone onboarding
+  route outside the workspace shell; the shell branch itself requires a
+  complete profile.
 - **Profile Catalogs** — one Admin page at `/dashboard/profile-catalogs` with
   four tabs, search, create / edit / activate / deactivate / delete, loading,
   empty, and error states, and one visible navigation item.

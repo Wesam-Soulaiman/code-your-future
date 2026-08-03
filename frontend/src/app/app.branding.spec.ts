@@ -105,10 +105,12 @@ describe('approved Student copy', () => {
 describe('route surface', () => {
   const paths = routes.map((route) => route.path);
 
-  it('exposes only /auth, the join page, the Student area, the shell, and a wildcard', () => {
+  it('exposes only auth, join, standalone profile onboarding, the workspaces, and a wildcard', () => {
     // `join/:token` joined the top level in Checkpoint 4. It is deliberately
     // outside every guarded branch: it has to open for a Visitor.
-    expect(paths).toEqual(['auth', 'join/:token', 'student', '', '**']);
+    // `student/profile` is deliberately before and outside the Student shell,
+    // so an unfinished Student never activates workspace chrome.
+    expect(paths).toEqual(['auth', 'join/:token', 'student/profile', 'student', '', '**']);
   });
 
   it('no longer registers the /users management route', () => {

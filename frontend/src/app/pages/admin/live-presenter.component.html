@@ -1,9 +1,11 @@
 <!-- Presenter Mode ⟨CP6⟩. The stage and the response panel, from one request. -->
 <ng-template #presenterBody>
-  <div class="cyf-live-layout">
+  <div class="cyf-live-layout" [class.is-stage-only]="!responsesVisible()">
     <div class="cyf-presenter">
       <div class="cyf-presenter-top">
-        <div>
+        <div class="cyf-presenter-heading">
+          <span class="cyf-live-indicator" aria-hidden="true"></span>
+          <div>
           <strong>{{ session().title }}</strong>
           <div class="cyf-presenter-position">
             {{
@@ -11,8 +13,9 @@
                 | translate: { index: (state()?.currentIndex ?? 0) + 1, total: state()?.slideCount ?? 0 }
             }}
           </div>
+          </div>
         </div>
-        <div class="cyf-flex cyf-gap-2 cyf-wrap">
+        <div class="cyf-presenter-toolbar-actions">
           <span
             class="cyf-connection"
             [class.is-reconnecting]="poll.connection() === 'reconnecting'"
@@ -26,16 +29,18 @@
             size="small"
             severity="secondary"
             [text]="true"
+            [icon]="fullscreen() ? 'fa-solid fa-compress' : 'fa-solid fa-expand'"
             [label]="
               (fullscreen() ? 'liveSlides.presenter.exitFullscreen' : 'liveSlides.presenter.fullscreen')
                 | translate
             "
-            (onClick)="fullscreen.set(!fullscreen())"
+            (onClick)="toggleFullscreen()"
           />
           <p-button
             size="small"
             severity="secondary"
             [text]="true"
+            [icon]="responsesVisible() ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'"
             [label]="
               (responsesVisible() ? 'liveSlides.presenter.hideResponses' : 'liveSlides.presenter.showResponses')
                 | translate
@@ -43,6 +48,22 @@
             (onClick)="toggleResponses()"
           />
         </div>
+      </div>
+
+      <div
+        class="cyf-presenter-progress"
+        role="progressbar"
+        [attr.aria-valuenow]="(state()?.currentIndex ?? 0) + 1"
+        aria-valuemin="1"
+        [attr.aria-valuemax]="state()?.slideCount ?? 1"
+      >
+        <span
+          [style.width.%]="
+            state()?.slideCount
+              ? (((state()?.currentIndex ?? 0) + 1) / (state()?.slideCount ?? 1)) * 100
+              : 0
+          "
+        ></span>
       </div>
 
       @if (currentSlide(); as slide) {
@@ -69,6 +90,7 @@
 
       <div class="cyf-presenter-controls">
         <p-button
+          size="small"
           severity="secondary"
           icon="fa-solid fa-arrow-left"
           [label]="'liveSlides.presenter.previous' | translate"
@@ -84,6 +106,7 @@
         </span>
         @if (atEnd()) {
           <p-button
+            size="small"
             severity="success"
             [label]="'liveSlides.actions.end' | translate"
             [loading]="busy()"
@@ -91,6 +114,7 @@
           />
         } @else {
           <p-button
+            size="small"
             [label]="'liveSlides.presenter.next' | translate"
             icon="fa-solid fa-arrow-right"
             iconPos="right"
@@ -104,7 +128,7 @@
     <!-- ── The response panel. Admin only, submitted answers only. ────────── -->
     @if (responsesVisible()) {
       <aside class="cyf-response-panel">
-        <div class="cyf-flex-between cyf-gap-2">
+        <div class="cyf-response-panel-head">
           <h4 class="cyf-card-title">{{ 'liveSlides.presenter.responses' | translate }}</h4>
           @if (isQuestion()) {
             <span class="cyf-body-sm cyf-numeric">
@@ -143,7 +167,12 @@
 
           @for (response of state()?.responses ?? []; track response.id) {
             <article class="cyf-response-card">
-              <span class="cyf-response-name">{{ response.studentName }}</span>
+              <div class="cyf-response-author">
+                <span class="cyf-response-avatar" aria-hidden="true">
+                  <i class="fa-solid fa-user"></i>
+                </span>
+                <span class="cyf-response-name">{{ response.studentName }}</span>
+              </div>
               @if (response.textAnswer) {
                 <p class="cyf-response-answer">{{ response.textAnswer }}</p>
               }
@@ -152,7 +181,10 @@
               }
             </article>
           } @empty {
-            <p class="cyf-body-sm cyf-mt-3">{{ 'liveSlides.presenter.noResponses' | translate }}</p>
+            <div class="cyf-response-empty">
+              <i class="fa-regular fa-comments" aria-hidden="true"></i>
+              <p class="cyf-body-sm">{{ 'liveSlides.presenter.noResponses' | translate }}</p>
+            </div>
           }
         }
       </aside>
@@ -175,7 +207,11 @@
 </div>
 
 @if (fullscreen()) {
-  <div class="cyf-presenter-fullscreen" role="dialog" aria-modal="true">
+  <div
+    class="cyf-presenter-fullscreen cyf-live-fullscreen"
+    role="dialog"
+    aria-modal="true"
+  >
     <ng-container *ngTemplateOutlet="presenterBody" />
   </div>
 }
@@ -186,7 +222,7 @@
   (visibleChange)="!$event && confirmLock.set(null)"
   [modal]="true"
   [draggable]="false"
-  [style]="{ width: 'min(34rem, 92vw)' }"
+  styleClass="w-full max-w-xl mx-4"
   [header]="'liveSlides.lock.title' | translate"
 >
   <p class="cyf-body-sm">
@@ -205,12 +241,14 @@
   }
   <ng-template pTemplate="footer">
     <p-button
+      size="small"
       severity="secondary"
       [text]="true"
       [label]="'liveSlides.lock.stay' | translate"
       (onClick)="confirmLock.set(null)"
     />
     <p-button
+      size="small"
       [label]="'liveSlides.lock.continue' | translate"
       [loading]="busy()"
       (onClick)="confirmAndMove()"
@@ -224,18 +262,20 @@
   (visibleChange)="confirmEnd.set($event)"
   [modal]="true"
   [draggable]="false"
-  [style]="{ width: 'min(32rem, 92vw)' }"
+  styleClass="w-full max-w-lg mx-4"
   [header]="'liveSlides.end.title' | translate"
 >
   <p class="cyf-body-sm">{{ 'liveSlides.end.body' | translate }}</p>
   <ng-template pTemplate="footer">
     <p-button
+      size="small"
       severity="secondary"
       [text]="true"
       [label]="'actions.cancel' | translate"
       (onClick)="confirmEnd.set(false)"
     />
     <p-button
+      size="small"
       severity="danger"
       [label]="'liveSlides.actions.end' | translate"
       [loading]="busy()"

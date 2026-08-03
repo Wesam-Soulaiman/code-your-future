@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TranslateService, provideTranslateService } from '@ngx-translate/core';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { StudentLiveState } from '../../models/LiveSlides';
 import { useTranslations } from '../../testing/i18n-testing';
@@ -166,6 +166,36 @@ describe('StudentLiveSlidesComponent ⟨CP6⟩', () => {
     expect(text()).toContain('How today works');
     expect(text()).toContain('No answer required');
     expect(fixture.nativeElement.querySelector('textarea')).toBeNull();
+  });
+
+  it('offers fullscreen above the shell after the Student enters the live session', async () => {
+    const original = Object.getOwnPropertyDescriptor(
+      document.documentElement,
+      'requestFullscreen',
+    );
+    const requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    });
+
+    try {
+      await enterLive(INFO_STATE);
+      const component = fixture.componentInstance as unknown as {
+        toggleFullscreen(): void;
+      };
+      component.toggleFullscreen();
+      fixture.detectChanges();
+
+      expect(requestFullscreen).toHaveBeenCalledOnce();
+      expect(fixture.nativeElement.querySelector('.cyf-live-fullscreen')).toBeTruthy();
+    } finally {
+      if (original) {
+        Object.defineProperty(document.documentElement, 'requestFullscreen', original);
+      } else {
+        Reflect.deleteProperty(document.documentElement, 'requestFullscreen');
+      }
+    }
   });
 
   it('shows a textarea for a text question and sends nothing while typing', async () => {

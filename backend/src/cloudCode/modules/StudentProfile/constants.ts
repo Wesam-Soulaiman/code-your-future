@@ -72,20 +72,6 @@ export const LIMITS = {
 } as const;
 
 /**
- * Phone: digits, spaces, and the punctuation real people type, with an optional
- * leading `+`.
- *
- * Deliberately **not** a country-specific format. The product serves people who
- * may hold a Syrian number, a number from wherever they now live, or both, and
- * guessing a country from a partial string gets it wrong for exactly the people
- * least able to work around it. What is enforced is that the value looks like a
- * phone number and carries enough digits to be one.
- */
-export const PHONE_PATTERN = /^\+?[0-9\s().-]{6,32}$/;
-export const PHONE_MIN_DIGITS = 6;
-export const PHONE_MAX_DIGITS = 15;
-
-/**
  * Date of birth bounds. A profile is for a person old enough to be a learner and
  * young enough to be alive; both ends catch typos rather than police anybody.
  */

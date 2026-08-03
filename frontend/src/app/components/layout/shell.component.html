@@ -276,14 +276,16 @@
         [pTooltip]="(isDarkMode() ? 'actions.lightMode' : 'actions.darkMode') | translate"
         tooltipPosition="bottom"
       />
-      <p-avatar
-        [label]="userInitials()"
-        shape="circle"
-        class="cursor-pointer ms-1.5"
+      <button
+        type="button"
+        class="ms-2 cursor-pointer rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        [attr.aria-label]="'actions.accountMenu' | translate"
+        aria-haspopup="menu"
         (click)="userMenu.toggle($event)"
-        [size]="'large'"
-      />
-      <p-menu #userMenu [model]="userMenuItems" [popup]="true" appendTo="body" />
+      >
+        <p-avatar [label]="userInitials()" shape="circle" size="large" />
+      </button>
+      <p-menu #userMenu [model]="userMenuItems()" [popup]="true" appendTo="body" />
     </div>
   </header>
 

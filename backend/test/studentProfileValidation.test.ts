@@ -91,17 +91,27 @@ describe('fullName', () => {
 });
 
 describe('phone', () => {
-  for (const value of ['+963944123456', '+49 151 23456789', '0944 123 456', '(011) 555-1234']) {
-    test(`accepts ${value.replace(/\d/g, '#')}`, () => {
-      const {errors} = validation.validateProfileInput(validInput({phone: value}));
+  for (const [label, value] of [
+    ['local number with leading zero', '0911111111'],
+    ['local number without leading zero', '911111111'],
+    ['canonical international number', '+963911111111'],
+    ['international number with separators', '00963 (911) 111-111'],
+    ['Arabic-Indic digits', '٠٩١١١١١١١١'],
+    ['Persian digits', '۰۹۱۱۱۱۱۱۱۱'],
+  ] as const) {
+    test(`normalises ${label}`, () => {
+      const {errors, values} = validation.validateProfileInput(validInput({phone: value}));
       assert.equal(errors['phone'], undefined);
+      assert.equal(values.phone, '+963911111111');
     });
   }
 
   for (const [label, value] of [
     ['letters', '+963 call me'],
-    ['too few digits', '+12'],
-    ['too many digits', '+1234567890123456789'],
+    ['a foreign mobile number', '+49 151 23456789'],
+    ['a Syrian landline', '(011) 555-1234'],
+    ['too few digits', '091111111'],
+    ['too many digits', '09111111111'],
     ['an injection attempt', "+963'; DROP TABLE--"],
   ] as const) {
     test(`rejects ${label}`, () => {
@@ -109,14 +119,6 @@ describe('phone', () => {
       assert.equal(errors['phone'], 'INVALID');
     });
   }
-
-  test('no country is invented for a local number', () => {
-    // The value is stored as the person typed it; guessing a country is exactly
-    // what gets it wrong for someone who has moved.
-    const {values} = validation.validateProfileInput(validInput({phone: '0944 123 456'}));
-    assert.equal(values.phone, '0944 123 456');
-    assert.ok(!values.phone.startsWith('+'));
-  });
 });
 
 describe('date of birth', () => {

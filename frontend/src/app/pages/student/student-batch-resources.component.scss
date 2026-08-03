@@ -12,14 +12,14 @@
 }
 
 .cyf-student-resources-lead {
-  margin: var(--cyf-space-1) 0 0;
+  margin: var(--cyf-space-2) 0 0;
   color: var(--cyf-text-secondary);
 }
 
 .cyf-resource-title {
   display: flex;
   align-items: flex-start;
-  gap: var(--cyf-space-3);
+  gap: var(--cyf-space-4);
 }
 
 .cyf-resource-icon {
@@ -30,7 +30,7 @@
 
 .cyf-resource-text {
   display: grid;
-  gap: var(--cyf-space-1);
+  gap: var(--cyf-space-2);
   min-inline-size: 0;
 }
 

@@ -33,8 +33,8 @@ class StubComponent {}
 /** The four Admin items, in order. */
 const ADMIN_ITEMS = ['Dashboard', 'Batches', 'Students', 'Profile Catalogs'];
 
-/** The three Student items, in order. */
-const STUDENT_ITEMS = ['Home', 'My Batches', 'Edit Profile'];
+/** Profile editing lives in the Avatar menu, leaving two primary Student items. */
+const STUDENT_ITEMS = ['Home', 'My Batches'];
 
 describe('ShellComponent', () => {
   let fixture: ComponentFixture<ShellComponent>;
@@ -184,7 +184,6 @@ describe('ShellComponent', () => {
         '/dashboard/profile-catalogs',
         '/student/welcome',
         '/student/batches',
-        '/student/profile',
       ];
       for (const who of ['admin', 'student'] as Who[]) {
         setup(who);
@@ -212,6 +211,37 @@ describe('ShellComponent', () => {
       const header = fixture.nativeElement.querySelector('header');
       expect(header).toBeTruthy();
       expect(header.querySelectorAll('a[href]').length).toBe(0);
+    });
+  });
+
+  describe('account menu', () => {
+    it('puts the Student profile above logout and points it at the workspace route', () => {
+      setup('student');
+      const items = fixture.componentInstance.userMenuItems();
+
+      expect(items.map((item) => item.separator ? 'separator' : item.label)).toEqual([
+        'Profile',
+        'separator',
+        'Logout',
+      ]);
+      expect(items[0].routerLink).toEqual(['/student/profile/edit']);
+    });
+
+    it('does not offer a Student profile to an Admin', () => {
+      setup('admin');
+      expect(
+        fixture.componentInstance.userMenuItems().some((item) => item.label === 'Profile'),
+      ).toBe(false);
+    });
+
+    it('uses an accessible button for the Avatar trigger', () => {
+      setup('student');
+      const trigger = fixture.nativeElement.querySelector(
+        'header button[aria-haspopup="menu"]',
+      ) as HTMLButtonElement;
+
+      expect(trigger).toBeTruthy();
+      expect(trigger.getAttribute('aria-label')).toBe('Open account menu');
     });
   });
 

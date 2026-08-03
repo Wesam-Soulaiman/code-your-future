@@ -83,6 +83,7 @@
             <span class="cyf-batch-required" aria-hidden="true">*</span>
           </label>
           <p-datepicker
+            size="small"
             inputId="batch-startDate"
             styleClass="cyf-datepicker-control"
             appendTo="body"
@@ -111,6 +112,7 @@
             {{ 'batch.fields.endDate' | translate }}
           </label>
           <p-datepicker
+            size="small"
             inputId="batch-endDate"
             styleClass="cyf-datepicker-control"
             appendTo="body"
@@ -148,6 +150,7 @@
             {{ 'admin.batches.form.initialStatus' | translate }}
           </label>
           <p-select
+            size="small"
             inputId="batch-status"
             styleClass="cyf-select-control"
             appendTo="body"
@@ -174,6 +177,7 @@
       <!-- ── Actions ──────────────────────────────────────────────────── -->
       <div class="cyf-batch-form-actions">
         <p-button
+          size="small"
           type="submit"
           [disabled]="!canSubmit()"
           [loading]="saving()"
@@ -183,6 +187,7 @@
         </p-button>
 
         <p-button
+          size="small"
           type="button"
           severity="secondary"
           [outlined]="true"

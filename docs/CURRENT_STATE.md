@@ -330,7 +330,11 @@ server-side, and the graduation month is normalised to the first of the month at
 
 **Frontend.** Complete Profile — the first real product page — in four sections
 on the Checkpoint 2A design system, plus profile-aware routing and a welcome page
-that now shows the Student's real name and an Edit action.
+that now shows the Student's real name and an Edit action. The profile form is a
+standalone onboarding route outside `ShellComponent`; the entire Student shell
+is completion-guarded, so its navigation is never activated for an unfinished
+profile. The onboarding page supplies a compact header, language and logout
+controls, setup steps, privacy guidance, and a sticky save bar.
 
 ### Runtime — observed end to end against MongoDB
 
@@ -610,8 +614,9 @@ paginator digits using the viewer environment when no locale is supplied.
 The Student area had its own header with its own navigation. Both workspaces now
 load the same `ShellComponent`, which picks its items from the session's roles.
 Admin sees Dashboard · Batches · Students · Profile Catalogs; a Student sees
-Home · My Batches · Edit Profile; an unrecognised role sees nothing, because
-every item carries explicit roles and the filter denies by default.
+Home · My Batches in primary navigation. Profile editing moved to the Avatar
+menu directly above Logout; an unrecognised role sees nothing, because every
+primary item carries explicit roles and the filter denies by default.
 
 ### Visual — 24 page visits, all clean
 
@@ -914,6 +919,6 @@ Resources, format validation, resource ordering, and authorised file download sh
 Checkpoint 5.
 
 The frontend ships: `/auth/admin`, `/auth/student`, `/join/:token`, `/student/profile`,
-`/student/welcome`, `/student/batches`, `/student/batches/:batchId`, `/dashboard`,
+`/student/profile/edit`, `/student/welcome`, `/student/batches`, `/student/batches/:batchId`, `/dashboard`,
 `/dashboard/profile-catalogs`, `/dashboard/batches` (+ `new`, `:batchId`, `:batchId/edit`),
 `/dashboard/students`, and `/dashboard/students/:studentId`.

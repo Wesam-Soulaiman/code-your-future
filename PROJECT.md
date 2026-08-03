@@ -76,7 +76,7 @@ owning Student only, every personal column in `protectedFields`, and a
 | user | The owning Student. Immutable after creation | Yes |
 | fullName | Full name, as the Student writes it | Yes |
 | verifiedEmail | From the Google identity. Read-only to the Student | Yes |
-| phone | Contact number, as entered | Yes |
+| phone | Syrian mobile, normalised to `+9639XXXXXXXX` | Yes |
 | city | A CITY catalog item | Yes |
 | dateOfBirth | Optional | No |
 | institution | An INSTITUTION catalog item | Yes |
@@ -339,6 +339,11 @@ all return 403 (or 404 where the route does not resolve).
   required to sign in.**
 
 ### Complete profile (`/student/profile`) — Students only
+- A standalone onboarding page between Student sign-in and the workspace. It
+  has its own compact brand header, language switch, logout action, setup steps,
+  and privacy guidance; it never renders the workspace sidebar or top bar.
+- The completion guard protects the entire `/student` shell branch, so an
+  unfinished Student is redirected before the layout can be activated.
 - Four sections: Identity, Personal information, Education, Career and links.
 - Required and optional fields are marked distinctly; the verified email is
   visibly read-only and explained.
@@ -366,13 +371,14 @@ all return 403 (or 404 where the route does not resolve).
   backend sends back.
 - A **real count** of outstanding required fields. **No progress percentage and
   no statistic.**
-- A Student may return and edit at any time.
+- Once complete, the same form opens at `/student/profile/edit` inside the
+  workspace layout. The standalone route remains exclusive to onboarding.
 
 ### Student welcome (`/student/welcome`) — Students with a complete profile
 - Branding, a greeting using the name from the saved profile, and confirmation
   that the profile is complete.
-- An **Edit profile** action; the shared header carries navigation, the language
-  switch, and logout.
+- An **Edit profile** action that opens inside the shared layout. The Avatar
+  menu in the top bar also places **Profile** directly above **Logout**.
 - **No completion percentage, task, statistic, chart, or link to anything that
   does not exist.**
 

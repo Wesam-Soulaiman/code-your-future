@@ -31,7 +31,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--cyf-space-3);
+  gap: var(--cyf-space-4);
   flex-wrap: wrap;
   margin-block-end: var(--cyf-space-4);
 }
@@ -42,8 +42,8 @@
 
 .cyf-batch-tabs {
   display: flex;
-  gap: var(--cyf-space-1);
-  margin-block-end: var(--cyf-space-5);
+  gap: var(--cyf-space-2);
+  margin-block-end: var(--cyf-space-6);
   border-block-end: 1px solid var(--cyf-border);
   overflow-x: auto;
   scrollbar-width: none;
@@ -54,7 +54,7 @@
 }
 
 .cyf-batch-tab {
-  padding: var(--cyf-space-3) var(--cyf-space-4);
+  padding: var(--cyf-space-2) var(--cyf-space-4);
   min-block-size: var(--cyf-touch-target);
   font-size: var(--cyf-text-sm);
   font-weight: var(--cyf-weight-medium);
@@ -92,16 +92,16 @@
 
 .cyf-batch-facts {
   display: grid;
-  gap: var(--cyf-space-5);
+  gap: var(--cyf-space-6);
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   margin: 0;
-  padding-block: var(--cyf-space-5);
+  padding-block: var(--cyf-space-6);
   border-block: 1px solid var(--cyf-border);
 }
 
 .cyf-batch-fact {
   dt {
-    margin-block-end: var(--cyf-space-1);
+    margin-block-end: var(--cyf-space-2);
   }
 
   dd {
@@ -111,5 +111,5 @@
 }
 
 .cyf-batch-note {
-  margin: var(--cyf-space-5) 0 0;
+  margin: var(--cyf-space-6) 0 0;
 }

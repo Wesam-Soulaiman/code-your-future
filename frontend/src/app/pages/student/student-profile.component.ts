@@ -9,8 +9,9 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { DatePickerModule } from 'primeng/datepicker';
@@ -19,14 +20,17 @@ import { SelectModule } from 'primeng/select';
 import { finalize } from 'rxjs';
 
 import { AlertComponent } from '../../components/shared/alert.component';
+import { BrandMarkComponent } from '../../components/shared/brand-mark.component';
 import { ImageCropperDialogComponent } from '../../components/shared/image-cropper-dialog/image-cropper-dialog.component';
-import { STUDENT_HOME, studentLandingCommands } from '../../guards/home-route';
+import { LanguageSwitchComponent } from '../../components/shared/language-switch.component';
+import { STUDENT_HOME, STUDENT_SIGN_IN, studentLandingCommands } from '../../guards/home-route';
 import { ProfileCatalogItem, ProfileCatalogMap, catalogItemName } from '../../models/ProfileCatalogItem';
 import { StudentProfile, StudentProfileInput } from '../../models/StudentProfile';
 import { ChangeLangService } from '../../services/change-lang.service';
 import { ProfileCatalogApiService } from '../../services/dataService/profile-catalog-service';
 import { StudentProfileApiService } from '../../services/dataService/student-profile-service';
 import { StudentAuthApiService } from '../../services/dataService/student-auth-service';
+import { AuthApiService } from '../../services/dataService/user-service';
 import { SessionService } from '../../services/session.service';
 import { ProfileErrorKey, mapProfileError } from '../../utils/profile-error';
 import { CATALOG_TYPE, CatalogType } from '../../utils/profile-catalog-constants';
@@ -34,10 +38,10 @@ import {
   EDUCATION_STATUS,
   EDUCATION_STATUSES,
   LIMITS,
-  PHONE_PATTERN,
   PHOTO,
   PHOTO_ACCEPT,
 } from '../../utils/student-profile-constants';
+import { normaliseSyrianPhone } from '../../utils/syrian-phone';
 
 /**
  * The form's own working copy.
@@ -133,6 +137,9 @@ export interface CatalogOption {
     SelectModule,
     DatePickerModule,
     AlertComponent,
+    BrandMarkComponent,
+    LanguageSwitchComponent,
+    NgTemplateOutlet,
   ],
   templateUrl: './student-profile.component.html',
   styleUrl: './student-profile.component.scss',
@@ -145,7 +152,9 @@ export class StudentProfileComponent implements OnDestroy {
   private profileApi = inject(StudentProfileApiService);
   private catalogApi = inject(ProfileCatalogApiService);
   private studentAuthApi = inject(StudentAuthApiService);
+  private authApi = inject(AuthApiService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   private changeDetector = inject(ChangeDetectorRef);
   protected sessionService = inject(SessionService);
   protected langService = inject(ChangeLangService);
@@ -162,6 +171,10 @@ export class StudentProfileComponent implements OnDestroy {
   protected readonly photoAccept = PHOTO_ACCEPT;
   protected readonly maxPhotoMb = Math.round(PHOTO.maxBytes / (1024 * 1024));
 
+  /** True only for the completed-profile edit route rendered by the shared shell. */
+  protected readonly inWorkspaceLayout =
+    this.route.snapshot.data['inWorkspaceLayout'] === true;
+
   /**
    * The latest date of birth the picker will accept.
    *
@@ -174,6 +187,7 @@ export class StudentProfileComponent implements OnDestroy {
   protected loading = signal(true);
   protected catalogLoading = signal(true);
   protected saving = signal(false);
+  protected loggingOut = signal(false);
   protected photoBusy = signal(false);
   protected saved = signal(false);
 
@@ -443,7 +457,7 @@ export class StudentProfileComponent implements OnDestroy {
   private toForm(profile: StudentProfile): ProfileForm {
     return {
       fullName: profile.fullName ?? '',
-      phone: profile.phone ?? '',
+      phone: normaliseSyrianPhone(profile.phone) ?? profile.phone ?? '',
       cityId: profile.city?.id ?? '',
       dateOfBirth: this.fromDateOnly(profile.dateOfBirth),
       institutionId: profile.institution?.id ?? '',
@@ -504,6 +518,14 @@ export class StudentProfileComponent implements OnDestroy {
     this.touched.update((current) => ({ ...current, [field]: true }));
   }
 
+  /** Show and submit one predictable Syrian international phone format. */
+  protected normalisePhone(): void {
+    const current = this.form().phone;
+    const normalised = normaliseSyrianPhone(current);
+    if (normalised && normalised !== current) this.update('phone', normalised);
+    else this.markTouched('phone');
+  }
+
   // ── Client-side validation ────────────────────────────────────────────────
 
   /**
@@ -529,7 +551,7 @@ export class StudentProfileComponent implements OnDestroy {
       case 'phone': {
         const text = String(value ?? '');
         if (!text) return 'student.profile.fieldErrors.required';
-        if (!PHONE_PATTERN.test(text)) return 'student.profile.fieldErrors.invalid';
+        if (!normaliseSyrianPhone(text)) return 'student.profile.fieldErrors.invalid';
         return null;
       }
 
@@ -663,6 +685,7 @@ export class StudentProfileComponent implements OnDestroy {
     this.errorKey.set(null);
     this.partialSuccess.set(false);
     this.saved.set(false);
+    this.normalisePhone();
 
     const fields = Object.keys(this.form()) as (keyof ProfileForm)[];
     const invalid = fields.filter((field) => this.validateField(field) !== null);
@@ -749,7 +772,7 @@ export class StudentProfileComponent implements OnDestroy {
     this.studentAuthApi.restoreSession().finally(() => {
       this.changeDetector.markForCheck();
       // Completion is the server's answer, never the form's.
-      if (profile?.isComplete && !this.partialSuccess()) {
+      if (profile?.isComplete && !this.partialSuccess() && !this.inWorkspaceLayout) {
         // Back to the invitation, if that is why they were filling this in.
         // ⟨CP4⟩ The session has just been refreshed, so `profileComplete` is
         // the server's freshly recalculated value rather than a stale hint.
@@ -785,7 +808,7 @@ export class StudentProfileComponent implements OnDestroy {
     const form = this.form();
     const input: StudentProfileInput = {
       fullName: form.fullName.trim(),
-      phone: form.phone.trim(),
+      phone: normaliseSyrianPhone(form.phone) ?? form.phone.trim(),
       cityId: form.cityId,
       institutionId: form.institutionId,
       majorId: form.majorId,
@@ -1027,5 +1050,21 @@ export class StudentProfileComponent implements OnDestroy {
   /** Available once the profile is complete, so there is somewhere to go back to. */
   protected backToWelcome(): void {
     this.router.navigate([STUDENT_HOME]);
+  }
+
+  /** Leave onboarding without exposing the protected workspace. */
+  protected logout(): void {
+    if (this.loggingOut()) return;
+
+    this.loggingOut.set(true);
+    this.authApi
+      .logout()
+      .pipe(
+        finalize(() => {
+          this.loggingOut.set(false);
+          void this.router.navigate([STUDENT_SIGN_IN]);
+        }),
+      )
+      .subscribe({ error: () => undefined });
   }
 }

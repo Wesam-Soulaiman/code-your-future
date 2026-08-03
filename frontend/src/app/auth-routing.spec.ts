@@ -14,6 +14,7 @@ import { SessionService } from './services/session.service';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 import { profileCompleteGuard } from './guards/profile-complete.guard';
+import { profileOnboardingGuard } from './guards/profile-onboarding.guard';
 import { studentGuard } from './guards/student.guard';
 import { routes } from './app.routes';
 import { useTranslations } from './testing/i18n-testing';
@@ -100,19 +101,31 @@ describe('auth route structure', () => {
     expect(welcome?.canActivate).toContain(profileCompleteGuard);
   });
 
-  it('does NOT guard the profile form with the completion guard', () => {
-    // Guarding the form with the guard that redirects to it would loop.
-    const profile = routes
-      .find((route) => route.path === 'student')
-      ?.children?.find((child) => child.path === 'profile');
+  it('keeps the standalone profile form exclusive to onboarding', () => {
+    const profile = findRoute('student/profile');
     expect(profile).toBeTruthy();
+    expect(profile?.canActivate).toContain(studentGuard);
     expect(profile?.canActivate).not.toContain(profileCompleteGuard);
+    expect(profile?.canActivate).toContain(profileOnboardingGuard);
+  });
+
+  it('keeps onboarding outside the shell and editing inside it', () => {
+    const profile = findRoute('student/profile');
+    const studentShell = findRoute('student');
+    const editProfile = studentShell?.children?.find((child) => child.path === 'profile/edit');
+
+    expect(profile).toBeTruthy();
+    expect(editProfile).toBeTruthy();
+    expect(editProfile?.canActivate).toContain(profileCompleteGuard);
+    expect(editProfile?.data?.['inWorkspaceLayout']).toBe(true);
+    expect(studentShell?.canActivate).toContain(profileCompleteGuard);
   });
 
   it('declares a Student area guarded on the branch and on the page', () => {
     const student = findRoute('student');
     expect(student).toBeTruthy();
     expect(student?.canActivate).toContain(studentGuard);
+    expect(student?.canActivate).toContain(profileCompleteGuard);
 
     const welcome = student?.children?.find((child) => child.path === 'welcome');
     expect(welcome).toBeTruthy();
@@ -131,7 +144,10 @@ describe('auth route structure', () => {
       expect(String(child?.title)).toContain('Code Your Future');
     }
     const welcome = findRoute('student')?.children?.find((c) => c.path === 'welcome');
+    const editProfile = findRoute('student')?.children?.find((c) => c.path === 'profile/edit');
     expect(String(welcome?.title)).toContain('Code Your Future');
+    expect(String(editProfile?.title)).toContain('Code Your Future');
+    expect(String(findRoute('student/profile')?.title)).toContain('Code Your Future');
   });
 
   it('uses only fixed internal redirect targets (no open redirect)', () => {
@@ -340,13 +356,22 @@ describe('navigation behaviour', () => {
             ],
           },
           {
+            path: 'student/profile',
+            canActivate: [studentGuard, profileOnboardingGuard],
+            component: StubComponent,
+          },
+          {
             path: 'student',
-            canActivate: [studentGuard],
+            canActivate: [studentGuard, profileCompleteGuard],
             children: [
               { path: '', redirectTo: 'welcome', pathMatch: 'full' },
-              { path: 'profile', canActivate: [studentGuard], component: StubComponent },
               {
                 path: 'welcome',
+                canActivate: [studentGuard, profileCompleteGuard],
+                component: StubComponent,
+              },
+              {
+                path: 'profile/edit',
                 canActivate: [studentGuard, profileCompleteGuard],
                 component: StubComponent,
               },
@@ -400,6 +425,24 @@ describe('navigation behaviour', () => {
     signInLive(['Student'], true);
     await router.navigateByUrl('/student/welcome');
     expect(router.url).toBe('/student/welcome');
+  });
+
+  it('keeps an unfinished Student on standalone profile onboarding', async () => {
+    signInLive(['Student'], false);
+    await router.navigateByUrl('/student/welcome');
+    expect(router.url).toBe('/student/profile');
+
+    await router.navigateByUrl('/student/profile');
+    expect(router.url).toBe('/student/profile');
+
+    await router.navigateByUrl('/student/profile/edit');
+    expect(router.url).toBe('/student/profile');
+  });
+
+  it('sends a completed Student from onboarding to profile editing in the shell', async () => {
+    signInLive(['Student'], true);
+    await router.navigateByUrl('/student/profile');
+    expect(router.url).toBe('/student/profile/edit');
   });
 
   it('redirects bare /student to the welcome page', async () => {

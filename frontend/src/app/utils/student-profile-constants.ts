@@ -57,10 +57,6 @@ export const LIMITS = {
   url: { max: 300 },
 } as const;
 
-export const PHONE_PATTERN = /^\+?[0-9\s().-]{6,32}$/;
-export const PHONE_MIN_DIGITS = 6;
-export const PHONE_MAX_DIGITS = 15;
-
 export const DATE_OF_BIRTH = { minAge: 14, maxAge: 100 } as const;
 export const GRADUATION_YEAR = { minOffset: -60, maxOffset: 15 } as const;
 

@@ -12,7 +12,7 @@ import { ButtonModule } from 'primeng/button';
 
 import { StudentProfileApiService } from '../../services/dataService/student-profile-service';
 import { SessionService } from '../../services/session.service';
-import { STUDENT_PROFILE } from '../../guards/home-route';
+import { STUDENT_PROFILE_EDIT } from '../../guards/home-route';
 
 /**
  * The Student's landing page.
@@ -75,6 +75,6 @@ export class StudentWelcomeComponent {
 
   /** Open the profile form for editing. */
   protected editProfile(): void {
-    this.router.navigate([STUDENT_PROFILE]);
+    this.router.navigate([STUDENT_PROFILE_EDIT]);
   }
 }

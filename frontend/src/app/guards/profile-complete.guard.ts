@@ -14,8 +14,8 @@ import { STUDENT_PROFILE } from './home-route';
  * This guard deliberately does not protect `/student/profile` itself: that would
  * be a loop, and the form is exactly where an incomplete Student is meant to be.
  *
- * Editing later is unaffected. A completed Student may open the form whenever
- * they like; this guard only redirects people who have not finished it once.
+ * Editing later uses `/student/profile/edit` inside the protected shell. This
+ * guard redirects an unfinished Student away from that route to onboarding.
  *
  * The redirect target is a fixed internal path, so it cannot become an open
  * redirect. This is UI routing only — every profile operation is independently

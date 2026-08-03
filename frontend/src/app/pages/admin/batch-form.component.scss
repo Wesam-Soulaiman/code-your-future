@@ -30,22 +30,28 @@
 .cyf-batch-form-loading {
   display: flex;
   align-items: center;
-  gap: var(--cyf-space-3);
+  gap: var(--cyf-space-4);
 }
 
 /* The two dates sit side by side on a wide screen and stack on a narrow one —
    they are read together, so they belong together where there is room. */
 .cyf-batch-form-row {
   display: grid;
-  gap: var(--cyf-space-5);
+  align-items: start;
+  gap: var(--cyf-space-6);
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
 }
 
-/* `.cyf-field + .cyf-field` cannot reach across the grid, so the spacing above
-   and below the row is stated. */
+/* The shared vertical-form rule still matches adjacent grid children. Reset it
+   here so Start date and End date begin on exactly the same baseline. */
+.cyf-batch-form-row .cyf-field + .cyf-field {
+  margin-block-start: 0;
+}
+
+/* Spacing above the related date pair and the optional status field. */
 .cyf-batch-form-row,
 .cyf-batch-form-status-field {
-  margin-block-start: var(--cyf-space-5);
+  margin-block-start: var(--cyf-space-6);
 }
 
 .cyf-batch-required {
@@ -55,10 +61,10 @@
 
 .cyf-batch-form-actions {
   display: flex;
-  gap: var(--cyf-space-3);
+  gap: var(--cyf-space-4);
   flex-wrap: wrap;
   margin-block-start: var(--cyf-space-6);
-  padding-block-start: var(--cyf-space-5);
+  padding-block-start: var(--cyf-space-6);
   border-block-start: 1px solid var(--cyf-border);
 }
 

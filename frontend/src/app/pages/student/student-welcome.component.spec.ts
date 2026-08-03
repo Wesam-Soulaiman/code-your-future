@@ -130,7 +130,7 @@ describe('StudentWelcomeComponent', () => {
       const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
       fixture.nativeElement.querySelector('.cyf-edit-profile-btn').click();
       fixture.detectChanges();
-      expect(navigate).toHaveBeenCalledWith(['/student/profile']);
+      expect(navigate).toHaveBeenCalledWith(['/student/profile/edit']);
     });
 
     it('greets the Student by the name from their saved profile', async () => {
@@ -203,7 +203,7 @@ describe('StudentWelcomeComponent', () => {
       // — but only to pages that are actually registered. An allow-list rather
       // than "no links at all", because the failure worth catching is a link
       // to a feature that has not shipped.
-      const allowed = ['/student/welcome', '/student/batches', '/student/profile'];
+      const allowed = ['/student/welcome', '/student/batches', '/student/profile/edit'];
       const links = [...fixture.nativeElement.querySelectorAll('a')] as HTMLAnchorElement[];
 
       for (const link of links) {

@@ -1274,7 +1274,8 @@ One row per Student, enforced by a **unique index on the user pointer**
 | `user` | Pointer to `_User`. **Immutable** after creation. |
 | `fullName` | Trimmed, whitespace-collapsed, required |
 | `verifiedEmail` | Derived from the Google identity. Never accepted from a request. |
-| `phone`, `city` | Required |
+| `phone` | Required Syrian mobile, stored as `+9639XXXXXXXX` |
+| `city` | Required |
 | `dateOfBirth` | Optional, stored at 00:00 UTC |
 | `institution`, `customInstitutionName`, `major`, `educationStatus` | One education record |
 | `expectedGraduationDate` | First of the selected month, 00:00:00 UTC |
@@ -1320,11 +1321,11 @@ stay in step**, because a frontend that validates differently either blocks
 something the server accepts or promises something it rejects. The backend is
 always the authority; the browser copy exists for fast feedback.
 
-- **Phone** — digits and the punctuation people actually type, with an optional
-  leading `+`, 6–15 digits. Deliberately **not** country-specific: the product
-  serves people who may hold a Syrian number, a number where they now live, or
-  both, and guessing a country gets it wrong for exactly the people least able to
-  work around it. The value is stored as entered.
+- **Phone** — a Syrian mobile number. Common local and international inputs,
+  separators, and Arabic/Persian digits are accepted, then normalised to
+  `+9639XXXXXXXX`. The same utility exists in `syrianPhone.ts` on the server and
+  `syrian-phone.ts` in the browser; the server remains authoritative and a test
+  guards the shared canonical pattern.
 - **City, institution, major, target role** — **superseded by the catalog**; see §16f. All four
   became Admin-managed selections rather than free text or a hard-coded array, which is how OQ-2 and
   OQ-3 were finally resolved. The reasoning that produced the original decision still holds — there
@@ -1407,15 +1408,23 @@ Admin editing path.
 
 | Route | Guards | Visitor | Incomplete Student | Complete Student | Admin |
 |---|---|---|---|---|---|
-| `/student/profile` | `studentGuard` | → `/auth/student` | shown | shown (edit) | → `/dashboard` |
+| `/student/profile` | `studentGuard`, `profileOnboardingGuard` | → `/auth/student` | shown standalone | → `/student/profile/edit` | → `/dashboard` |
+| `/student/profile/edit` | `studentGuard`, `profileCompleteGuard` | → `/auth/student` | → `/student/profile` | shown in shell | → `/dashboard` |
 | `/student/welcome` | `studentGuard`, `profileCompleteGuard` | → `/auth/student` | → `/student/profile` | shown | → `/dashboard` |
 | `/dashboard` | `authGuard` | → `/auth/admin` | → `/student/profile` | → `/student/welcome` | shown |
 
-`profileCompleteGuard` deliberately does **not** guard the form itself — guarding
-the page it redirects to would loop. Route decisions run after session
-restoration, which the app initializer awaits, so no guard acts on unproven
-cached roles and no protected content flashes. Every target is a fixed internal
-path from `guards/home-route.ts`.
+`profileCompleteGuard` protects the edit route inside the shell, while
+`profileOnboardingGuard` redirects a completed Student away from the standalone
+form to that edit route. Route decisions run after session restoration, which
+the app initializer awaits, so no guard acts on unproven cached roles and no
+protected content flashes. Every target is a fixed internal path from
+`guards/home-route.ts`.
+
+`/student/profile` is declared before, and outside, the Student
+`ShellComponent`. The completion guard is also applied to the whole `/student`
+shell branch. An unfinished Student therefore sees only the standalone
+onboarding header and form; the workspace sidebar and top bar are not activated
+until the server reports `profileComplete: true`.
 
 ## 16f. The profile catalog ⟨CP3A catalog⟩
 
@@ -1914,7 +1923,7 @@ from `SessionService.roles()`:
 | Role | Items |
 |---|---|
 | Admin | Dashboard · Batches · Students · Profile Catalogs |
-| Student | Home · My Batches · Edit Profile |
+| Student | Home · My Batches; Profile is in the Avatar menu above Logout |
 | Anything else | none |
 
 **Every item carries an explicit `roles` array**, and the filter requires a

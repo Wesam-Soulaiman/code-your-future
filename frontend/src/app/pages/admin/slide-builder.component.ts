@@ -14,7 +14,7 @@ import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { SelectModule } from 'primeng/select';
-import { finalize } from 'rxjs';
+import { finalize, switchMap } from 'rxjs';
 
 import { AlertComponent } from '../../components/shared/alert.component';
 import { AnswerType, LiveSession, Slide, SlideInput, SlideType } from '../../models/LiveSlides';
@@ -110,7 +110,8 @@ export class SlideBuilderComponent {
     }));
   });
 
-  protected slides = computed(() => this.session().slides ?? []);
+  /** Local server snapshot so a newly created slide is available immediately. */
+  protected slides = signal<Slide[]>([]);
 
   protected editable = computed(
     () => this.session().status === SESSION_STATUS.DRAFT && !this.readOnly(),
@@ -138,29 +139,75 @@ export class SlideBuilderComponent {
 
   protected showOptions = computed(() => needsOptions(this.draftAnswerType()));
 
+  /** The single global Save action writes the currently selected slide. */
+  protected hasUnsavedChanges = computed(() => {
+    const slide = this.selected();
+    if (!slide || !this.editable()) return false;
+
+    if (slide.type === SLIDE_TYPE.INFORMATION) {
+      return (
+        this.draftTitle() !== (slide.title ?? '') ||
+        this.draftContent() !== (slide.content ?? '')
+      );
+    }
+
+    const storedOptions = slide.options ?? [];
+    const draftOptions = this.draftOptions();
+    const optionsChanged =
+      storedOptions.length !== draftOptions.length ||
+      storedOptions.some(
+        (option, index) =>
+          option.id !== draftOptions[index]?.id || option.text !== draftOptions[index]?.text,
+      );
+
+    return (
+      this.draftQuestion() !== (slide.question ?? '') ||
+      this.draftDescription() !== (slide.description ?? '') ||
+      this.draftAnswerType() !== (slide.answerType ?? 'SHORT_ANSWER') ||
+      optionsChanged
+    );
+  });
+
+  protected orderChanged = computed(() => {
+    const stored = this.session().slides ?? [];
+    const current = this.slides();
+    return (
+      stored.length !== current.length ||
+      current.some((slide, index) => slide.id !== stored[index]?.id)
+    );
+  });
+
+  protected canSave = computed(
+    () =>
+      this.editable() &&
+      !!this.selected() &&
+      (this.hasUnsavedChanges() || this.orderChanged()) &&
+      !this.busy(),
+  );
+
   constructor() {
+    effect(() => this.slides.set(this.session().slides ?? []));
+
     // Load the selected slide into the editor whenever the selection or the
     // session changes, so the form always reflects what is stored.
     effect(() => {
       const slide = this.selected();
       if (!slide) return;
-      this.draftTitle.set(slide.title ?? '');
-      this.draftContent.set(slide.content ?? '');
-      this.draftQuestion.set(slide.question ?? '');
-      this.draftDescription.set(slide.description ?? '');
-      this.draftAnswerType.set(slide.answerType ?? 'SHORT_ANSWER');
-      this.draftOptions.set((slide.options ?? []).map((option) => ({ ...option })));
+      this.loadDraft(slide);
     });
   }
 
   protected select(slideId: string): void {
     this.selectedId.set(slideId);
+    const slide = this.slides().find((item) => item.id === slideId);
+    if (slide) this.loadDraft(slide);
   }
 
   // ── Slide operations ──────────────────────────────────────────────────────
 
   protected addSlide(type: SlideType): void {
     this.addOpen.set(false);
+    const existingIds = new Set(this.slides().map((slide) => slide.id));
     const input: SlideInput =
       type === SLIDE_TYPE.INFORMATION
         ? {
@@ -175,32 +222,39 @@ export class SlideBuilderComponent {
           };
 
     this.run(this.api.addSlide(this.session().id, input), (session) => {
-      const added = session.slides[session.slides.length - 1];
-      if (added) this.selectedId.set(added.id);
+      const added = this.findAddedSlide(session, existingIds);
+      if (added) this.select(added.id);
     });
   }
 
-  protected saveSlide(): void {
+  protected saveChanges(): void {
     const slide = this.selected();
     if (!slide) return;
 
-    const input: SlideInput =
-      slide.type === SLIDE_TYPE.INFORMATION
-        ? { title: this.draftTitle().trim(), content: this.draftContent().trim() }
-        : {
-            question: this.draftQuestion().trim(),
-            description: this.draftDescription().trim() || undefined,
-            answerType: this.draftAnswerType(),
-            options: needsOptions(this.draftAnswerType())
-              ? this.draftOptions().map((option) => ({ id: option.id, text: option.text.trim() }))
-              : undefined,
-          };
+    const slideChanged = this.hasUnsavedChanges();
+    const orderChanged = this.orderChanged();
+    if (!slideChanged && !orderChanged) return;
 
-    this.run(this.api.updateSlide(this.session().id, slide.id, input));
+    const orderedIds = this.slides().map((item) => item.id);
+
+    if (!slideChanged) {
+      this.run(this.api.reorderSlides(this.session().id, orderedIds));
+      return;
+    }
+
+    const update = this.api.updateSlide(this.session().id, slide.id, this.slideInput(slide));
+    const request = orderChanged
+      ? update.pipe(switchMap(() => this.api.reorderSlides(this.session().id, orderedIds)))
+      : update;
+    this.run(request);
   }
 
   protected duplicateSlide(slide: Slide): void {
-    this.run(this.api.duplicateSlide(this.session().id, slide.id));
+    const existingIds = new Set(this.slides().map((item) => item.id));
+    this.run(this.api.duplicateSlide(this.session().id, slide.id), (session) => {
+      const added = this.findAddedSlide(session, existingIds);
+      if (added) this.select(added.id);
+    });
   }
 
   protected deleteSlide(): void {
@@ -210,15 +264,15 @@ export class SlideBuilderComponent {
     this.run(this.api.deleteSlide(this.session().id, slide.id), () => this.selectedId.set(''));
   }
 
-  /** Move one Slide, sending the whole resulting order. */
+  /** Move one Slide locally; the global Save action persists the full order. */
   protected move(slide: Slide, offset: number): void {
-    const order = this.slides().map((item) => item.id);
-    const from = order.indexOf(slide.id);
+    const next = [...this.slides()];
+    const from = next.findIndex((item) => item.id === slide.id);
     const to = from + offset;
-    if (from < 0 || to < 0 || to >= order.length) return;
+    if (from < 0 || to < 0 || to >= next.length) return;
 
-    order.splice(to, 0, ...order.splice(from, 1));
-    this.run(this.api.reorderSlides(this.session().id, order));
+    next.splice(to, 0, ...next.splice(from, 1));
+    this.slides.set(next);
   }
 
   // ── Options ───────────────────────────────────────────────────────────────
@@ -283,6 +337,7 @@ export class SlideBuilderComponent {
       )
       .subscribe({
         next: (session) => {
+          this.slides.set(session.slides ?? []);
           onDone?.(session);
           this.sessionChanged.emit(session);
         },
@@ -297,6 +352,37 @@ export class SlideBuilderComponent {
   protected fieldError(field: string): string {
     const key = this.fieldErrors()[field];
     return key ? this.translate.instant(key) : '';
+  }
+
+  private findAddedSlide(session: LiveSession, existingIds: ReadonlySet<string>): Slide | undefined {
+    return (
+      session.slides.find((slide) => !existingIds.has(slide.id)) ??
+      session.slides[session.slides.length - 1]
+    );
+  }
+
+  private loadDraft(slide: Slide): void {
+    this.draftTitle.set(slide.title ?? '');
+    this.draftContent.set(slide.content ?? '');
+    this.draftQuestion.set(slide.question ?? '');
+    this.draftDescription.set(slide.description ?? '');
+    this.draftAnswerType.set(slide.answerType ?? 'SHORT_ANSWER');
+    this.draftOptions.set((slide.options ?? []).map((option) => ({ ...option })));
+  }
+
+  private slideInput(slide: Slide): SlideInput {
+    if (slide.type === SLIDE_TYPE.INFORMATION) {
+      return { title: this.draftTitle().trim(), content: this.draftContent().trim() };
+    }
+
+    return {
+      question: this.draftQuestion().trim(),
+      description: this.draftDescription().trim() || undefined,
+      answerType: this.draftAnswerType(),
+      options: needsOptions(this.draftAnswerType())
+        ? this.draftOptions().map((option) => ({ id: option.id, text: option.text.trim() }))
+        : undefined,
+    };
   }
 
   /** A short label for the slide list. */

@@ -24,7 +24,7 @@
   display: grid;
   gap: var(--cyf-space-2);
   inline-size: 100%;
-  padding: var(--cyf-space-5);
+  padding: var(--cyf-space-6);
   font: inherit;
   color: inherit;
   text-align: start;
@@ -42,7 +42,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--cyf-space-3);
+  gap: var(--cyf-space-4);
   flex-wrap: wrap;
 }
 
@@ -59,7 +59,7 @@
 .cyf-batches-item-dates {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--cyf-space-2) var(--cyf-space-5);
+  gap: var(--cyf-space-2) var(--cyf-space-6);
   font-variant-numeric: tabular-nums;
 }
 

@@ -2,7 +2,7 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
-  HostListener,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -10,7 +10,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { TranslateModule } from '@ngx-translate/core';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -47,10 +47,16 @@ import { LiveSlidesErrorKey, mapLiveSlidesError } from '../../utils/live-slides-
   templateUrl: './live-presenter.component.html',
   providers: [LiveSessionPollService],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:fullscreenchange)': 'onFullscreenChange()',
+    '(document:keydown.escape)': 'onEscape()',
+  },
 })
 export class LivePresenterComponent {
   private api = inject(LiveSlidesApiService);
   private changeDetector = inject(ChangeDetectorRef);
+  private document = inject(DOCUMENT);
+  private destroyRef = inject(DestroyRef);
   protected poll = inject(LiveSessionPollService);
 
   session = input.required<LiveSession>();
@@ -95,12 +101,43 @@ export class LivePresenterComponent {
         },
       );
     });
+
+    this.destroyRef.onDestroy(() => {
+      if (this.fullscreen() && this.document.fullscreenElement) {
+        void this.document.exitFullscreen().catch(() => undefined);
+      }
+    });
   }
 
   /** Escape leaves fullscreen, which is what every other overlay does. */
-  @HostListener('document:keydown.escape')
   protected onEscape(): void {
-    if (this.fullscreen()) this.fullscreen.set(false);
+    if (this.fullscreen()) this.exitFullscreen();
+  }
+
+  protected onFullscreenChange(): void {
+    if (!this.document.fullscreenElement && this.fullscreen()) this.fullscreen.set(false);
+  }
+
+  protected toggleFullscreen(): void {
+    if (this.fullscreen()) {
+      this.exitFullscreen();
+      return;
+    }
+
+    this.responsesVisible.set(false);
+    this.fullscreen.set(true);
+
+    const root = this.document.documentElement;
+    if (typeof root.requestFullscreen === 'function') {
+      void root.requestFullscreen().catch(() => undefined);
+    }
+  }
+
+  protected exitFullscreen(): void {
+    this.fullscreen.set(false);
+    if (this.document.fullscreenElement && typeof this.document.exitFullscreen === 'function') {
+      void this.document.exitFullscreen().catch(() => undefined);
+    }
   }
 
   protected requestMove(direction: 'next' | 'previous'): void {
@@ -159,7 +196,7 @@ export class LivePresenterComponent {
         next: (session) => {
           // The lecture is over; stop asking the server what is on screen.
           this.poll.stop();
-          this.fullscreen.set(false);
+          this.exitFullscreen();
           this.sessionChanged.emit(session);
         },
         error: (error) => this.errorKey.set(mapLiveSlidesError(error).key),
