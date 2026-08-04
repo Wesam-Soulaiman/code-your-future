@@ -112,5 +112,13 @@
           <cyf-student-live-slides [batchId]="batchId()" />
         </article>
       }
+
+      @if (activeTab() === 'tasks') {
+        <article class="cyf-card cyf-card-padded cyf-batch-card">
+          <!-- Mounted only while the tab is open, so a Batch whose Tasks nobody
+               looks at costs no request at all. -->
+          <cyf-student-tasks [batchId]="batchId()" />
+        </article>
+      }
     }
 </div>

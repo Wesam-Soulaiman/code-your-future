@@ -311,7 +311,91 @@
         "label": "Batch sections",
         "overview": "Overview",
         "resources": "Resources",
-        "liveSlides": "Live Slides"
+        "liveSlides": "Live Slides",
+        "tasks": "Tasks"
+      }
+    },
+    "tasks": {
+      "title": "Tasks",
+      "subtitle": "What to hand in for this batch.",
+      "empty": "No tasks have been published for this batch yet.",
+      "types": {
+        "ASSIGNMENT": "Assignment",
+        "FINAL_TASK": "Final task"
+      },
+      "states": {
+        "SUBMITTED": "Submitted",
+        "DRAFT": "Draft saved",
+        "NOT_STARTED": "Not started"
+      },
+      "availability": {
+        "OPEN": "Open for submissions",
+        "NOT_PUBLISHED": "Not published yet",
+        "CLOSED": "Closed — this task is no longer accepting work.",
+        "ARCHIVED": "Archived — this task is read-only.",
+        "DEADLINE_PASSED": "The deadline has passed. There are no late submissions.",
+        "BATCH_NOT_ACTIVE": "This batch has not started yet.",
+        "BATCH_CLOSED": "This batch has finished, so nothing new can be submitted."
+      },
+      "dueBy": "Due {{at}}",
+      "noDeadline": "No deadline",
+      "optional": "(optional)",
+      "openTask": "Open",
+      "saveDraft": "Save draft",
+      "saveDraftHint": "A draft is saved for you only. Nothing is handed in until you press submit.",
+      "submit": "Submit",
+      "resubmit": "Submit again",
+      "discardDraft": "Discard draft",
+      "alreadySubmitted": "You have submitted this task.",
+      "resubmitAllowed": "You can still change it and submit again before the deadline.",
+      "fields": {
+        "githubUrl": "GitHub repository",
+        "liveDemoUrl": "Live demo",
+        "googleDriveUrl": "Google Drive link",
+        "youtubeVideoId": "YouTube video",
+        "studentNote": "Note for your trainers"
+      },
+      "hints": {
+        "githubUrl": "A link to your repository, branch, or pull request on github.com.",
+        "liveDemoUrl": "A public HTTPS link. Local addresses will not be accepted.",
+        "googleDriveUrl": "A drive.google.com or docs.google.com link. Make sure it is shared before you submit — we cannot check that for you.",
+        "youtubeVideoId": "Paste the YouTube link. We keep only the video id. We cannot tell whether it is public, so check that yourself.",
+        "studentNote": "Only your trainers see this. It is never published."
+      },
+      "attachment": {
+        "kinds": {
+          "pdf": "PDF",
+          "docx": "Word document",
+          "html": "HTML"
+        }
+      },
+      "reel": {
+        "title": "Talent reel",
+        "intro": "If you agree, this project can appear on the public talent reel. It is entirely your choice.",
+        "projectTitle": "Project title",
+        "projectDescription": "What the project does",
+        "contribution": "What you built",
+        "contributionHint": "If this was a group project, describe your own part.",
+        "technologies": "Technologies used",
+        "technologiesHint": "Between {{min}} and {{max}}. Add them one at a time.",
+        "removeTechnology": "Remove {{name}}",
+        "consentLabel": "Publish this project on the public talent reel",
+        "consentExplained": "If you tick this, your project title, description, contribution, technologies, video, and your GitHub and demo links become public. Your note, your Drive link, your email, and your phone number never do.",
+        "consentWithdrawable": "You can untick this at any time and submit again to remove it.",
+        "statuses": {
+          "PUBLISHED": "Published",
+          "UNPUBLISHED": "Not published"
+        },
+        "currently": "Your talent reel is currently:"
+      },
+      "discard": {
+        "title": "Discard this draft?",
+        "body": "Everything saved in this draft will be removed. This cannot be undone."
+      },
+      "notices": {
+        "draftSaved": "Draft saved.",
+        "submitted": "Your work has been submitted.",
+        "draftDiscarded": "Draft discarded."
       }
     }
   },
@@ -414,7 +498,8 @@
         "students": "Students",
         "invitation": "Invitation",
         "resources": "Resources",
-        "liveSlides": "Live Slides"
+        "liveSlides": "Live Slides",
+        "tasks": "Tasks"
       },
       "notices": {
         "statusChanged": "The batch status was updated.",
@@ -558,6 +643,159 @@
       "empty": {
         "title": "No students yet",
         "body": "Students appear here once they sign in with Google and start their profile."
+      },
+      "taskHistory": {
+        "title": "Tasks and submissions",
+        "subtitle": "Every task this student has submitted, across all batches. Read-only.",
+        "empty": "This student has not submitted any task yet.",
+        "at": "{{at}}"
+      }
+    },
+    "tasks": {
+      "title": "Tasks",
+      "subtitle": "Assignments and the one final task for this batch.",
+      "create": "New task",
+      "empty": "No tasks yet.",
+      "readOnly": "This batch is read-only, so its tasks can be viewed but not changed.",
+      "types": {
+        "ASSIGNMENT": "Assignment",
+        "FINAL_TASK": "Final task"
+      },
+      "statuses": {
+        "DRAFT": "Draft",
+        "PUBLISHED": "Published",
+        "CLOSED": "Closed",
+        "ARCHIVED": "Archived"
+      },
+      "requirements": {
+        "NOT_USED": "Not used",
+        "OPTIONAL": "Optional",
+        "REQUIRED": "Required"
+      },
+      "fields": {
+        "githubUrl": "GitHub",
+        "liveDemoUrl": "Live demo",
+        "googleDriveUrl": "Google Drive",
+        "youtubeVideoId": "Video",
+        "studentNote": "Note"
+      },
+      "availability": {
+        "OPEN": "Open for submissions",
+        "NOT_PUBLISHED": "Not published",
+        "CLOSED": "Closed by an admin",
+        "ARCHIVED": "Archived",
+        "DEADLINE_PASSED": "Deadline passed",
+        "BATCH_NOT_ACTIVE": "Batch not started",
+        "BATCH_CLOSED": "Batch finished"
+      },
+      "list": {
+        "deadline": "Due {{at}}",
+        "noDeadline": "No deadline",
+        "counts": "{{submitted}} submitted · {{drafts}} draft · {{students}} students"
+      },
+      "actions": {
+        "submissions": "Submissions",
+        "copy": "Copy to batch",
+        "moveTo": {
+          "DRAFT": "Back to draft",
+          "PUBLISHED": "Publish",
+          "CLOSED": "Close",
+          "ARCHIVED": "Archive"
+        }
+      },
+      "form": {
+        "createTitle": "New task",
+        "editTitle": "Edit task",
+        "type": "Type",
+        "typeFixed": "A task keeps the type it was created with",
+        "finalExists": "This batch already has a final task, so only assignments can be added.",
+        "finalHint": "A batch has one final task. Its submission can become a talent reel if the student consents.",
+        "title": "Title",
+        "description": "Description",
+        "deadline": "Deadline (optional)",
+        "deadlineHint": "When the deadline passes the task stays published and simply stops accepting work. There are no late submissions and no extensions.",
+        "requirements": "What students submit",
+        "requirementsFrozen": "These cannot change now that work has been submitted.",
+        "attachment": "Brief (optional)"
+      },
+      "attachment": {
+        "rules": "Accepted: {{formats}}. Up to {{max}}.",
+        "downloadOnly": "Briefs are always downloaded, never opened inside the page.",
+        "chosen": "Selected: {{name}}",
+        "download": "Download",
+        "remove": "Remove",
+        "kinds": {
+          "pdf": "PDF",
+          "docx": "Word document",
+          "html": "HTML"
+        }
+      },
+      "delete": {
+        "title": "Delete this task?",
+        "body": "“{{title}}” will be removed.",
+        "note": "Only a draft that nobody has submitted to can be deleted."
+      },
+      "copy": {
+        "title": "Copy task",
+        "body": "“{{title}}” will be copied into another batch as a draft.",
+        "target": "Copy into",
+        "choose": "Choose a batch",
+        "confirm": "Copy",
+        "attachmentNote": "The brief does not travel with the copy. Attach it again in the new batch."
+      },
+      "submissions": {
+        "noStudents": "Nobody is enrolled in this batch yet.",
+        "counts": "{{submitted}} submitted · {{drafts}} draft · {{notSubmitted}} not submitted · {{students}} students",
+        "states": {
+          "SUBMITTED": "Submitted",
+          "DRAFT": "Draft",
+          "NOT_SUBMITTED": "Not submitted"
+        },
+        "profileIncomplete": "Profile incomplete",
+        "submittedAt": "Submitted {{at}}",
+        "savedAt": "Saved {{at}}",
+        "open": "View",
+        "dialogTitle": "Submission",
+        "watchVideo": "Watch on YouTube"
+      },
+      "reel": {
+        "title": "Talent reel",
+        "statuses": {
+          "PUBLISHED": "Published",
+          "UNPUBLISHED": "Not published"
+        },
+        "currently": "Currently:",
+        "none": "No talent reel record for this submission.",
+        "consentGiven": "This student has consented to publication.",
+        "consentWithheld": "This student has not consented to publication.",
+        "projectTitle": "Project title",
+        "projectDescription": "Project description",
+        "technologies": "Technologies",
+        "contribution": "Their contribution",
+        "unpublish": "Unpublish",
+        "republish": "Publish again",
+        "unpublishNote": "Unpublishing stays in effect even if the student submits again.",
+        "republishNote": "Publishing again only works if the work still meets every condition, including the student's consent.",
+        "notices": {
+          "unpublished": "The talent reel is no longer published.",
+          "republished": "The talent reel is published again.",
+          "stillUnpublished": "The talent reel stays unpublished — the work no longer meets every condition."
+        }
+      },
+      "notices": {
+        "created": "Task created.",
+        "updated": "Task updated.",
+        "deleted": "Task deleted.",
+        "copied": "Task copied.",
+        "copiedWithoutAttachment": "Task copied. The brief was not copied — attach it again in the new batch.",
+        "attachmentSaved": "Brief saved.",
+        "attachmentRemoved": "Brief removed.",
+        "status": {
+          "DRAFT": "Task returned to draft.",
+          "PUBLISHED": "Task published.",
+          "CLOSED": "Task closed.",
+          "ARCHIVED": "Task archived."
+        }
       }
     }
   },
@@ -911,6 +1149,35 @@
       "notEnrolled": "You are not enrolled in this Batch.",
       "responseFailed": "Your answer could not be saved. Please try again.",
       "unavailable": "The server is unreachable. Check your connection.",
+      "unexpected": "Something went wrong. Please try again."
+    }
+  },
+  "tasks": {
+    "errors": {
+      "validation": "Some fields need attention. Check the highlighted ones and try again.",
+      "notFound": "That task is no longer available.",
+      "notPublished": "That task has not been published yet.",
+      "notOpen": "That task is not accepting work right now.",
+      "deadlinePassed": "The deadline for this task has passed. There are no late submissions.",
+      "archived": "That task has been archived and can no longer be changed.",
+      "invalidStatus": "That is not a step this task can take from where it is.",
+      "notEditable": "This task can no longer be edited.",
+      "finalExists": "This batch already has a final task. A batch can only have one.",
+      "deleteForbidden": "This task cannot be deleted. Only a draft with no submissions can be removed.",
+      "batchNotActive": "This batch is not active, so nothing can be published or submitted.",
+      "notEnrolled": "You are not enrolled in this batch.",
+      "profileIncomplete": "Complete your profile before submitting.",
+      "attachmentInvalid": "That file is not an accepted brief. Use a PDF, DOCX, or HTML file.",
+      "attachmentTooLarge": "That file is larger than the 20 MB limit.",
+      "attachmentFailed": "The brief could not be stored. Please try again.",
+      "fieldNotUsed": "One of the values sent is not collected by this task. Reload the page and try again.",
+      "requiredFieldMissing": "Fill in every required field before submitting.",
+      "submissionDeleteForbidden": "Work that has been submitted cannot be deleted.",
+      "submissionFailed": "Your work could not be saved. Please try again.",
+      "reelNotEligible": "This work does not meet every condition for publication yet.",
+      "reelNotFound": "There is no talent reel for this submission.",
+      "accessDenied": "You do not have access to this.",
+      "unavailable": "The server could not be reached. Check your connection and try again.",
       "unexpected": "Something went wrong. Please try again."
     }
   }

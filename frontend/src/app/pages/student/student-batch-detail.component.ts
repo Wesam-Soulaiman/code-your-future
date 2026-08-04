@@ -21,9 +21,10 @@ import { BatchErrorKey, mapBatchError } from '../../utils/batch-error';
 import { formatCalendarDate, formatInstant } from '../../utils/calendar-date';
 import { StudentBatchResourcesComponent } from './student-batch-resources.component';
 import { StudentLiveSlidesComponent } from './student-live-slides.component';
+import { StudentTasksComponent } from './student-tasks.component';
 
 /** Three tabs: what the Batch is, what was shared, and what is happening. */
-type StudentBatchTab = 'overview' | 'resources' | 'live-slides';
+type StudentBatchTab = 'overview' | 'resources' | 'live-slides' | 'tasks';
 
 /**
  * One Batch, as the Student who belongs to it sees it.
@@ -48,6 +49,7 @@ type StudentBatchTab = 'overview' | 'resources' | 'live-slides';
     AlertComponent,
     StudentBatchResourcesComponent,
     StudentLiveSlidesComponent,
+    StudentTasksComponent,
   ],
   templateUrl: './student-batch-detail.component.html',
   styleUrl: './student-batch-detail.component.scss',
@@ -67,6 +69,7 @@ export class StudentBatchDetailComponent {
     { id: 'overview', labelKey: 'student.batches.tabs.overview' },
     { id: 'resources', labelKey: 'student.batches.tabs.resources' },
     { id: 'live-slides', labelKey: 'student.batches.tabs.liveSlides' },
+    { id: 'tasks', labelKey: 'student.batches.tabs.tasks' },
   ];
 
   protected batch = signal<StudentBatch | null>(null);

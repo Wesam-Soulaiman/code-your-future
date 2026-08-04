@@ -43,6 +43,9 @@ before(async () => {
   await import('../src/cloudCode/models/LiveSlideSession');
   await import('../src/cloudCode/models/LiveSlide');
   await import('../src/cloudCode/models/LiveResponse');
+  await import('../src/cloudCode/models/BatchTask');
+  await import('../src/cloudCode/models/TaskSubmission');
+  await import('../src/cloudCode/models/TalentReelPublication');
 
   const guard = await import('../src/cloudCode/utils/config/schemaGuard');
   hardenDefinitions = guard.hardenDefinitions as typeof hardenDefinitions;
@@ -53,13 +56,14 @@ before(async () => {
 });
 
 describe('registered class surface', () => {
-  test('contains exactly the thirteen approved classes', () => {
+  test('contains exactly the sixteen approved classes', () => {
     const names = definitions.map(definition => definition.className).sort();
     assert.deepEqual(names, [
       'Batch',
       'BatchEnrollment',
       'BatchInvitation',
       'BatchResource',
+      'BatchTask',
       'File',
       'IMG',
       'LiveResponse',
@@ -68,6 +72,8 @@ describe('registered class surface', () => {
       'ProfileCatalogItem',
       'StudentAuthIdentity',
       'StudentProfile',
+      'TalentReelPublication',
+      'TaskSubmission',
       '_Role',
       '_User',
     ]);
@@ -93,11 +99,16 @@ describe('registered class surface', () => {
     // exactly the sort of thing that gets created twice.
     const future = [
       'Enrollment',
+      'PinnedStudent',
+      'LiveSlidesSession',
+      // The Checkpoint 7 classes shipped under focused names — `BatchTask`,
+      // `TaskSubmission`, `TalentReelPublication`. These bare near-misses stay
+      // on the list on purpose: `Task` in particular is a word half the
+      // libraries in a Node process already use, and a Parse class competing
+      // with one of them is a debugging session nobody needs.
       'Task',
       'Submission',
-      'PinnedStudent',
       'TalentReel',
-      'LiveSlidesSession',
     ];
     for (const className of future) {
       assert.ok(!names.includes(className), `${className} must not exist yet`);
@@ -131,6 +142,9 @@ describe('deny-by-default access', () => {
     'LiveSlideSession',
     'LiveSlide',
     'LiveResponse',
+    'BatchTask',
+    'TaskSubmission',
+    'TalentReelPublication',
   ]) {
     test(`${className} denies every client operation`, () => {
       const definition = definitions.find(entry => entry.className === className);

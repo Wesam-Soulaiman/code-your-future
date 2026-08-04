@@ -37,6 +37,7 @@ import {
 import { BatchErrorKey, mapBatchError } from '../../utils/batch-error';
 import { formatCalendarDate, formatInstant } from '../../utils/calendar-date';
 import { BatchResourcesComponent } from './batch-resources.component';
+import { BatchTasksComponent } from './batch-tasks.component';
 import { LiveSlidesComponent } from './live-slides.component';
 import { InvitationCardComponent } from './invitation-card.component';
 
@@ -48,7 +49,13 @@ import { InvitationCardComponent } from './invitation-card.component';
  * "Resources" item would be a list of files with nothing to say which cohort
  * each belongs to.
  */
-type BatchTab = 'overview' | 'students' | 'invitation' | 'resources' | 'live-slides';
+type BatchTab =
+  | 'overview'
+  | 'students'
+  | 'invitation'
+  | 'resources'
+  | 'live-slides'
+  | 'tasks';
 
 /** A roster row with its joined date already rendered. */
 interface StudentRow {
@@ -92,6 +99,7 @@ interface StudentRow {
     InvitationCardComponent,
     BatchResourcesComponent,
     LiveSlidesComponent,
+    BatchTasksComponent,
     DataTableComponent,
     ColTemplateDirective,
     GridCardTemplateDirective,
@@ -147,6 +155,7 @@ export class AdminBatchDetailComponent {
     { id: 'invitation', labelKey: 'admin.batches.tabs.invitation' },
     { id: 'resources', labelKey: 'admin.batches.tabs.resources' },
     { id: 'live-slides', labelKey: 'admin.batches.tabs.liveSlides' },
+    { id: 'tasks', labelKey: 'admin.batches.tabs.tasks' },
   ];
 
   protected batchId = signal('');

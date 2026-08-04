@@ -1,0 +1,473 @@
+<!--
+  The Tasks of one Batch ⟨CP7⟩.
+
+  Three views, never two at once: the list, the form, and one Task's
+  submissions. Deadlines and availability are rendered from what the server
+  sent — this template never decides whether a deadline has passed, because the
+  clock it would ask belongs to whoever is sitting in front of it.
+-->
+<div class="cyf-tasks">
+  @if (errorKey()) {
+    <cyf-alert variant="error" class="cyf-tasks-alert">{{ errorKey()! | translate }}</cyf-alert>
+  }
+  @if (noticeKey()) {
+    <cyf-alert variant="success" class="cyf-tasks-alert">{{ noticeKey()! | translate }}</cyf-alert>
+  }
+
+  <!-- ══ One Task's submissions ═══════════════════════════════════════════ -->
+  @if (view() === 'submissions' && openTask(); as open) {
+    <cyf-task-submissions [task]="open" (back)="backToList()" />
+  }
+
+  <!-- ══ The form ═════════════════════════════════════════════════════════ -->
+  @else if (view() === 'form') {
+    <form class="cyf-tasks-form" (ngSubmit)="save()">
+      <header class="cyf-tasks-form-header">
+        <h3 class="cyf-heading-sm">
+          {{
+            (editing() ? 'admin.tasks.form.editTitle' : 'admin.tasks.form.createTitle') | translate
+          }}
+        </h3>
+      </header>
+
+      <!-- ── Type ─────────────────────────────────────────────────────── -->
+      @if (!editing()) {
+        <fieldset class="cyf-field">
+          <legend class="cyf-label">{{ 'admin.tasks.form.type' | translate }}</legend>
+          <div class="cyf-tasks-choices" role="radiogroup">
+            <label class="cyf-tasks-choice">
+              <input
+                type="radio"
+                name="taskType"
+                [value]="taskType.ASSIGNMENT"
+                [ngModel]="formType()"
+                (ngModelChange)="formType.set($event)"
+              />
+              <span>{{ 'admin.tasks.types.ASSIGNMENT' | translate }}</span>
+            </label>
+
+            <!-- A Batch holds at most one Final Task. The option is withdrawn
+                 rather than offered and then refused. -->
+            @if (canCreateFinal()) {
+              <label class="cyf-tasks-choice">
+                <input
+                  type="radio"
+                  name="taskType"
+                  [value]="taskType.FINAL_TASK"
+                  [ngModel]="formType()"
+                  (ngModelChange)="formType.set($event)"
+                />
+                <span>{{ 'admin.tasks.types.FINAL_TASK' | translate }}</span>
+              </label>
+            } @else {
+              <p class="cyf-helper">{{ 'admin.tasks.form.finalExists' | translate }}</p>
+            }
+          </div>
+          @if (formType() === taskType.FINAL_TASK) {
+            <p class="cyf-helper">{{ 'admin.tasks.form.finalHint' | translate }}</p>
+          }
+        </fieldset>
+      } @else {
+        <p class="cyf-helper">
+          {{ 'admin.tasks.form.typeFixed' | translate }} —
+          {{ 'admin.tasks.types.' + editing()!.type | translate }}
+        </p>
+      }
+
+      <!-- ── Title ────────────────────────────────────────────────────── -->
+      <div class="cyf-field">
+        <label class="cyf-label" for="task-title">{{ 'admin.tasks.form.title' | translate }}</label>
+        <input
+          id="task-title"
+          name="title"
+          type="text"
+          class="cyf-input"
+          [maxlength]="limits.title.max"
+          [ngModel]="formTitle()"
+          (ngModelChange)="formTitle.set($event)"
+        />
+        @if (fieldErrors()['title']; as reason) {
+          <p class="cyf-field-error">{{ reason | translate }}</p>
+        }
+      </div>
+
+      <!-- ── Description ──────────────────────────────────────────────── -->
+      <div class="cyf-field">
+        <label class="cyf-label" for="task-description">
+          {{ 'admin.tasks.form.description' | translate }}
+        </label>
+        <textarea
+          id="task-description"
+          name="description"
+          class="cyf-input cyf-textarea"
+          rows="6"
+          [maxlength]="limits.description.max"
+          [ngModel]="formDescription()"
+          (ngModelChange)="formDescription.set($event)"
+        ></textarea>
+        @if (fieldErrors()['description']; as reason) {
+          <p class="cyf-field-error">{{ reason | translate }}</p>
+        }
+      </div>
+
+      <!-- ── Deadline ─────────────────────────────────────────────────── -->
+      <div class="cyf-field">
+        <label class="cyf-label" for="task-deadline">
+          {{ 'admin.tasks.form.deadline' | translate }}
+        </label>
+        <p-datepicker
+          inputId="task-deadline"
+          name="deadline"
+          [showTime]="true"
+          [showIcon]="true"
+          [showOnFocus]="false"
+          [ngModel]="formDeadline()"
+          (ngModelChange)="formDeadline.set($event)"
+        />
+        <!-- Said plainly, because it is the rule people ask about most: there
+             are no late submissions, and nothing about the Task changes when
+             the moment passes. -->
+        <p class="cyf-helper">{{ 'admin.tasks.form.deadlineHint' | translate }}</p>
+        @if (fieldErrors()['deadline']; as reason) {
+          <p class="cyf-field-error">{{ reason | translate }}</p>
+        }
+      </div>
+
+      <!-- ── What the Student submits ─────────────────────────────────── -->
+      <fieldset class="cyf-field">
+        <legend class="cyf-label">{{ 'admin.tasks.form.requirements' | translate }}</legend>
+
+        @if (frozen()) {
+          <cyf-alert variant="info">{{ 'admin.tasks.form.requirementsFrozen' | translate }}</cyf-alert>
+        }
+
+        <div class="cyf-tasks-requirements">
+          @for (spec of submissionFields; track spec.field) {
+            <div class="cyf-tasks-requirement">
+              <span class="cyf-tasks-requirement-name">
+                {{ 'admin.tasks.fields.' + spec.field | translate }}
+              </span>
+              <div class="cyf-tasks-requirement-levels" role="radiogroup">
+                @for (level of [requirement.NOT_USED, requirement.OPTIONAL, requirement.REQUIRED]; track level) {
+                  <label class="cyf-tasks-choice">
+                    <input
+                      type="radio"
+                      [name]="spec.requirement"
+                      [value]="level"
+                      [disabled]="frozen()"
+                      [checked]="formRequirements()[spec.requirement] === level"
+                      (change)="setRequirement(spec.requirement, level)"
+                    />
+                    <span>{{ 'admin.tasks.requirements.' + level | translate }}</span>
+                  </label>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </fieldset>
+
+      <!-- ── The brief ────────────────────────────────────────────────── -->
+      <div class="cyf-field">
+        <span class="cyf-label">{{ 'admin.tasks.form.attachment' | translate }}</span>
+
+        @if (editing()?.attachment; as attachment) {
+          <div class="cyf-tasks-attachment">
+            <span class="cyf-tasks-attachment-name">{{ attachment.filename }}</span>
+            <span class="cyf-tasks-attachment-meta">
+              {{ 'admin.tasks.attachment.kinds.' + attachment.kind | translate }} ·
+              {{ attachmentSizeOf(attachment.size) }}
+            </span>
+            <p-button
+              type="button"
+              severity="secondary"
+              [text]="true"
+              [disabled]="busy()"
+              [label]="'admin.tasks.attachment.download' | translate"
+              (onClick)="downloadAttachment(editing()!)"
+            />
+            @if (!readOnly()) {
+              <p-button
+                type="button"
+                severity="danger"
+                [text]="true"
+                [disabled]="busy()"
+                [label]="'admin.tasks.attachment.remove' | translate"
+                (onClick)="removeAttachment(editing()!)"
+              />
+            }
+          </div>
+        }
+
+        @if (!readOnly()) {
+          <input
+            #attachmentInput
+            type="file"
+            class="cyf-input"
+            [accept]="attachmentAccept"
+            (change)="chooseFile(attachmentInput)"
+          />
+          <p class="cyf-helper">
+            {{
+              'admin.tasks.attachment.rules'
+                | translate: { formats: attachmentExtensions, max: attachmentMax }
+            }}
+          </p>
+          <!-- An HTML brief is always downloaded, never opened in the page. Said
+               here so nobody expects a preview that will not come. -->
+          <p class="cyf-helper">{{ 'admin.tasks.attachment.downloadOnly' | translate }}</p>
+          @if (chosenFileName()) {
+            <p class="cyf-helper">
+              {{ 'admin.tasks.attachment.chosen' | translate: { name: chosenFileName() } }}
+            </p>
+          }
+        }
+      </div>
+
+      <footer class="cyf-tasks-form-actions">
+        <p-button
+          type="submit"
+          [disabled]="!canSave() || busy() || readOnly()"
+          [loading]="busy()"
+          [label]="'actions.save' | translate"
+        />
+        <p-button
+          type="button"
+          severity="secondary"
+          [text]="true"
+          [disabled]="busy()"
+          [label]="'actions.cancel' | translate"
+          (onClick)="closeForm()"
+        />
+      </footer>
+    </form>
+  }
+
+  <!-- ══ The list ═════════════════════════════════════════════════════════ -->
+  @else {
+    <header class="cyf-tasks-header">
+      <div>
+        <h3 class="cyf-heading-sm">{{ 'admin.tasks.title' | translate }}</h3>
+        <p class="cyf-muted">{{ 'admin.tasks.subtitle' | translate }}</p>
+      </div>
+      @if (!readOnly()) {
+        <p-button
+          type="button"
+          [disabled]="busy() || loading()"
+          [label]="'admin.tasks.create' | translate"
+          (onClick)="openCreate()"
+        />
+      }
+    </header>
+
+    @if (readOnly() && !loading()) {
+      <cyf-alert variant="info">{{ 'admin.tasks.readOnly' | translate }}</cyf-alert>
+    }
+
+    @if (loading()) {
+      <p class="cyf-muted">{{ 'common.loading' | translate }}</p>
+    } @else if (isEmpty()) {
+      <p class="cyf-muted">{{ 'admin.tasks.empty' | translate }}</p>
+    } @else {
+      <ul class="cyf-tasks-list">
+        @for (row of rows(); track row.task.id) {
+          <li class="cyf-tasks-item">
+            <div class="cyf-tasks-item-main">
+              <div class="cyf-tasks-item-heading">
+                <h4 class="cyf-tasks-item-title">{{ row.task.title }}</h4>
+                <span class="cyf-status-chip cyf-status-{{ statusTone[row.task.status] }}">
+                  {{ 'admin.tasks.statuses.' + row.task.status | translate }}
+                </span>
+                @if (row.task.type === taskType.FINAL_TASK) {
+                  <span class="cyf-status-chip cyf-status-info">
+                    {{ 'admin.tasks.types.FINAL_TASK' | translate }}
+                  </span>
+                }
+              </div>
+
+              <p class="cyf-tasks-item-meta">
+                @if (row.deadline) {
+                  <span>{{ 'admin.tasks.list.deadline' | translate: { at: row.deadline } }}</span>
+                } @else {
+                  <span>{{ 'admin.tasks.list.noDeadline' | translate }}</span>
+                }
+                <!-- Availability is the server's answer, not a calculation. -->
+                <span class="cyf-tasks-availability">
+                  {{ 'admin.tasks.availability.' + row.task.availabilityReason | translate }}
+                </span>
+              </p>
+
+              <p class="cyf-tasks-item-counts">
+                {{
+                  'admin.tasks.list.counts'
+                    | translate
+                      : {
+                          submitted: row.task.submittedCount ?? 0,
+                          drafts: row.task.draftCount ?? 0,
+                          students: row.task.studentCount ?? 0
+                        }
+                }}
+              </p>
+
+              @if (row.task.attachment; as attachment) {
+                <p class="cyf-tasks-item-meta">
+                  <button
+                    type="button"
+                    class="cyf-table-link"
+                    [disabled]="busy()"
+                    (click)="downloadAttachment(row.task)"
+                  >
+                    {{ attachment.filename }}
+                  </button>
+                  <span class="cyf-muted">{{ row.attachmentSize }}</span>
+                </p>
+              }
+            </div>
+
+            <div class="cyf-tasks-item-actions">
+              <p-button
+                type="button"
+                severity="secondary"
+                [text]="true"
+                [disabled]="busy()"
+                [label]="'admin.tasks.actions.submissions' | translate"
+                (onClick)="openSubmissions(row.task)"
+              />
+
+              @if (!readOnly() && row.task.editable) {
+                <p-button
+                  type="button"
+                  severity="secondary"
+                  [text]="true"
+                  [disabled]="busy()"
+                  [label]="'actions.edit' | translate"
+                  (onClick)="openEdit(row.task)"
+                />
+              }
+
+              <!-- The offered transitions. Each is checked again server-side,
+                   because a disabled button is a courtesy and not a rule. -->
+              @for (next of row.nextStatuses; track next) {
+                @if (!readOnly() && canOffer(next)) {
+                  <p-button
+                    type="button"
+                    severity="secondary"
+                    [text]="true"
+                    [disabled]="busy()"
+                    [label]="'admin.tasks.actions.moveTo.' + next | translate"
+                    (onClick)="setStatus(row.task, next)"
+                  />
+                }
+              }
+
+              @if (!readOnly()) {
+                <p-button
+                  type="button"
+                  severity="secondary"
+                  [text]="true"
+                  [disabled]="busy()"
+                  [label]="'admin.tasks.actions.copy' | translate"
+                  (onClick)="askCopy(row.task)"
+                />
+              }
+
+              @if (!readOnly() && row.task.status === taskStatus.DRAFT) {
+                <p-button
+                  type="button"
+                  severity="danger"
+                  [text]="true"
+                  [disabled]="busy()"
+                  [label]="'actions.delete' | translate"
+                  (onClick)="askDelete(row.task)"
+                />
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  }
+</div>
+
+<!-- ── Delete confirmation ──────────────────────────────────────────────── -->
+<p-dialog
+  [visible]="confirmingDelete() !== null"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="!busy()"
+  [style]="{ width: 'min(32rem, 92vw)' }"
+  [header]="'admin.tasks.delete.title' | translate"
+  (visibleChange)="$event ? null : cancelDelete()"
+>
+  <p>{{ 'admin.tasks.delete.body' | translate: { title: confirmingDelete()?.title ?? '' } }}</p>
+  <p class="cyf-helper">{{ 'admin.tasks.delete.note' | translate }}</p>
+
+  <div class="cyf-tasks-dialog-actions">
+    <p-button
+      type="button"
+      severity="secondary"
+      [text]="true"
+      [disabled]="busy()"
+      [label]="'actions.cancel' | translate"
+      (onClick)="cancelDelete()"
+    />
+    <p-button
+      type="button"
+      severity="danger"
+      [loading]="busy()"
+      [label]="'actions.delete' | translate"
+      (onClick)="confirmDelete()"
+    />
+  </div>
+</p-dialog>
+
+<!-- ── Copy to another Batch ────────────────────────────────────────────── -->
+<p-dialog
+  [visible]="copying() !== null"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="!busy()"
+  [style]="{ width: 'min(32rem, 92vw)' }"
+  [header]="'admin.tasks.copy.title' | translate"
+  (visibleChange)="$event ? null : cancelCopy()"
+>
+  <p>{{ 'admin.tasks.copy.body' | translate: { title: copying()?.title ?? '' } }}</p>
+
+  <div class="cyf-field">
+    <label class="cyf-label" for="copy-target">{{ 'admin.tasks.copy.target' | translate }}</label>
+    <select
+      id="copy-target"
+      class="cyf-input"
+      [value]="copyTargetId()"
+      (change)="copyTargetId.set($any($event.target).value)"
+    >
+      <option value="">{{ 'admin.tasks.copy.choose' | translate }}</option>
+      @for (batch of copyTargets(); track batch.id) {
+        <option [value]="batch.id">{{ batch.name }}</option>
+      }
+    </select>
+  </div>
+
+  <!-- The brief does not travel. Said before the copy, not discovered after. -->
+  <p class="cyf-helper">{{ 'admin.tasks.copy.attachmentNote' | translate }}</p>
+
+  <div class="cyf-tasks-dialog-actions">
+    <p-button
+      type="button"
+      severity="secondary"
+      [text]="true"
+      [disabled]="busy()"
+      [label]="'actions.cancel' | translate"
+      (onClick)="cancelCopy()"
+    />
+    <p-button
+      type="button"
+      [disabled]="!copyTargetId() || busy()"
+      [loading]="busy()"
+      [label]="'admin.tasks.copy.confirm' | translate"
+      (onClick)="confirmCopy()"
+    />
+  </div>
+</p-dialog>

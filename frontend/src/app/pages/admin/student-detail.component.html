@@ -107,6 +107,11 @@
       <section class="cyf-student-detail-section">
         <cyf-student-live-answers [studentId]="studentId()" />
       </section>
+
+      <!-- ══ Tasks and Submissions ⟨CP7⟩ — Admin only, read-only ═══════════ -->
+      <section class="cyf-student-detail-section">
+        <cyf-student-task-history [studentId]="studentId()" />
+      </section>
     </article>
   }
 </div>

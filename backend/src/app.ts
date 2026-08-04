@@ -66,6 +66,7 @@ import {buildCorsOptions, logCorsPolicy} from './cloudCode/utils/config/cors';
 import {googleAuthStatus} from './cloudCode/modules/StudentAuth/googleConfig';
 import {studentProfilePhotoRouter} from './cloudCode/modules/StudentProfile/photoRoute';
 import {batchResourceRouter} from './cloudCode/modules/BatchResource/resourceRoute';
+import {taskAttachmentRouter} from './cloudCode/modules/BatchTask/attachmentRoute';
 import {storageIsUsable, useFilesAdapter} from './cloudCode/modules/BatchResource/storage';
 import {seedInstitutionCatalog} from './cloudCode/modules/ProfileCatalog/seed';
 import './cloudCode/cron'; // Load cron job definitions before CronRegistry.initialize
@@ -165,6 +166,11 @@ async function main() {
   // are untouched, and no public URL exists — a Resource is addressed by its
   // objectId and served only to an Admin or a Student enrolled in its Batch.
   app.use(process.env.mountPath as string, batchResourceRouter());
+
+  // The Task attachment route ⟨CP7⟩. Mounted here for the same reason as the
+  // two above: `validateEntityRoutes` maps a path segment to a registered
+  // entity and would reject an unknown one.
+  app.use(process.env.mountPath as string, taskAttachmentRouter());
 
   // Validates entity-based routes: /api/{entity}/{action} → /functions/{name}
   app.use(process.env.mountPath as string, validateEntityRoutes as any);

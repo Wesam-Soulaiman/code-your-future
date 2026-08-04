@@ -113,6 +113,13 @@ before(async () => {
   await import('../src/cloudCode/models/Batch');
   await import('../src/cloudCode/models/BatchInvitation');
   await import('../src/cloudCode/models/BatchEnrollment');
+  await import('../src/cloudCode/models/BatchResource');
+  await import('../src/cloudCode/models/LiveSlideSession');
+  await import('../src/cloudCode/models/LiveSlide');
+  await import('../src/cloudCode/models/LiveResponse');
+  await import('../src/cloudCode/models/BatchTask');
+  await import('../src/cloudCode/models/TaskSubmission');
+  await import('../src/cloudCode/models/TalentReelPublication');
 
   startup = await import('../src/cloudCode/startup/indexes');
 });
@@ -164,10 +171,63 @@ describe('the required index set', () => {
   });
 
   test('every unique index this product depends on is present', () => {
-    // Seven, across five collections. A change to this number is a change to
-    // the product's concurrency guarantees and should be deliberate.
+    /*
+      Every uniqueness guarantee in the product, named.
+
+      This list *is* the set of invariants that survive concurrency. Each one is
+      the only reason some "two simultaneous requests" case has a single winner
+      — one profile per Student, one live session per Batch, one Final Task per
+      Batch, one Submission per Student per Task, one Reel per Submission. A
+      change here is a change to a guarantee and should be deliberate.
+
+      The model list above was incomplete until Checkpoint 7: it stopped at
+      BatchEnrollment, so the Resource, Live Slides, and Task indexes were never
+      asserted. Loading all of them is why this reads as a long list rather than
+      a number.
+    */
     const unique = startup.requiredIndexes().filter(index => index.unique);
-    assert.equal(unique.length, 7, unique.map(i => i.indexName).join(', '));
+    assert.deepEqual(
+      unique.map(index => index.indexName).sort(),
+      [
+        'batch_enrollment_unique',
+        'batch_invitation_current_unique',
+        'batch_invitation_token_hash_unique',
+        'batch_resource_storage_key_unique',
+        'batch_task_attachment_key_unique',
+        'batch_task_final_per_batch_unique',
+        'live_response_unique',
+        'live_session_live_per_batch_unique',
+        'profile_catalog_type_code_unique',
+        'provider_subject_unique',
+        'provider_user_unique',
+        'student_profile_public_slug_unique',
+        'student_profile_user_unique',
+        'talent_reel_submission_unique',
+        'task_submission_unique',
+      ],
+      unique.map(index => index.indexName).join(', ')
+    );
+  });
+
+  test('every Checkpoint 7 concurrency guarantee is physically enforced', () => {
+    // Named individually, because each answers a specific "what if two requests
+    // arrive at once" question that has no application-level answer.
+    const required = startup.requiredIndexes();
+    for (const [collection, indexName] of [
+      // Two Admins creating a Final Task in one Batch.
+      ['BatchTask', 'batch_task_final_per_batch_unique'],
+      // Two saves from one Student for one Task.
+      ['TaskSubmission', 'task_submission_unique'],
+      // Two publication records answering "is this published?" differently.
+      ['TalentReelPublication', 'talent_reel_submission_unique'],
+      // Two Students issued the same public link.
+      ['StudentProfile', 'student_profile_public_slug_unique'],
+    ] as const) {
+      const index = required.find(entry => entry.indexName === indexName);
+      assert.ok(index, `${indexName} must be required`);
+      assert.equal(index!.collection, collection);
+      assert.equal(index!.unique, true, `${indexName} must be unique`);
+    }
   });
 });
 

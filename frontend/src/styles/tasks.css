@@ -1,0 +1,422 @@
+/*
+  Batch Tasks, Submissions, and Talent Reels ⟨CP7⟩.
+
+  Layout only. Colour, spacing, and typography come from the tokens the rest of
+  the app already uses, so a Task page in dark mode or in Arabic is styled by
+  the same decisions as everything else rather than by a second set made here.
+
+  Nothing in this file uses a physical direction. `margin-inline`,
+  `padding-inline`, and `border-inline-start` flip with the document, which is
+  what keeps the Arabic layout a mirror rather than a rebuild.
+*/
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Shared
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cyf-tasks,
+.cyf-student-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-4, 1rem);
+}
+
+.cyf-tasks-alert {
+  display: block;
+}
+
+.cyf-tasks-divider {
+  border: 0;
+  border-block-start: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+  margin-block: var(--cyf-space-4, 1rem);
+}
+
+.cyf-tasks-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--cyf-space-2, 0.5rem);
+  margin-block-start: var(--cyf-space-4, 1rem);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The Admin's Task list
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cyf-tasks-header,
+.cyf-student-tasks-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cyf-space-3, 0.75rem);
+}
+
+.cyf-tasks-list,
+.cyf-student-tasks-list,
+.cyf-tasks-student-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-3, 0.75rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cyf-tasks-item,
+.cyf-student-task-item,
+.cyf-tasks-student {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cyf-space-3, 0.75rem);
+  padding: var(--cyf-space-3, 0.75rem);
+  border: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+  border-radius: var(--cyf-radius-md, 0.5rem);
+}
+
+.cyf-tasks-item-main,
+.cyf-student-task-item-main,
+.cyf-tasks-student-main {
+  /* `min-inline-size: 0` so a long title wraps instead of stretching the row
+     past the viewport — the classic flex overflow. */
+  flex: 1 1 18rem;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-1, 0.25rem);
+}
+
+.cyf-tasks-student-main {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cyf-space-2, 0.5rem);
+}
+
+.cyf-tasks-item-heading,
+.cyf-student-task-item-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cyf-space-2, 0.5rem);
+}
+
+.cyf-tasks-item-title,
+.cyf-student-task-item-title,
+.cyf-tasks-student-name {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.cyf-tasks-item-meta,
+.cyf-student-task-item-meta,
+.cyf-tasks-student-meta,
+.cyf-tasks-item-counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cyf-space-2, 0.5rem);
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--cyf-text-muted, rgb(0 0 0 / 60%));
+}
+
+.cyf-tasks-availability,
+.cyf-student-task-closed {
+  font-style: italic;
+}
+
+.cyf-tasks-item-actions,
+.cyf-student-task-actions,
+.cyf-tasks-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cyf-space-2, 0.5rem);
+}
+
+/* One filled field, shown as a presence and never as a value. */
+.cyf-tasks-flag {
+  padding-inline: var(--cyf-space-2, 0.5rem);
+  padding-block: 0.125rem;
+  border: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+  border-radius: var(--cyf-radius-sm, 0.25rem);
+  font-size: 0.75rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The Admin's Task form
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cyf-tasks-form,
+.cyf-student-task-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-4, 1rem);
+}
+
+.cyf-tasks-form-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cyf-tasks-choices,
+.cyf-tasks-requirement-levels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-3, 0.75rem);
+}
+
+/*
+  A radio or checkbox and its words.
+
+  `position: relative` is deliberate and load-bearing: a visually-hidden helper
+  inside an absolutely-positioned descendant needs a positioned ancestor, or its
+  containing block becomes the app shell's fixed `main` and focusing the control
+  scrolls the whole page. That was a real defect here once.
+*/
+.cyf-tasks-choice {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-2, 0.5rem);
+  cursor: pointer;
+}
+
+.cyf-tasks-choice input:disabled + span {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cyf-tasks-requirements {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-3, 0.75rem);
+}
+
+.cyf-tasks-requirement {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cyf-space-2, 0.5rem);
+  padding-block: var(--cyf-space-2, 0.5rem);
+  border-block-end: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+}
+
+.cyf-tasks-requirement:last-child {
+  border-block-end: 0;
+}
+
+.cyf-tasks-requirement-name {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+  font-weight: 500;
+}
+
+.cyf-tasks-attachment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cyf-space-2, 0.5rem);
+  margin-block-end: var(--cyf-space-2, 0.5rem);
+}
+
+.cyf-tasks-attachment-name {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.cyf-tasks-attachment-meta {
+  font-size: 0.875rem;
+  color: var(--cyf-text-muted, rgb(0 0 0 / 60%));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The Admin's submission view
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cyf-tasks-submissions,
+.cyf-student-task {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-4, 1rem);
+}
+
+.cyf-tasks-submissions-header,
+.cyf-student-task-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cyf-space-3, 0.75rem);
+}
+
+.cyf-tasks-submissions-counts {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--cyf-text-muted, rgb(0 0 0 / 60%));
+}
+
+.cyf-tasks-submission-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-3, 0.75rem);
+}
+
+.cyf-tasks-submission-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-1, 0.25rem);
+}
+
+/* A submitted link can be arbitrarily long and is never trimmed for looks. */
+.cyf-tasks-submission-field a {
+  overflow-wrap: anywhere;
+}
+
+/* A Student's own words, shown as written — newlines and all. */
+.cyf-tasks-submission-note,
+.cyf-student-task-description {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Technologies
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cyf-tasks-tech-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-2, 0.5rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cyf-tasks-tech {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-1, 0.25rem);
+  padding-inline: var(--cyf-space-2, 0.5rem);
+  padding-block: 0.125rem;
+  border: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+  border-radius: var(--cyf-radius-pill, 999px);
+  font-size: 0.875rem;
+}
+
+/*
+  The remove control on a technology chip.
+
+  Sized in pixels, deliberately, and this is the one place in the file that is.
+  It started at 1.25rem, measured 18×18 on a phone, and two rem-based attempts
+  landed at 21×21 — because this application's root font size is 14px, so a rem
+  here is not the 16px the 24px guidance assumes. A touch target is a physical
+  thing: a fingertip does not get smaller because the type scale did. So the
+  minimum is stated as the number it has to be.
+
+  The chip stays visually small — the negative inline margin keeps the button's
+  box from padding the chip out.
+*/
+.cyf-tasks-tech-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* `flex: none` matters: the chip is a flex container, and without it the
+     button is shrunk however large its own size is set. */
+  flex: none;
+  inline-size: 24px;
+  block-size: 24px;
+  min-inline-size: 24px;
+  min-block-size: 24px;
+  margin-inline-end: -0.25rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+  font-size: 1rem;
+  color: inherit;
+}
+
+.cyf-tasks-tech-remove:hover,
+.cyf-tasks-tech-remove:focus-visible {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.cyf-tasks-tech-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cyf-tasks-tech-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cyf-space-2, 0.5rem);
+}
+
+.cyf-tasks-tech-add .cyf-input {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Consent
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/*
+  Set apart deliberately. Agreeing to be published is not the same kind of
+  decision as filling in a link, and a checkbox that looked like every other
+  control would be easy to tick without reading.
+*/
+.cyf-tasks-consent {
+  padding: var(--cyf-space-3, 0.75rem);
+  border: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+  border-radius: var(--cyf-radius-md, 0.5rem);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Narrow screens
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 40rem) {
+  .cyf-tasks-item,
+  .cyf-student-task-item,
+  .cyf-tasks-student {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /*
+    Release the flex basis when the card turns into a column.
+
+    `flex: 1 1 18rem` is a sensible *width* floor while these sit side by side.
+    The moment the container becomes a column, `flex-basis` starts sizing the
+    **height** instead — so every card grew to 18rem tall and left roughly 180px
+    of dead space between the text and its buttons on a phone. Found by looking
+    at a 390px screenshot; nothing overflowed, so no measurement would have
+    caught it.
+  */
+  .cyf-tasks-item-main,
+  .cyf-student-task-item-main,
+  .cyf-tasks-student-main {
+    flex: 1 1 auto;
+  }
+
+  .cyf-tasks-requirement {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Buttons keep their own row rather than being squeezed to icon width. */
+  .cyf-tasks-item-actions,
+  .cyf-student-task-actions {
+    inline-size: 100%;
+  }
+}

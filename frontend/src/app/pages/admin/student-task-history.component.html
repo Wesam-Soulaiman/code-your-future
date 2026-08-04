@@ -1,0 +1,82 @@
+<!--
+  One Student's Task submissions, across every Batch ⟨CP7⟩.
+
+  A record of what happened, not a place to change it. There is no edit, no
+  delete, no score, and no feedback here, because none of those operations
+  exists.
+-->
+<div class="cyf-tasks">
+  <header class="cyf-tasks-header">
+    <div>
+      <h3 class="cyf-heading-sm">{{ 'admin.students.taskHistory.title' | translate }}</h3>
+      <p class="cyf-muted">{{ 'admin.students.taskHistory.subtitle' | translate }}</p>
+    </div>
+  </header>
+
+  @if (errorKey()) {
+    <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+      {{ errorKey()! | translate }}
+    </cyf-alert>
+  }
+
+  @if (loading() && rows().length === 0) {
+    <p class="cyf-muted">{{ 'common.loading' | translate }}</p>
+  } @else if (isEmpty()) {
+    <p class="cyf-muted">{{ 'admin.students.taskHistory.empty' | translate }}</p>
+  } @else {
+    <ul class="cyf-tasks-list">
+      @for (entry of rows(); track entry.row.id) {
+        <li class="cyf-tasks-item">
+          <div class="cyf-tasks-item-main">
+            <div class="cyf-tasks-item-heading">
+              <h4 class="cyf-tasks-item-title">{{ entry.row.taskTitle }}</h4>
+              <span class="cyf-status-chip cyf-status-{{ entry.tone }}">
+                {{ 'admin.tasks.submissions.states.' + entry.row.submissionStatus | translate }}
+              </span>
+              @if (entry.row.taskType === taskType.FINAL_TASK) {
+                <span class="cyf-status-chip cyf-status-info">
+                  {{ 'admin.tasks.types.FINAL_TASK' | translate }}
+                </span>
+              }
+              @if (entry.row.talentReelStatus; as reel) {
+                <span
+                  class="cyf-status-chip"
+                  [class.cyf-status-success]="reel === 'PUBLISHED'"
+                  [class.cyf-status-neutral]="reel !== 'PUBLISHED'"
+                >
+                  {{ 'admin.tasks.reel.statuses.' + reel | translate }}
+                </span>
+              }
+            </div>
+
+            <p class="cyf-tasks-item-meta">
+              <span>{{ entry.row.batchName }}</span>
+              @if (entry.submitted) {
+                <span>{{
+                  'admin.students.taskHistory.at' | translate: { at: entry.submitted }
+                }}</span>
+              }
+              @if (entry.deadline) {
+                <span>{{ 'admin.tasks.list.deadline' | translate: { at: entry.deadline } }}</span>
+              }
+            </p>
+          </div>
+        </li>
+      }
+    </ul>
+
+    @if (hasMore()) {
+      <p-button
+        type="button"
+        severity="secondary"
+        [outlined]="true"
+        [disabled]="loading()"
+        [loading]="loading()"
+        (onClick)="loadMore()"
+        styleClass="cyf-btn"
+      >
+        <span>{{ 'actions.viewMore' | translate }}</span>
+      </p-button>
+    }
+  }
+</div>

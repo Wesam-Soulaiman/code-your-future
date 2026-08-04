@@ -105,6 +105,32 @@ const SENSITIVE_KEY_FRAGMENTS: readonly string[] = [
   'selectedoptionid',
   'selectedoptionids',
   'answervalue',
+  // A Student's submitted work ⟨CP7⟩. Same reasoning as the Live Slides keys:
+  // the primary protection is the payload omission below, and these are the
+  // defence in depth for a line that names no Task subject.
+  //
+  // Only names that exist nowhere else are listed. Bare `title` and
+  // `description` are deliberately **absent** — they appear across Batches,
+  // Resources, Live Slides, and every `@ParseField` declaration, and masking
+  // them globally would blank a great deal of harmless output to protect one
+  // module. Scope, not breadth.
+  'githuburl',
+  'livedemourl',
+  'googledriveurl',
+  'youtubevideoid',
+  'studentnote',
+  'mycontribution',
+  'publicprojecttitle',
+  'publicprojectdescription',
+  'attachmentstoragekey',
+  'attachmentfilename',
+  'publicprofileslug',
+  // `technologies` is specific enough to list: it exists only on a Submission
+  // and a Reel, so masking it costs nothing elsewhere.
+  'technolog',
+  // Whether somebody agreed to be published is a decision about them, not a
+  // detail of the request that carried it.
+  'publicconsent',
 ];
 
 /**
@@ -444,6 +470,30 @@ export const OMITTED_PAYLOAD_SUBJECTS: readonly string[] = [
   'submitLiveResponse',
   'listMyLiveResponses',
   'listStudentLiveAnswers',
+  // Tasks, Submissions, and Talent Reels ⟨CP7⟩. A Submission payload carries
+  // every link somebody submitted, their private note, and their public project
+  // text; a Task payload carries the brief and the attachment's filename.
+  'BatchTask',
+  'TaskSubmission',
+  'TalentReelPublication',
+  'listBatchTasks',
+  'getBatchTask',
+  'createBatchTask',
+  'updateBatchTask',
+  'setBatchTaskStatus',
+  'deleteBatchTask',
+  'copyBatchTask',
+  'removeBatchTaskAttachment',
+  'listTaskSubmissions',
+  'getTaskSubmission',
+  'listMyBatchTasks',
+  'getMyBatchTask',
+  'saveMyTaskDraft',
+  'submitMyTask',
+  'deleteMyTaskDraft',
+  'unpublishTalentReel',
+  'republishTalentReel',
+  'listStudentTaskHistory',
 ];
 
 /** True when this log line belongs to a surface whose payload is omitted whole. */

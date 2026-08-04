@@ -17,6 +17,7 @@
 @import './styles/typography.css';
 @import './styles/layout.css';
 @import './styles/live-slides.css';
+@import './styles/tasks.css';
 
 /* =============================================
    Fonts — Cairo (variable + static fallbacks)

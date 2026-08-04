@@ -218,6 +218,83 @@ or generic metadata bag.
 
 ---
 
+### `BatchTask` ⟨CP7⟩
+
+A piece of work an Admin sets for a Batch. Two types and no third:
+`ASSIGNMENT`, and `FINAL_TASK` — of which a Batch may hold **at most one**.
+
+| Field | Type | Notes |
+|---|---|---|
+| `batch` | Pointer→Batch | Frozen after creation |
+| `createdBy` | Pointer→_User | The Admin |
+| `title` | String | 2–160 |
+| `description` | String | 1–4000 |
+| `type` | String | `ASSIGNMENT` \| `FINAL_TASK`. Never changes |
+| `status` | String | `DRAFT` \| `PUBLISHED` \| `CLOSED` \| `ARCHIVED` |
+| `deadline` | Date | Optional, UTC. **Derived availability only** |
+| `githubRequirement` … `studentNoteRequirement` | String ×5 | `NOT_USED` \| `OPTIONAL` \| `REQUIRED` |
+| `finalForBatch` | Pointer→Batch | The **sentinel**. Present only on a Final Task |
+| `attachmentStorageKey` | String | GridFS key. Never leaves the server |
+| `attachmentFilename`, `attachmentExtension`, `attachmentMimeType`, `attachmentSize` | — | One optional brief |
+| `publishedAt`, `closedAt`, `archivedAt` | Date | Server clock only |
+
+**One Final Task per Batch is a physical guarantee**, not a check: a unique
+partial index on `_p_finalForBatch`. Three simultaneous creates end with one row
+and two `FINAL_TASK_ALREADY_EXISTS` refusals — verified at runtime.
+
+**A deadline never changes a status.** A `PUBLISHED` Task past its deadline stays
+`PUBLISHED` and reports `isSubmissionOpen: false` with
+`availabilityReason: 'DEADLINE_PASSED'`, computed against the server clock on
+every read. There are no late submissions, no grace periods, and no extensions.
+
+### `TaskSubmission` ⟨CP7⟩
+
+One Student's current answer to one Task. **One row per Task per Student**, and
+one row only — there is no version table, no version number, and no snapshot per
+resubmit.
+
+| Field | Type | Notes |
+|---|---|---|
+| `task`, `batch`, `student`, `studentProfile` | Pointers | All frozen after creation |
+| `status` | String | `DRAFT` \| `SUBMITTED`. There is no third |
+| `hasEverBeenSubmitted` | Boolean | Server-controlled. Goes false→true and never back |
+| `githubUrl`, `liveDemoUrl`, `googleDriveUrl` | String | Canonical HTTPS |
+| `youtubeVideoId` | String | The **bare eleven-character id**. Never embed HTML |
+| `studentNote` | String | ≤2000. Private to staff. Never public |
+| `publicProjectTitle`, `publicProjectDescription`, `myContribution` | String | Final Task only |
+| `technologies` | Array | 1–10 items, ≤50 chars, deduplicated case-insensitively |
+| `publicConsent`, `publicConsentAt` | Boolean, Date | Unticked by default. Server timestamp |
+| `submittedAt` | Date | Present iff `SUBMITTED` |
+
+Unique compound index on `(_p_task, _p_student)`. Three simultaneous saves from
+one Student produce exactly one row — verified at runtime.
+
+**A Submission that has ever been submitted can never be deleted** — by anybody,
+through any route. Enforced in `onBeforeDelete`, not in an operation.
+
+### `TalentReelPublication` ⟨CP7⟩
+
+The record that a Final Task submission is publishable. Two statuses,
+`PUBLISHED` and `UNPUBLISHED`, and **no approval workflow**.
+
+| Field | Type | Notes |
+|---|---|---|
+| `submission` | Pointer→TaskSubmission | Unique. Frozen |
+| `task`, `batch`, `student`, `studentProfile` | Pointers | — |
+| `status` | String | `PUBLISHED` \| `UNPUBLISHED` |
+| `adminSuppressed` | Boolean | **Sticky.** Survives a Student resubmitting |
+| `projectTitle`, `projectDescription`, `technologies`, `contribution`, `youtubeVideoId` | — | The public snapshot |
+| `githubUrl`, `liveDemoUrl` | String | Published only when the Student supplied one |
+| `publicationSource` | String | `AUTOMATIC` \| `ADMIN_REPUBLISH`. Operational detail |
+
+Publication is **automatic** on an eligible Final Task submit. The only Admin
+levers are Unpublish and Publish Again; Publish Again re-checks eligibility, so a
+Student who has since withdrawn consent stays unpublished.
+
+`StudentProfile.publicProfileSlug` is minted on the first published Reel:
+twelve random URL-safe characters, unique, never editable, and **never derived
+from an email or an objectId**.
+
 ## Entity Relationships
 
 ```
@@ -315,6 +392,46 @@ Blocked for every client: `/classes/*`, `/schemas`, `/batch`, Parse's
 all return 403 (or 404 where the route does not resolve).
 
 ---
+
+### Batch Tasks ⟨CP7⟩
+
+`/batch-tasks/*` — Admins only:
+
+| Function | Method | What it does |
+|---|---|---|
+| `listBatchTasks` | GET | Every Task of a Batch, creation order, with counts |
+| `getBatchTask` | GET | One Task with its per-Batch counts |
+| `createBatchTask` | POST | Create. Refuses a second Final Task |
+| `updateBatchTask` | POST | Title, description, deadline, requirements |
+| `setBatchTaskStatus` | POST | The lifecycle, re-checked server-side |
+| `deleteBatchTask` | POST | Draft with no submissions only |
+| `copyBatchTask` | POST | Into another Batch as a Draft. `attachmentCopied: false` |
+| `removeBatchTaskAttachment` | POST | Removes the metadata and the bytes |
+| `listTaskSubmissions` | GET | Every enrolled Student, including those who have not started |
+| `getTaskSubmission` | GET | One Submission, **read-only** |
+
+`/student-tasks/*` — the Student's own work, resolved from the session:
+
+| Function | Method | What it does |
+|---|---|---|
+| `listMyBatchTasks` | GET | Published, Closed, and Archived Tasks. Never a Draft |
+| `getMyBatchTask` | GET | One Task with this Student's own Submission |
+| `saveMyTaskDraft` | POST | May be incomplete; must still be valid |
+| `submitMyTask` | POST | Every required field. Triggers Reel evaluation |
+| `deleteMyTaskDraft` | POST | Only a draft that was never submitted |
+
+`/talent-reels/*` and `/task-history/*` — Admins only: `unpublishTalentReel`,
+`republishTalentReel`, `listStudentTaskHistory`.
+
+`POST /task-attachment` and `GET /task-attachment/:taskId` are the binary route.
+Bytes never travel through a Cloud Function, because Parse logs every
+cloud-function call with its serialised input. Every download is
+`Content-Disposition: attachment` — an `.html` brief rendered inline would run
+its own script in this origin.
+
+**There is no operation to edit, delete, grade, score, or review a Student's
+submission.** Those controls are absent from the UI because the operations behind
+them are absent from the server.
 
 ## Pages & Navigation
 
@@ -760,14 +877,88 @@ does not offer them.
 
 ---
 
+### Tasks ⟨CP7⟩
+
+The Admin Batch tabs are **Overview · Students · Invitation · Resources · Live
+Slides · Tasks**. The Student Batch tabs are **Overview · Resources · Live
+Slides · Tasks**. Neither adds a top-level sidebar item: a Task only means
+something inside the Batch it belongs to.
+
+The Admin Tasks tab has three views — the list, the form, and one Task's
+submissions. The submissions view shows every enrolled Student including those
+who have not started, because a missing row *is* the answer to "who has not
+submitted". Opening one shows it read-only, with the two Talent Reel controls on
+a Final Task.
+
+Admin Student Detail gains a read-only **Tasks and submissions** section: every
+Task this Student has submitted across every Batch, newest first.
+
+### Batch Tasks, Submissions, and Talent Reels ⟨CP7⟩
+
+An Admin adds Tasks to a Batch from a **Tasks** tab: Assignments, plus at most
+one Final Task. Each Task decides which of five fields it collects — GitHub URL,
+live demo URL, Google Drive URL, YouTube video, and a private note — and whether
+each is optional or required. A field set to Not Used is **refused** in a Student
+payload rather than ignored, so a stale browser cannot store something the Admin
+decided not to collect. Once any Submission exists the requirements freeze.
+
+A Task may carry one private brief: `.pdf`, `.docx`, `.html`, or `.htm`, up to
+20 MiB, stored in the same private GridFS the Resources use and served only as a
+download.
+
+Students see published Tasks in their own **Tasks** tab, save drafts, and submit.
+Submitting again updates the one record; there is no version history. Work that
+has been handed in can never be deleted.
+
+The Final Task additionally collects a public project title, description,
+technologies, and what the Student personally contributed — and a consent
+checkbox that starts unticked, is never ticked by anything but the Student, and
+can be withdrawn by unticking it and submitting again. When an eligible Final
+Task is submitted with consent, a Talent Reel publication record is created
+automatically. An Admin can Unpublish it; that decision **survives the Student
+resubmitting** and is cleared only by an explicit Publish Again, which re-checks
+eligibility before it does anything.
+
+Every submitted URL is validated **on the server, without ever being fetched**.
+Shape only: HTTPS, port 443, no credentials in the authority, no loopback, no
+private or link-local address, no bare hostname. A server that checked a
+stranger-supplied link by requesting it would be making connections from inside
+our network on somebody else's instruction. What that buys and what it does not
+is stated in the UI rather than implied: nothing here can tell whether a Drive
+file is shared or a YouTube video is public.
+
 ## Tests
 
 | Suite | Command | Count |
 |---|---|---|
-| Backend | `cd backend && pnpm run test` (`node:test`) | 987 |
-| Frontend | `cd frontend && pnpm run test` (Vitest) | 707 |
+| Backend | `cd backend && pnpm run test` (`node:test`) | 1295 |
+| Frontend | `cd frontend && pnpm run test` (Vitest) | 802 |
 
 No new dependency was added for either suite, and none was added for the feature.
+
+Checkpoint 7 was validated against a **running server on an isolated
+database**, in two passes. The first was 27 checks covering the Admin side
+and the physical guarantees. The second closed the two gaps that pass left
+open — **83 authenticated Student HTTP checks** and a **real browser pass**
+over 66 screenshots at six language/viewport/theme combinations — and found
+six defects that 1282 backend and 793 frontend tests had all passed: a
+browser/server contract mismatch that broke Discard entirely, a trigger
+calling a method that does not exist so no public slug was ever minted, a
+dirty-pointer check that refused every publication update, Student names
+read from a field this product never populated, a hardcoded
+`profileComplete`, and 180px of dead space in every mobile Task card. Each
+now has a regression test. See `docs/CURRENT_STATE.md` §7p.
+
+The first pass remains the record for the physical guarantees: 27 checks,
+all green. Fifteen of them read the index metadata
+straight out of MongoDB to confirm that every unique index was actually
+**built** — the one failure mode no unit test can see, and the one that would
+silently lose the concurrency guarantees. The rest drove real HTTP: three
+simultaneous Final Task creates ended with exactly one row and two stable
+refusals, a Task past its deadline stayed `PUBLISHED` while reporting
+`DEADLINE_PASSED`, and a real log file was audited and carried no title,
+description, URL, or storage key. The database was dropped afterwards and no
+process was left running.
 
 Beyond the suites, Checkpoint 5 was validated against a **running server on an
 isolated database**: 75 checks covering all eight formats with real bytes, a
@@ -793,9 +984,17 @@ real, scannable symbol was drawn.
   (OQ-12): invitation links are `https://host/#/join/<token>`. Keeping it needs no
   server rewrite rule, and a fragment is never sent to the server — so the token
   stays client-side by construction.
-- `applyAllIndexes` is still never called. Three unique indexes now exist and two
-  of them are the sole enforcement of a concurrency invariant, so a deployment
-  that skips index creation would lose those guarantees silently.
+- **Fifteen unique indexes** now exist and five of them are the sole enforcement
+  of a concurrency invariant, so a deployment that skips index creation would
+  lose those guarantees silently. `startupIndexes.test.ts` asserts all fifteen
+  by name, and the CP7 runtime run reads them back out of MongoDB — but neither
+  runs in production. A deployment check is still owed.
+- Submitted URLs are validated by **shape only**; nothing is ever fetched and no
+  DNS is resolved, which is deliberate (SSRF). The cost is real and is stated in
+  the UI: a hostname that *resolves* to a private address cannot be detected,
+  and neither can an unshared Drive file or a private YouTube video.
+- `copyBatchTask` does not copy the brief. The response says so explicitly and
+  the UI repeats it before the copy, rather than leaving it to be discovered.
 - The losers of a simultaneous invitation rotation get `BATCH_SAVE_FAILED` rather
   than an automatic retry. Safe, and not yet pleasant.
 - Enrollment concurrency is enforced by a unique index and exercised in code, but
@@ -833,7 +1032,17 @@ token directly and never exchanges an authorization code.
 
 ## Last Updated
 
-Checkpoint 5 — Private Batch Resources: an Admin uploads files to a Batch and
+Checkpoint 7 — Batch Tasks, Student Submissions, and Talent Reel publication
+records: an Admin sets Assignments and one Final Task per Batch, each choosing
+which of five fields it collects and whether each is required; Students save
+drafts and submit; an eligible Final Task submitted with the Student's consent
+publishes a Talent Reel record automatically. Three things are guaranteed
+physically rather than by checking first: one Final Task per Batch, one
+Submission per Task per Student, and one publication per Submission. Work that
+has been handed in can never be deleted, an Admin's Unpublish survives a
+resubmission, and every submitted URL is validated without ever being fetched.
+
+Preceded by Checkpoint 5 — Private Batch Resources: an Admin uploads files to a Batch and
 manages their titles, descriptions, and order; enrolled Students list and
 download them. Eight document formats, 20 MiB each, validated by extension, by
 the browser's MIME claim, and finally by their own bytes — which is the only one

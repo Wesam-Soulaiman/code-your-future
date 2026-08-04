@@ -1,0 +1,436 @@
+<!--
+  A Student's Tasks in one Batch ⟨CP7⟩.
+
+  Two views: the list, and one Task with its form. Only the fields the Admin
+  chose to collect are rendered, because a field configured Not Used is refused
+  by the server rather than ignored — showing it would fail the whole save.
+
+  Whether work can still be handed in comes from the server on every read. This
+  template never asks the browser's clock.
+-->
+<div class="cyf-student-tasks">
+  @if (errorKey()) {
+    <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+      {{ errorKey()! | translate }}
+    </cyf-alert>
+  }
+  @if (noticeKey()) {
+    <cyf-alert variant="success" [prefix]="'a11y.noticePrefix' | translate">
+      {{ noticeKey()! | translate }}
+    </cyf-alert>
+  }
+
+  <!-- ══ One Task ═════════════════════════════════════════════════════════ -->
+  @if (openTask(); as task) {
+    <article class="cyf-student-task">
+      <header class="cyf-student-task-header">
+        <p-button
+          type="button"
+          severity="secondary"
+          [text]="true"
+          [disabled]="busy()"
+          (onClick)="close()"
+          styleClass="cyf-btn"
+        >
+          <span>{{ 'actions.back' | translate }}</span>
+        </p-button>
+
+        <div>
+          <h3 class="cyf-heading-sm">{{ task.title }}</h3>
+          <p class="cyf-muted">
+            {{ 'student.tasks.types.' + task.type | translate }}
+            @if (deadlineText()) {
+              · {{ 'student.tasks.dueBy' | translate: { at: deadlineText() } }}
+            } @else {
+              · {{ 'student.tasks.noDeadline' | translate }}
+            }
+          </p>
+        </div>
+      </header>
+
+      <p class="cyf-student-task-description">{{ task.description }}</p>
+
+      <!-- ── The brief ────────────────────────────────────────────────── -->
+      @if (task.attachment; as attachment) {
+        <p class="cyf-student-task-attachment">
+          <button
+            type="button"
+            class="cyf-table-link"
+            [disabled]="busy()"
+            (click)="downloadAttachment()"
+          >
+            {{ attachment.filename }}
+          </button>
+          <span class="cyf-muted">
+            {{ 'student.tasks.attachment.kinds.' + attachment.kind | translate }} ·
+            {{ attachmentSize() }}
+          </span>
+        </p>
+      }
+
+      <!-- ── Whether it is still open, and why not ────────────────────── -->
+      @if (!isOpen()) {
+        <cyf-alert variant="info">
+          {{ 'student.tasks.availability.' + task.availabilityReason | translate }}
+        </cyf-alert>
+      }
+
+      @if (hasSubmitted()) {
+        <cyf-alert variant="success">
+          {{ 'student.tasks.alreadySubmitted' | translate }}
+          @if (isOpen()) {
+            {{ 'student.tasks.resubmitAllowed' | translate }}
+          }
+        </cyf-alert>
+      }
+
+      <!-- ── The form ─────────────────────────────────────────────────── -->
+      <form class="cyf-student-task-form" (ngSubmit)="submit()">
+        @for (spec of activeFields(); track spec.field) {
+          <div class="cyf-field">
+            <label class="cyf-label" [attr.for]="'field-' + spec.field">
+              {{ 'student.tasks.fields.' + spec.field | translate }}
+              @if (isRequired(spec)) {
+                <span class="cyf-required" aria-hidden="true">*</span>
+              } @else {
+                <span class="cyf-muted">{{ 'student.tasks.optional' | translate }}</span>
+              }
+            </label>
+
+            @if (spec.field === 'studentNote') {
+              <textarea
+                [id]="'field-' + spec.field"
+                [name]="spec.field"
+                class="cyf-input cyf-textarea"
+                rows="4"
+                [maxlength]="maxLengthOf(spec)"
+                [disabled]="!isOpen() || busy()"
+                [ngModel]="valueOf(spec.field)"
+                (ngModelChange)="setValue(spec.field, $event)"
+              ></textarea>
+              <!-- Said plainly: a note is for staff, not for a public page. -->
+              <p class="cyf-helper">{{ 'student.tasks.hints.studentNote' | translate }}</p>
+            } @else {
+              <input
+                [id]="'field-' + spec.field"
+                [name]="spec.field"
+                type="url"
+                class="cyf-input"
+                inputmode="url"
+                [maxlength]="maxLengthOf(spec)"
+                [disabled]="!isOpen() || busy()"
+                [ngModel]="displayValue(spec)"
+                (ngModelChange)="setValue(spec.field, $event)"
+              />
+              <p class="cyf-helper">{{ 'student.tasks.hints.' + spec.field | translate }}</p>
+            }
+
+            @if (fieldErrors()[spec.field]; as reason) {
+              <p class="cyf-field-error">{{ reason | translate }}</p>
+            }
+          </div>
+        }
+
+        <!-- ── The Final Task's public project ────────────────────────── -->
+        @if (isFinal()) {
+          <hr class="cyf-tasks-divider" />
+
+          <h4 class="cyf-heading-xs">{{ 'student.tasks.reel.title' | translate }}</h4>
+          <p class="cyf-helper">{{ 'student.tasks.reel.intro' | translate }}</p>
+
+          <div class="cyf-field">
+            <label class="cyf-label" for="public-title">
+              {{ 'student.tasks.reel.projectTitle' | translate }}
+            </label>
+            <input
+              id="public-title"
+              name="publicProjectTitle"
+              type="text"
+              class="cyf-input"
+              [maxlength]="limits.publicProjectTitle.max"
+              [disabled]="!isOpen() || busy()"
+              [ngModel]="valueOf('publicProjectTitle')"
+              (ngModelChange)="setValue('publicProjectTitle', $event)"
+            />
+            @if (fieldErrors()['publicProjectTitle']; as reason) {
+              <p class="cyf-field-error">{{ reason | translate }}</p>
+            }
+          </div>
+
+          <div class="cyf-field">
+            <label class="cyf-label" for="public-description">
+              {{ 'student.tasks.reel.projectDescription' | translate }}
+            </label>
+            <textarea
+              id="public-description"
+              name="publicProjectDescription"
+              class="cyf-input cyf-textarea"
+              rows="4"
+              [maxlength]="limits.publicProjectDescription.max"
+              [disabled]="!isOpen() || busy()"
+              [ngModel]="valueOf('publicProjectDescription')"
+              (ngModelChange)="setValue('publicProjectDescription', $event)"
+            ></textarea>
+            @if (fieldErrors()['publicProjectDescription']; as reason) {
+              <p class="cyf-field-error">{{ reason | translate }}</p>
+            }
+          </div>
+
+          <div class="cyf-field">
+            <label class="cyf-label" for="public-contribution">
+              {{ 'student.tasks.reel.contribution' | translate }}
+            </label>
+            <textarea
+              id="public-contribution"
+              name="myContribution"
+              class="cyf-input cyf-textarea"
+              rows="3"
+              [maxlength]="limits.myContribution.max"
+              [disabled]="!isOpen() || busy()"
+              [ngModel]="valueOf('myContribution')"
+              (ngModelChange)="setValue('myContribution', $event)"
+            ></textarea>
+            <p class="cyf-helper">{{ 'student.tasks.reel.contributionHint' | translate }}</p>
+            @if (fieldErrors()['myContribution']; as reason) {
+              <p class="cyf-field-error">{{ reason | translate }}</p>
+            }
+          </div>
+
+          <!-- ── Technologies ─────────────────────────────────────────── -->
+          <div class="cyf-field">
+            <label class="cyf-label" for="technology-draft">
+              {{ 'student.tasks.reel.technologies' | translate }}
+            </label>
+
+            @if (technologies().length > 0) {
+              <ul class="cyf-tasks-tech-list">
+                @for (item of technologies(); track item) {
+                  <li class="cyf-tasks-tech">
+                    <span>{{ item }}</span>
+                    @if (isOpen()) {
+                      <button
+                        type="button"
+                        class="cyf-tasks-tech-remove"
+                        [disabled]="busy()"
+                        [attr.aria-label]="
+                          'student.tasks.reel.removeTechnology' | translate: { name: item }
+                        "
+                        (click)="removeTechnology(item)"
+                      >
+                        ×
+                      </button>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+
+            <div class="cyf-tasks-tech-add">
+              <input
+                id="technology-draft"
+                name="technologyDraft"
+                type="text"
+                class="cyf-input"
+                [maxlength]="limits.technologyItem.max"
+                [disabled]="!isOpen() || busy()"
+                [ngModel]="technologyDraft()"
+                (ngModelChange)="technologyDraft.set($event)"
+              />
+              <p-button
+                type="button"
+                severity="secondary"
+                [outlined]="true"
+                [disabled]="!canAddTechnology() || busy()"
+                (onClick)="addTechnology()"
+                styleClass="cyf-btn"
+              >
+                <span>{{ 'actions.add' | translate }}</span>
+              </p-button>
+            </div>
+
+            <p class="cyf-helper">
+              {{
+                'student.tasks.reel.technologiesHint'
+                  | translate: { min: technologyCount.min, max: technologyCount.max }
+              }}
+            </p>
+            @if (fieldErrors()['technologies']; as reason) {
+              <p class="cyf-field-error">{{ reason | translate }}</p>
+            }
+          </div>
+
+          <!-- ── Consent ──────────────────────────────────────────────── -->
+          <div class="cyf-field cyf-tasks-consent">
+            <label class="cyf-tasks-choice">
+              <input
+                id="public-consent"
+                type="checkbox"
+                name="publicConsent"
+                [disabled]="!isOpen() || busy()"
+                [ngModel]="publicConsent()"
+                (ngModelChange)="publicConsent.set($event)"
+              />
+              <span>{{ 'student.tasks.reel.consentLabel' | translate }}</span>
+            </label>
+
+            <!-- What consent covers, and what it does not. Stated beside the
+                 box rather than behind a link, because this is the moment
+                 somebody decides. -->
+            <p class="cyf-helper">{{ 'student.tasks.reel.consentExplained' | translate }}</p>
+            <p class="cyf-helper">{{ 'student.tasks.reel.consentWithdrawable' | translate }}</p>
+            @if (fieldErrors()['publicConsent']; as reason) {
+              <p class="cyf-field-error">{{ reason | translate }}</p>
+            }
+          </div>
+
+          @if (submission()?.talentReelStatus; as reel) {
+            <p class="cyf-helper">
+              {{ 'student.tasks.reel.currently' | translate }}
+              {{ 'student.tasks.reel.statuses.' + reel | translate }}
+            </p>
+          }
+        }
+
+        <!-- ── The two buttons ──────────────────────────────────────────── -->
+        @if (isOpen()) {
+          <footer class="cyf-student-task-actions">
+            <p-button
+              type="button"
+              severity="secondary"
+              [outlined]="true"
+              [disabled]="busy()"
+              [loading]="busy()"
+              (onClick)="saveDraft()"
+              styleClass="cyf-btn"
+            >
+              <span>{{ 'student.tasks.saveDraft' | translate }}</span>
+            </p-button>
+
+            <p-button
+              type="submit"
+              [disabled]="!canSubmit() || busy()"
+              [loading]="busy()"
+              styleClass="cyf-btn"
+            >
+              <span>{{
+                (hasSubmitted() ? 'student.tasks.resubmit' : 'student.tasks.submit') | translate
+              }}</span>
+            </p-button>
+
+            @if (canDiscard()) {
+              <p-button
+                type="button"
+                severity="danger"
+                [text]="true"
+                [disabled]="busy()"
+                (onClick)="askDiscard()"
+                styleClass="cyf-btn"
+              >
+                <span>{{ 'student.tasks.discardDraft' | translate }}</span>
+              </p-button>
+            }
+          </footer>
+
+          <p class="cyf-helper">{{ 'student.tasks.saveDraftHint' | translate }}</p>
+        }
+      </form>
+    </article>
+  }
+
+  <!-- ══ The list ═════════════════════════════════════════════════════════ -->
+  @else {
+    <header class="cyf-student-tasks-header">
+      <h3 class="cyf-heading-sm">{{ 'student.tasks.title' | translate }}</h3>
+      <p class="cyf-muted">{{ 'student.tasks.subtitle' | translate }}</p>
+    </header>
+
+    @if (loading()) {
+      <p class="cyf-muted">{{ 'common.loading' | translate }}</p>
+    } @else if (isEmpty()) {
+      <p class="cyf-muted">{{ 'student.tasks.empty' | translate }}</p>
+    } @else {
+      <ul class="cyf-student-tasks-list">
+        @for (row of rows(); track row.task.id) {
+          <li class="cyf-student-task-item">
+            <div class="cyf-student-task-item-main">
+              <div class="cyf-student-task-item-heading">
+                <h4 class="cyf-student-task-item-title">{{ row.task.title }}</h4>
+                <span class="cyf-status-chip cyf-status-{{ row.tone }}">
+                  {{ 'student.tasks.states.' + row.state | translate }}
+                </span>
+                @if (row.task.type === taskType.FINAL_TASK) {
+                  <span class="cyf-status-chip cyf-status-info">
+                    {{ 'student.tasks.types.FINAL_TASK' | translate }}
+                  </span>
+                }
+              </div>
+
+              <p class="cyf-student-task-item-meta">
+                @if (row.deadline) {
+                  <span>{{ 'student.tasks.dueBy' | translate: { at: row.deadline } }}</span>
+                } @else {
+                  <span>{{ 'student.tasks.noDeadline' | translate }}</span>
+                }
+                @if (!row.task.isSubmissionOpen) {
+                  <span class="cyf-student-task-closed">
+                    {{ 'student.tasks.availability.' + row.task.availabilityReason | translate }}
+                  </span>
+                }
+              </p>
+            </div>
+
+            <p-button
+              type="button"
+              severity="secondary"
+              [text]="true"
+              [disabled]="busy()"
+              (onClick)="open(row.task)"
+              styleClass="cyf-btn"
+            >
+              <span>{{
+                (row.task.isSubmissionOpen ? 'student.tasks.openTask' : 'actions.view') | translate
+              }}</span>
+            </p-button>
+          </li>
+        }
+      </ul>
+    }
+  }
+</div>
+
+<!-- ── Discard confirmation ─────────────────────────────────────────────── -->
+<p-dialog
+  [visible]="confirmingDiscard()"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="!busy()"
+  [style]="{ width: 'min(32rem, 92vw)' }"
+  [header]="'student.tasks.discard.title' | translate"
+  (visibleChange)="$event ? null : cancelDiscard()"
+>
+  <p>{{ 'student.tasks.discard.body' | translate }}</p>
+
+  <div class="cyf-tasks-dialog-actions">
+    <p-button
+      type="button"
+      severity="secondary"
+      [outlined]="true"
+      [disabled]="busy()"
+      (onClick)="cancelDiscard()"
+      styleClass="cyf-btn"
+    >
+      <span>{{ 'actions.cancel' | translate }}</span>
+    </p-button>
+    <p-button
+      type="button"
+      severity="danger"
+      [disabled]="busy()"
+      [loading]="busy()"
+      (onClick)="confirmDiscard()"
+      styleClass="cyf-btn"
+    >
+      <span>{{ 'student.tasks.discardDraft' | translate }}</span>
+    </p-button>
+  </div>
+</p-dialog>

@@ -507,7 +507,16 @@ and a Visitor are denied.
 
 ---
 
-## Checkpoint 9 — Assignment and Final Task
+## Checkpoint 9 — Assignment and Final Task ✅ **delivered as Checkpoint 7 (Batch Tasks, Submissions, and Talent Reel records)**
+
+Shipped with the Talent Reel *record* included, since publication is a
+consequence of submitting an eligible Final Task and separating them would
+have meant building the submission twice. What is **not** in it is the public
+side: the browsable Talent Reel list and the public student profile page are
+Checkpoint 8, and `publicProfileSlug` is the seam they will attach to.
+
+### Original plan
+
 
 **Prerequisites:** Checkpoint 8; OQ-6 (multiple Final Tasks), OQ-7 (deadlines), OQ-8 (file
 evidence limits) answered.

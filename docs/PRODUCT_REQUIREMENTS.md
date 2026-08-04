@@ -307,7 +307,38 @@ A private document library inside each Batch.
 - Detailed Live Slides behaviour remains an **Open Question** until explicitly confirmed
   (see [§15](#15-open-questions)).
 
-## 12. Tasks
+## 12. Tasks ⟨CP7 — implemented⟩
+
+Decided and built. The rules, as shipped:
+
+- Exactly two types: `ASSIGNMENT`, `FINAL_TASK`. A Batch holds **at most one**
+  Final Task, guaranteed by a unique index rather than a check.
+- Exactly four statuses: `DRAFT` → `PUBLISHED` → `CLOSED`, any → `ARCHIVED`.
+  `ARCHIVED` is terminal. `PUBLISHED` → `DRAFT` only when no Submission exists;
+  `CLOSED` → `PUBLISHED` only when the Batch is active and the deadline has not
+  passed.
+- **No displayOrder.** Tasks are ordered by creation time.
+- Deadline optional, UTC, date and time. **No late submissions, no grace
+  periods, no extensions, and no "late" label.** A Task past its deadline stays
+  `PUBLISHED`; availability is derived on every read.
+- Five configurable fields (GitHub, live demo, Drive, YouTube, note), each
+  `NOT_USED` / `OPTIONAL` / `REQUIRED`, stored as explicit typed columns.
+  `NOT_USED` is refused in a payload, not ignored. Frozen once work exists.
+- One optional brief: `.pdf`, `.docx`, `.html`, `.htm`, ≤20 MiB, private GridFS,
+  always served as a download.
+- Exactly two Submission statuses: `DRAFT`, `SUBMITTED`. One mutable record per
+  Task per Student — no version table, no history, no snapshot per resubmit.
+- A Submission that reached `SUBMITTED` can never be deleted.
+- Exactly two publication statuses: `PUBLISHED`, `UNPUBLISHED`. **No approval
+  workflow.** Publication is automatic; `adminSuppressed` survives resubmission.
+- Consent unticked by default, never implied, never set by an Admin, timestamped
+  by the server.
+- All URL validation on the server, **without ever fetching** (SSRF). Only the
+  canonical YouTube video id is stored, never embed HTML.
+
+### Superseded planning notes
+
+
 
 Exactly two task types: **Assignment** and **Final Task**.
 

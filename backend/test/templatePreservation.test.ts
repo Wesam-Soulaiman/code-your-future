@@ -417,6 +417,11 @@ describe('no future product feature leaked into the frontend', () => {
       'live-presenter',
       'live-results',
       'student-live-answers',
+      // Batch Tasks ⟨CP7⟩. The tab host, the per-Task submission view, and
+      // the submission history that hangs off Student Detail.
+      'batch-tasks',
+      'task-submissions',
+      'student-task-history',
       'students',
       'student-detail',
     ];
@@ -434,6 +439,8 @@ describe('no future product feature leaked into the frontend', () => {
       'student-batch-detail',
       'student-batch-resources',
       'student-live-slides',
+      // Batch Tasks ⟨CP7⟩.
+      'student-tasks',
     ];
     for (const name of readdirSync(join(pages, 'student'))) {
       assert.ok(
@@ -443,16 +450,22 @@ describe('no future product feature leaked into the frontend', () => {
     }
   });
 
-  test('no page exists for a feature that does not ⟨CP4⟩', () => {
-    // The inverse check, by name: Tasks, Final Tasks, Pinned Students, and
-    // Talent Reels are all later checkpoints. Resources shipped in Checkpoint 5
-    // and Live Slides in Checkpoint 6, so neither is on this list any more.
+  test('no page exists for a feature that does not ⟨CP7⟩', () => {
+    /*
+      The inverse check, by name.
+
+      Tasks, Submissions, and the Talent Reel *records* shipped in Checkpoint 7,
+      so those words are no longer forbidden. What has still not been built is
+      the **public** side of a Reel — the browsable talent list and the public
+      student profile — and Pinned Students, which was never in scope. A page
+      named for any of those would be a page with nothing behind it.
+    */
     const pages = join(FRONTEND_SRC, 'app', 'pages');
     const everyFile: string[] = [];
     for (const dir of readdirSync(pages)) {
       for (const name of readdirSync(join(pages, dir))) everyFile.push(name.toLowerCase());
     }
-    for (const forbidden of ['task', 'pinned', 'reel', 'submission']) {
+    for (const forbidden of ['pinned', 'public-profile', 'talent-reels', 'showcase']) {
       assert.ok(
         !everyFile.some(name => name.includes(forbidden)),
         `a ${forbidden} page belongs to a later checkpoint`

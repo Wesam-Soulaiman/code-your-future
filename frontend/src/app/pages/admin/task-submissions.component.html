@@ -1,0 +1,311 @@
+<!--
+  Who has submitted what, for one Task ⟨CP7⟩.
+
+  Every enrolled Student is a row, including those who have not started —
+  "nobody from this Batch is missing" is the point, and an absent row would be
+  how somebody gets missed.
+
+  Nothing here edits, deletes, grades, or scores. Those controls are absent
+  because the operations behind them are absent.
+-->
+<div class="cyf-tasks-submissions">
+  <header class="cyf-tasks-submissions-header">
+    <p-button
+      type="button"
+      severity="secondary"
+      [text]="true"
+      [disabled]="busy()"
+      (onClick)="back.emit()"
+      styleClass="cyf-btn"
+    >
+      <span>{{ 'actions.back' | translate }}</span>
+    </p-button>
+
+    <div>
+      <h3 class="cyf-heading-sm">{{ task().title }}</h3>
+      <p class="cyf-muted">
+        {{ 'admin.tasks.types.' + task().type | translate }} ·
+        {{ 'admin.tasks.statuses.' + task().status | translate }} ·
+        {{ 'admin.tasks.availability.' + task().availabilityReason | translate }}
+      </p>
+    </div>
+  </header>
+
+  @if (errorKey()) {
+    <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+      {{ errorKey()! | translate }}
+    </cyf-alert>
+  }
+  @if (noticeKey()) {
+    <cyf-alert variant="success" [prefix]="'a11y.noticePrefix' | translate">
+      {{ noticeKey()! | translate }}
+    </cyf-alert>
+  }
+
+  @if (loading()) {
+    <p class="cyf-muted">{{ 'common.loading' | translate }}</p>
+  } @else if (isEmpty()) {
+    <p class="cyf-muted">{{ 'admin.tasks.submissions.noStudents' | translate }}</p>
+  } @else {
+    <!-- ── The counts ───────────────────────────────────────────────────── -->
+    <p class="cyf-tasks-submissions-counts">
+      {{
+        'admin.tasks.submissions.counts'
+          | translate
+            : {
+                submitted: list()?.submittedCount ?? 0,
+                drafts: list()?.draftCount ?? 0,
+                notSubmitted: list()?.notSubmittedCount ?? 0,
+                students: list()?.studentCount ?? 0
+              }
+      }}
+    </p>
+
+    <!-- ── One row per enrolled Student ─────────────────────────────────── -->
+    <ul class="cyf-tasks-student-list">
+      @for (entry of rows(); track entry.row.studentId) {
+        <li class="cyf-tasks-student">
+          <div class="cyf-tasks-student-main">
+            <span class="cyf-tasks-student-name">{{ entry.row.studentName }}</span>
+            <span class="cyf-status-chip cyf-status-{{ entry.tone }}">
+              {{ 'admin.tasks.submissions.states.' + entry.state | translate }}
+            </span>
+
+            @if (!entry.row.profileComplete) {
+              <!-- Worth showing: an incomplete profile is why a Final Task
+                   submission cannot become a Talent Reel. -->
+              <span class="cyf-status-chip cyf-status-warning">
+                {{ 'admin.tasks.submissions.profileIncomplete' | translate }}
+              </span>
+            }
+
+            @if (entry.row.talentReelStatus; as reel) {
+              <span
+                class="cyf-status-chip"
+                [class.cyf-status-success]="reel === publicationStatus.PUBLISHED"
+                [class.cyf-status-neutral]="reel !== publicationStatus.PUBLISHED"
+              >
+                {{ 'admin.tasks.reel.statuses.' + reel | translate }}
+              </span>
+            }
+          </div>
+
+          <p class="cyf-tasks-student-meta">
+            @if (entry.submitted) {
+              <span>{{
+                'admin.tasks.submissions.submittedAt' | translate: { at: entry.submitted }
+              }}</span>
+            } @else if (entry.updated) {
+              <span>{{ 'admin.tasks.submissions.savedAt' | translate: { at: entry.updated } }}</span>
+            }
+
+            <!-- Which fields are filled, not what is in them. The Admin needs
+                 to see progress at a glance; the contents are one click away
+                 and are the Student's own work. -->
+            @if (entry.row.hasGithub) {
+              <span class="cyf-tasks-flag">{{ 'admin.tasks.fields.githubUrl' | translate }}</span>
+            }
+            @if (entry.row.hasLiveDemo) {
+              <span class="cyf-tasks-flag">{{ 'admin.tasks.fields.liveDemoUrl' | translate }}</span>
+            }
+            @if (entry.row.hasDrive) {
+              <span class="cyf-tasks-flag">{{
+                'admin.tasks.fields.googleDriveUrl' | translate
+              }}</span>
+            }
+            @if (entry.row.hasVideo) {
+              <span class="cyf-tasks-flag">{{
+                'admin.tasks.fields.youtubeVideoId' | translate
+              }}</span>
+            }
+          </p>
+
+          @if (entry.row.submissionId) {
+            <p-button
+              type="button"
+              severity="secondary"
+              [text]="true"
+              [disabled]="busy()"
+              (onClick)="openSubmission(entry.row)"
+              styleClass="cyf-btn"
+            >
+              <span>{{ 'admin.tasks.submissions.open' | translate }}</span>
+            </p-button>
+          }
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+<!-- ══ One Submission, read-only ════════════════════════════════════════ -->
+<p-dialog
+  [visible]="open() !== null"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="!busy()"
+  [style]="{ width: 'min(46rem, 94vw)' }"
+  [header]="'admin.tasks.submissions.dialogTitle' | translate"
+  (visibleChange)="$event ? null : closeSubmission()"
+>
+  @if (open(); as submission) {
+    <div class="cyf-tasks-submission-view">
+      <p class="cyf-muted">
+        {{ submission.studentName }} ·
+        {{ 'admin.tasks.submissions.states.' + submission.status | translate }}
+      </p>
+
+      <!-- Links open in a new tab with `noopener`, so the opened page cannot
+           reach back into this one. They are the Student's own links and this
+           app has never fetched or verified them. -->
+      @if (submission.githubUrl) {
+        <div class="cyf-tasks-submission-field">
+          <span class="cyf-label">{{ 'admin.tasks.fields.githubUrl' | translate }}</span>
+          <a [href]="submission.githubUrl" target="_blank" rel="noopener noreferrer">
+            {{ submission.githubUrl }}
+          </a>
+        </div>
+      }
+
+      @if (submission.liveDemoUrl) {
+        <div class="cyf-tasks-submission-field">
+          <span class="cyf-label">{{ 'admin.tasks.fields.liveDemoUrl' | translate }}</span>
+          <a [href]="submission.liveDemoUrl" target="_blank" rel="noopener noreferrer">
+            {{ submission.liveDemoUrl }}
+          </a>
+        </div>
+      }
+
+      @if (submission.googleDriveUrl) {
+        <div class="cyf-tasks-submission-field">
+          <span class="cyf-label">{{ 'admin.tasks.fields.googleDriveUrl' | translate }}</span>
+          <a [href]="submission.googleDriveUrl" target="_blank" rel="noopener noreferrer">
+            {{ submission.googleDriveUrl }}
+          </a>
+        </div>
+      }
+
+      @if (submission.youtubeVideoId) {
+        <div class="cyf-tasks-submission-field">
+          <span class="cyf-label">{{ 'admin.tasks.fields.youtubeVideoId' | translate }}</span>
+          <!-- A link, never an embed. The stored value is eleven characters; a
+               player iframe would be provider HTML running in this origin. -->
+          <a
+            [href]="watchUrl(submission.youtubeVideoId)"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ 'admin.tasks.submissions.watchVideo' | translate }}
+          </a>
+        </div>
+      }
+
+      @if (submission.studentNote) {
+        <div class="cyf-tasks-submission-field">
+          <span class="cyf-label">{{ 'admin.tasks.fields.studentNote' | translate }}</span>
+          <p class="cyf-tasks-submission-note">{{ submission.studentNote }}</p>
+        </div>
+      }
+
+      <!-- ── The Final Task's public project ──────────────────────────── -->
+      @if (isFinal()) {
+        <hr class="cyf-tasks-divider" />
+
+        <h4 class="cyf-heading-xs">{{ 'admin.tasks.reel.title' | translate }}</h4>
+
+        <p class="cyf-helper">
+          {{
+            (submission.publicConsent
+              ? 'admin.tasks.reel.consentGiven'
+              : 'admin.tasks.reel.consentWithheld'
+            ) | translate
+          }}
+        </p>
+
+        @if (submission.publicProjectTitle) {
+          <div class="cyf-tasks-submission-field">
+            <span class="cyf-label">{{ 'admin.tasks.reel.projectTitle' | translate }}</span>
+            <p>{{ submission.publicProjectTitle }}</p>
+          </div>
+        }
+
+        @if (submission.publicProjectDescription) {
+          <div class="cyf-tasks-submission-field">
+            <span class="cyf-label">{{ 'admin.tasks.reel.projectDescription' | translate }}</span>
+            <p>{{ submission.publicProjectDescription }}</p>
+          </div>
+        }
+
+        @if (submission.technologies?.length) {
+          <div class="cyf-tasks-submission-field">
+            <span class="cyf-label">{{ 'admin.tasks.reel.technologies' | translate }}</span>
+            <p class="cyf-tasks-tech-list">
+              @for (tech of submission.technologies; track tech) {
+                <span class="cyf-tasks-tech">{{ tech }}</span>
+              }
+            </p>
+          </div>
+        }
+
+        @if (submission.myContribution) {
+          <div class="cyf-tasks-submission-field">
+            <span class="cyf-label">{{ 'admin.tasks.reel.contribution' | translate }}</span>
+            <p>{{ submission.myContribution }}</p>
+          </div>
+        }
+
+        <!-- ── The two controls ───────────────────────────────────────── -->
+        @if (submission.talentReelStatus) {
+          <p class="cyf-helper">
+            {{ 'admin.tasks.reel.currently' | translate }}
+            {{ 'admin.tasks.reel.statuses.' + submission.talentReelStatus | translate }}
+          </p>
+
+          <div class="cyf-tasks-dialog-actions">
+            @if (submission.talentReelStatus === publicationStatus.PUBLISHED) {
+              <p-button
+                type="button"
+                severity="danger"
+                [outlined]="true"
+                [disabled]="busy()"
+                (onClick)="unpublish(submission)"
+                styleClass="cyf-btn"
+              >
+                <span>{{ 'admin.tasks.reel.unpublish' | translate }}</span>
+              </p-button>
+            } @else {
+              <p-button
+                type="button"
+                [disabled]="busy()"
+                (onClick)="republish(submission)"
+                styleClass="cyf-btn"
+              >
+                <span>{{ 'admin.tasks.reel.republish' | translate }}</span>
+              </p-button>
+            }
+          </div>
+
+          <!-- Both facts, said before either button is pressed. -->
+          <p class="cyf-helper">{{ 'admin.tasks.reel.unpublishNote' | translate }}</p>
+          <p class="cyf-helper">{{ 'admin.tasks.reel.republishNote' | translate }}</p>
+        } @else {
+          <p class="cyf-helper">{{ 'admin.tasks.reel.none' | translate }}</p>
+        }
+      }
+
+      <div class="cyf-tasks-dialog-actions">
+        <p-button
+          type="button"
+          severity="secondary"
+          [outlined]="true"
+          [disabled]="busy()"
+          (onClick)="closeSubmission()"
+          styleClass="cyf-btn"
+        >
+          <span>{{ 'actions.close' | translate }}</span>
+        </p-button>
+      </div>
+    </div>
+  }
+</p-dialog>

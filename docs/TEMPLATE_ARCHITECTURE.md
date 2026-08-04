@@ -1942,6 +1942,66 @@ The routed pages carry no frame of their own — no `main`, no skip link, no
 header, no navigation. A page that supplied one would produce two landmarks and a
 second navigation with its own active state.
 
+## 20. The sentinel pointer, for the fourth time ⟨CP7⟩
+
+"At most one X per Batch" has now been needed four times: the live invitation
+(`BatchInvitation.currentForBatch`), the live session
+(`LiveSlideSession.liveForBatch`), and now the Final Task
+(`BatchTask.finalForBatch`). The pattern is worth naming.
+
+**Do not** query for an existing row and then create one if there is none. Two
+requests arriving together both find nothing and both create, and the losing
+write is not even an error — it is a second row nobody will notice until
+something reads "the" one and gets an arbitrary answer.
+
+**Do** give the row a pointer that only the privileged row may hold, and put a
+**unique partial index** on the pointer's `_p_` column:
+
+```ts
+compoundIndexes: [
+  {
+    fields: ['_p_finalForBatch'],
+    unique: true,
+    name: 'batch_task_final_per_batch_unique',
+    partialFilterNulls: true,
+  },
+]
+```
+
+Three details carry the weight:
+
+1. **`_p_finalForBatch`, not `finalForBatch`.** A Parse Pointer occupies the
+   `_p_<field>` column in MongoDB. An index on the logical name builds cleanly
+   against a column that does not exist and guarantees nothing at all — the
+   worst kind of failure, because everything looks correct.
+2. **`partialFilterNulls`.** Every ordinary row holds no sentinel. Without a
+   partial filter they would all collide on `null` and the second Assignment
+   would fail.
+3. **A trigger holds the invariant both ways.** `onBeforeSave` refuses a Final
+   Task without the sentinel *and* a non-Final Task with one. Without the second
+   half, one Assignment could quietly occupy the Batch's single Final slot and
+   the real Final Task could never be created.
+
+Report the conflict before *and* enforce it after. `createTask` catches the
+driver's duplicate-key error and maps it to `FINAL_TASK_ALREADY_EXISTS`, so the
+loser of a race gets a stable code rather than a raw driver message — but the
+index is what makes the outcome true.
+
+## 21. Reading an index back is not the same as declaring one ⟨CP7⟩
+
+`startupIndexes.test.ts` asserts the fifteen unique indexes by name, from the
+model definitions. That test passed for three checkpoints while loading only
+seven of the fifteen models — it was asserting a subset and reporting success.
+
+Two changes came out of that:
+
+- The test now loads **every** model, and asserts the indexes **by name** rather
+  than by count. A count is satisfied by any fifteen indexes; a name list is not.
+- The CP7 runtime validation reads `db.collection(...).indexes()` straight out of
+  MongoDB and checks `unique`, the key columns, and the partial filter. A
+  declared index and a built index are different facts, and only one of them
+  stops a duplicate row.
+
 ## 18. Known limitations of the template
 
 1. No environment validation; missing `.env` keys fail at runtime.

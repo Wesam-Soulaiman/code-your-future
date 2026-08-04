@@ -62,6 +62,7 @@ import {ParseClass, ParseField, BaseModel, BeforeSave} from '@90soft/parse-serve
         'photoData',
         'photoUpdatedAt',
         'isComplete',
+        'publicProfileSlug',
       ],
       authenticated: [
         'user',
@@ -84,6 +85,7 @@ import {ParseClass, ParseField, BaseModel, BeforeSave} from '@90soft/parse-serve
         'photoData',
         'photoUpdatedAt',
         'isComplete',
+        'publicProfileSlug',
       ],
     },
   },
@@ -100,6 +102,18 @@ import {ParseClass, ParseField, BaseModel, BeforeSave} from '@90soft/parse-serve
       fields: ['_p_user'],
       unique: true,
       name: 'student_profile_user_unique',
+      partialFilterNulls: true,
+    },
+    {
+      // The public slug is a URL somebody will type ⟨CP7⟩. Two Students sharing
+      // one would mean a public page showing the wrong person, so the database
+      // refuses it rather than the generator promising not to collide.
+      //
+      // Partial, because most Students never publish and therefore never have
+      // one — a plain unique index would refuse the second Student with none.
+      fields: ['publicProfileSlug'],
+      unique: true,
+      name: 'student_profile_public_slug_unique',
       partialFilterNulls: true,
     },
   ],
@@ -262,6 +276,27 @@ export default class StudentProfile extends BaseModel {
   })
   isComplete!: boolean;
 
+  /**
+   * The Student's stable public identifier ⟨CP7⟩.
+   *
+   * Minted the first time one of their projects is published to Talent Reels,
+   * and never again — so the link Checkpoint 8 will build keeps working across
+   * every future Batch and every republication.
+   *
+   * **Random, not derived.** A slug built from a name collides between two
+   * people called the same thing; one built from an email publishes the email;
+   * one built from the `objectId` invites a reader to walk the database's own
+   * identifiers. Neither a Student nor an Admin can set or change it.
+   *
+   * Absent until it is needed: a Student who never publishes never gets one,
+   * so this column is not a public handle for everybody who signs up.
+   */
+  @ParseField({
+    type: 'String',
+    description: 'Server-generated, minted on first publication. Never editable',
+  })
+  publicProfileSlug!: string;
+
   // ==================== TRIGGERS ====================
 
   /**
@@ -299,6 +334,42 @@ export default class StudentProfile extends BaseModel {
         Parse.Error.OPERATION_FORBIDDEN,
         'A profile cannot be reassigned to another account'
       );
+    }
+
+    /*
+      The public slug is minted once and then frozen ⟨CP7⟩.
+
+      Checkpoint 8 will publish links built from it. A slug that could change
+      would silently break every link already shared — including ones a Student
+      put on a CV — and a slug that could be *reassigned* would point an existing
+      link at a different person, which is worse.
+
+      Setting it on a profile that has none is allowed; that is the minting.
+      Changing or clearing an existing one never is.
+    */
+    if (object.dirty('publicProfileSlug')) {
+      /*
+        The previously stored value comes from `request.original`, which is the
+        row as it exists in the database.
+
+        This used to ask the object itself for its former value, through the
+        client SDK's change-tracking method. That method **does not exist** on
+        the object a `beforeSave` trigger receives — a cast made it compile, and
+        every save that touched this field then threw at runtime. Which meant no
+        Student ever got a slug, and the freeze this code exists to enforce was
+        never reached once.
+
+        `request.original` is the documented way to read the pre-save state, and
+        it is a value rather than a method, so there is nothing left to get
+        wrong. A test asserts no model in this directory goes back.
+      */
+      const previous = request.original?.get('publicProfileSlug');
+      if (previous) {
+        throw new Parse.Error(
+          Parse.Error.OPERATION_FORBIDDEN,
+          'A public slug cannot change once it has been issued'
+        );
+      }
     }
   }
 }

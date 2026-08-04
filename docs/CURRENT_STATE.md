@@ -901,6 +901,158 @@ not touch.
 
 ---
 
+## 7o. Batch Tasks, Submissions, and Talent Reels ⟨CP7⟩ ⟨implemented⟩
+
+Three new classes, seventeen operations, one binary route, two new tabs, and a
+read-only section on Admin Student Detail.
+
+**What was built.** `BatchTask` (Assignments plus at most one Final Task per
+Batch), `TaskSubmission` (one current record per Task per Student), and
+`TalentReelPublication` (the automatic publication record). `StudentProfile`
+gained `publicProfileSlug`.
+
+**The three physical guarantees.** Each is a unique partial index, not a
+query-then-write check, because a check loses a race and an index does not:
+
+| Guarantee | Index | Column |
+|---|---|---|
+| One Final Task per Batch | `batch_task_final_per_batch_unique` | `_p_finalForBatch` |
+| One Submission per Task per Student | `task_submission_unique` | `_p_task, _p_student` |
+| One publication per Submission | `talent_reel_submission_unique` | `_p_submission` |
+
+Plus `batch_task_attachment_key_unique` and
+`student_profile_public_slug_unique`. All five are partial, so the many rows
+that legitimately hold no value do not all collide on `null`. All five were read
+back out of MongoDB at runtime to confirm they were actually built — the failure
+mode a unit test cannot see.
+
+`_p_finalForBatch`, not `finalForBatch`: a Parse Pointer occupies the `_p_`
+column, and an index on the logical name builds cleanly against a column that
+does not exist and guarantees nothing. This is the fourth time that pattern has
+been needed in this repository.
+
+**Availability is derived, never stored.** A `PUBLISHED` Task past its deadline
+stays `PUBLISHED`. `availabilityOf()` computes `isSubmissionOpen` and
+`availabilityReason` from the stored status, the Batch status, and the **server
+clock**, on every read. Nothing mutates a status because time passed — that would
+need a scheduler, and a Task whose availability depended on a cron job that died
+would quietly keep accepting work after its deadline. The boundary is `>=`: at
+exactly 17:00, work due *by* 17:00 is late.
+
+**URL validation never touches the network.** `urls.ts` contains no `fetch`, no
+DNS, no HTTP client, and a test asserts the file references none of them. It
+judges shape — HTTPS only, port 443 only, no credentials in the authority — and
+refuses literal addresses that are not on the public internet, enumerated
+per-RFC rather than reduced to a clever bit test.
+
+One real gap was found and fixed while writing those tests. The WHATWG URL
+parser normalises `[::ffff:127.0.0.1]` to `[::ffff:7f00:1]`, so the original
+dotted-quad regex matched **no** IPv4-mapped address arriving through a URL —
+which is all of them. `https://[::ffff:10.0.0.1]/` would have been accepted as a
+live demo. `isPrivateIpv6` now handles the hex form, and a test covers both
+spellings plus a mapped *public* address, so the fix is not "refuse anything
+mapped".
+
+**A NOT_USED field is refused, not ignored.** The five submission fields are
+declared as one table that validation, the DTO, the freeze check, and the
+browser's form all walk. A field the Admin did not ask for fails the whole save
+rather than being silently dropped, so a stale browser cannot store something
+nobody chose to collect.
+
+**Admin suppression is a boolean, not a status.** That is the whole reason it
+survives: the automatic publication path can see `adminSuppressed` and decline,
+where a status would simply be overwritten by the next submit. Only an explicit
+Publish Again clears it, and that re-checks eligibility, so a Student who has
+since withdrawn consent stays unpublished.
+
+**Two redaction gaps were closed.** `technologies` and `publicConsent` were not
+recognised as sensitive keys. `technologies` appears nowhere outside CP7, so
+masking it globally costs nothing; whether somebody agreed to be published is a
+decision about them, not a detail of the request that carried it.
+
+## 7p. Closing the two Checkpoint 7 validation gaps
+
+The checkpoint shipped with two things stated as not done: no Student path had
+been exercised over authenticated HTTP, and nobody had looked at the Tasks tabs
+in a browser. Closing both found **six real defects**, every one of which had
+passed 1282 backend tests and 793 frontend tests without complaint.
+
+### How a Student session was obtained
+
+A Student in this product has no usable password — `provisioning.ts` gives every
+provisioned `_User` a CSPRNG password that is discarded inside `save()`.
+Production mints their session with `Parse.User.loginAs` under the master key,
+after Google has verified them.
+
+Neither route is open to a test process, and that is the template's security
+working rather than an obstacle: `restrictRoutes` blocks `/users`, `/classes`,
+`/loginAs`, and `/schemas` outright, and its master-key bypass only fires for a
+key carried in a JSON body. Calling Google is out of the question.
+
+So the harness builds fixtures by **direct setup of the isolated test
+database**, writing the same rows Parse Server writes — the `_Session` shape was
+read back out of a session the running server had just created rather than
+guessed. Nothing about production authentication changed: no password login was
+enabled, no Google call made, no bypass or flag added, no session-minting
+endpoint created, and the master key never left the harness process. The
+`_Session` row is ordinary: it expires, it is revocable, and `logout` invalidates
+it like any other. Once the token existed, **every assertion went through the
+real production routes** carrying nothing but `X-Parse-Session-Token`.
+
+### What the Student HTTP pass found — three defects
+
+**1. Discard draft was broken end to end.** The browser sent `submissionId`; the
+server takes `taskId`. Every discard failed with a validation error. Both sides
+had tests and both passed — nothing crossed the boundary between them. The
+server's contract is also the safer one (it resolves the row from the Task and
+the session, so there is no id to substitute), so the browser was changed to
+match.
+
+**2. The public slug was never minted.** `StudentProfile.onBeforeSave` asked the
+object for its former value through the client SDK's change-tracking method,
+which does not exist on the object a trigger receives. A cast made it compile;
+every save that touched the field threw `object.previous is not a function`. No
+Student ever got a slug, and the freeze the code exists to enforce never ran
+once. `request.original` is the documented way to read the pre-save state.
+
+**3. A publication could never be updated.** `TalentReelPublication` refused any
+save where `dirty('submission')` — and a pointer is dirty the moment it is
+assigned, even to the identical value, which the update path does for every
+field. So the snapshot never refreshed after a Student resubmitted, and nobody
+saw it because publication is deliberately not allowed to break a submit. The
+trigger now compares stored ids.
+
+### What the browser pass found — three more
+
+**4. No Student names in the Admin status table.** `listTaskSubmissions` built
+the name from two given-name fields on the `_User`, which this product has never
+stored there — a Student's name lives on `StudentProfile.fullName`. Every row
+rendered with a blank name, on a table whose entire purpose is saying *who* has
+handed in. Fixed with a batched profile lookup, one query for the roster rather
+than one per Student.
+
+**5. `profileComplete` was hardcoded `true`** in the same block, hiding the one
+thing that explains why a Final Task submission cannot become a Reel.
+
+**6. 180px of dead space in every mobile Task card.** `flex: 1 1 18rem` is a
+sensible width floor while cards sit side by side; the moment the container
+becomes a column, `flex-basis` sizes the **height** instead. Nothing overflowed
+and no measurement caught it — the page was simply wrong to look at.
+
+A seventh, smaller: the technology remove control measured 18×18 on a phone.
+Sizing it in `rem` twice landed at 21px, because this application's root font
+size is 14px and a rem here is not the 16px the 24px guidance assumes. It is now
+stated in pixels — a fingertip is a physical thing and does not get smaller
+because the type scale did.
+
+### Where the lesson sits
+
+Every one of these lived in the seam between two things that were each tested on
+their own: browser and server, model and operation, stylesheet and viewport.
+Regression tests now assert each specific mistake — including a scan that no
+model reads the pre-save state through a method that does not exist, and one
+that no module reads a Student's name off the user object.
+
 ## 8. Product features not implemented
 
 None of the following exists in any form — no model, no cloud function, no route, no page, no DTO:
