@@ -64,6 +64,8 @@ import {
         'unpublishedAt',
         'unpublishedBy',
         'publicationSource',
+        'pinned',
+        'pinnedAt',
       ],
       authenticated: [
         'submission',
@@ -84,6 +86,8 @@ import {
         'unpublishedAt',
         'unpublishedBy',
         'publicationSource',
+        'pinned',
+        'pinnedAt',
       ],
     },
   },
@@ -106,6 +110,13 @@ import {
       // What Checkpoint 8's public listing will read: published, newest first.
       fields: ['status', 'publishedAt'],
       name: 'talent_reel_status_published_index',
+    },
+    {
+      // What it reads since CP8C: published, pinned first, then newest. The
+      // public endpoints are the one surface with no session in front of them,
+      // so their sort is the one that must not become a scan.
+      fields: ['status', 'pinnedAt', 'publishedAt'],
+      name: 'talent_reel_status_pinned_published_index',
     },
     {
       // The Admin's per-Batch view.
@@ -180,6 +191,71 @@ export default class TalentReelPublication extends BaseModel {
   @ParseField({type: 'String', description: 'Published only when the Student supplied one'})
   liveDemoUrl!: string;
 
+  /*
+    The demo, snapshotted ⟨CP8⟩.
+
+    Copied here rather than read through the Submission pointer when a public
+    page renders. The Submission is a private record — it holds a note written
+    for staff and a Drive link that is never published — and a public query that
+    reached into it would be one `include` away from carrying all of that out
+    with it. Everything the public pages need lives on this row, so the public
+    read never touches `TaskSubmission` at all.
+
+    `demoVideoId` is empty when the Student added no demo. `reelVideoId` is the
+    one the page actually plays: the demo when there is one, the project video
+    otherwise. Resolving it once here means no page has to choose, and no page
+    can choose differently.
+  */
+  @ParseField({type: 'String', description: 'CP8. The Student’s demo title, when they gave one'})
+  demoTitle!: string;
+
+  @ParseField({type: 'String', description: 'CP8. The demo video id, when they gave one'})
+  demoVideoId!: string;
+
+  @ParseField({
+    type: 'String',
+    required: true,
+    description: 'CP8. The id the Reel plays: the demo when present, else the project video',
+  })
+  reelVideoId!: string;
+
+  /*
+    An Admin's highlight ⟨CP8C⟩.
+
+    Ordering only. Pinning does not publish anybody, does not override privacy,
+    and does not change a single field a Visitor can read beyond a boolean that
+    says "shown first". A Student who is not published cannot be pinned, and
+    unpinning changes nothing except where they appear in a list.
+
+    It lives here rather than on `StudentProfile` because it is a fact about a
+    *published piece of work*, not about a person: an Admin highlighting a
+    capstone is highlighting that project. It also means a publication being
+    withdrawn takes its pin out of the ordering with it, without anybody having
+    to remember to.
+  */
+  @ParseField({
+    type: 'Boolean',
+    description: 'CP8C. Admin highlight. Ordering only — never a publication decision',
+  })
+  pinned!: boolean;
+
+  /*
+    Why the public sort orders on this rather than on `pinned` ⟨CP8C⟩.
+
+    MongoDB ranks a *missing* field below a Boolean, so a descending sort on
+    `pinned` yields three groups, not two: pinned, then explicitly-unpinned, then
+    rows that were never pinned at all. The newest-first ordering then only holds
+    *within* each group, and somebody who was once pinned would sit permanently
+    above a newer publication that never was — an unpin that does not really
+    undo itself.
+
+    `pinnedAt` is set and unset together with `pinned`, and a missing Date is a
+    single group. Ordering on it gives exactly the two the product asks for:
+    pinned first, then everybody else in their normal order.
+  */
+  @ParseField({type: 'Date', description: 'CP8C. When it was pinned. Server clock only. Unset when not pinned'})
+  pinnedAt!: Date;
+
   // ── Stamps ────────────────────────────────────────────────────────────────
 
   @ParseField({type: 'Date', description: 'When it first became published. Server clock only'})
@@ -253,6 +329,7 @@ export default class TalentReelPublication extends BaseModel {
     }
 
     if (object.get('adminSuppressed') === undefined) object.set('adminSuppressed', false);
+    if (object.get('pinned') === undefined) object.set('pinned', false);
 
     if (status === PUBLICATION_STATUS.PUBLISHED) {
       // A suppressed record can never also be published — that combination is
@@ -309,8 +386,21 @@ export default class TalentReelPublication extends BaseModel {
       }
 
       if (!object.get('publishedAt')) object.set('publishedAt', new Date());
-    } else if (!object.get('unpublishedAt')) {
-      object.set('unpublishedAt', new Date());
+    } else {
+      if (!object.get('unpublishedAt')) object.set('unpublishedAt', new Date());
+
+      /*
+        A pin cannot outlive the publication it highlights ⟨CP8C⟩.
+
+        Enforced here rather than at each call site because there are several
+        ways to stop being published — consent withdrawn, the Final Task closed,
+        an Admin suppressing — and every one of them would otherwise have to
+        remember to clear the pin. Missing it would leave a highlight pointing at
+        a row no public query returns, which is invisible until the Student is
+        republished and silently jumps to the front of the page.
+      */
+      if (object.get('pinned') === true) object.set('pinned', false);
+      if (object.get('pinnedAt')) object.unset('pinnedAt');
     }
 
     object.setACL(new Parse.ACL());

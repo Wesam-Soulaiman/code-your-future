@@ -295,6 +295,31 @@ Student who has since withdrawn consent stays unpublished.
 twelve random URL-safe characters, unique, never editable, and **never derived
 from an email or an objectId**.
 
+### The public showcase ⟨CP8⟩
+
+No new class. The showcase is built entirely from `TalentReelPublication` and
+`StudentProfile`, which is why CP8 added three columns rather than a model:
+
+| Field | On | Notes |
+|---|---|---|
+| `demoTitle` | `TaskSubmission` | Optional. A short name for the demo video |
+| `demoVideoUrl` | `TaskSubmission` | Canonical watch URL, **rebuilt from the id** |
+| `demoVideoId` | `TaskSubmission` | The eleven characters every embed is built from |
+| `demoTitle`, `demoVideoId` | `TalentReelPublication` | Snapshotted at publication |
+| `reelVideoId` | `TalentReelPublication` | The one video a page plays: the demo when present, else the project video |
+
+`reelVideoId` is resolved once, at publication, rather than left to each page. A
+page that chose for itself would be a page that could choose differently from
+the next one, and the "Has demo" badge would stop meaning anything.
+
+**The demo accepts three URL shapes and nothing else** —
+`youtube.com/watch?v=`, `www.youtube.com/watch?v=`, and `youtu.be/`. Drive,
+Dropbox, OneDrive, Vimeo, Loom, TikTok, Facebook, Instagram, and a `file:` path
+all fail because they are not one of those three hosts; there is no blocklist to
+keep extending. This is deliberately stricter than the CP7 `youtubeVideoId`
+validator, which is left untouched — narrowing it would have retroactively
+rejected values Students already stored.
+
 ## Entity Relationships
 
 ```
@@ -432,6 +457,32 @@ its own script in this origin.
 **There is no operation to edit, delete, grade, score, or review a Student's
 submission.** Those controls are absent from the UI because the operations behind
 them are absent from the server.
+
+### The public surface ⟨CP8⟩
+
+`/talent/*` — **no authentication, by design**:
+
+| Function | Method | What it does |
+|---|---|---|
+| `listTalentDiscovery` | GET | The directory: paginated, filtered, searchable, sortable |
+| `getTalentProfile` | GET | One profile, by slug |
+| `listTalentReels` | GET | The vertical Talent Reel feed |
+| `getTalentFilters` | GET | The values worth offering, built from published rows |
+
+`GET /talent/photo/:slug` serves the profile photo. Addressed by
+**slug, never by an internal id**, and publication is re-checked on every
+request rather than trusted from whatever produced the URL — a Student who
+withdraws consent stops having a face on the internet at the next request.
+
+Every one is rate limited, every list paginates server-side, and none accepts a
+`where` clause. There is no public write of any kind.
+
+**What a public response never contains:** email, phone, date of birth,
+institution, major, expected graduation date, Batch, invitation, enrollment,
+Live Slides answers, Assignments, the private Drive link, the note to staff,
+storage keys, `objectId`, any Parse pointer, `__type`, or ACL. The only
+identifier that crosses the boundary is the slug, which exists precisely so no
+internal one has to.
 
 ## Pages & Navigation
 
@@ -927,14 +978,100 @@ our network on somebody else's instruction. What that buys and what it does not
 is stated in the UI rather than implied: nothing here can tell whether a Drive
 file is shared or a YouTube video is public.
 
+### The public talent showcase ⟨CP8⟩
+
+Three pages a stranger can open without an account:
+
+- `/students` — a filterable grid of published work
+- `/students/:slug` — one Student's public profile
+- `/talent-reel` — one project per screen, scrolled vertically
+
+A Student appears when **the Final Task is published, they consented, and their
+profile has been completed at least once**. That last condition is a latch, not
+a state: it flips once, the first time the profile is genuinely complete, and is
+never cleared.
+
+This is the difference between **profile completion** and **public
+publication**, and it matters. `isComplete` describes the profile right now, and
+it goes false the moment a Student clears a field — which is what happens when
+somebody starts retyping their About. Publication used to read that flag, so
+editing your profile took you off the public pages between two keystrokes and
+put you back when you finished. It now reads the latch, so it does not move.
+
+Editing the profile still changes the public page **immediately** — the name,
+city, target role, About, and links are read live from the profile, not
+snapshotted. What editing cannot do is remove somebody from the pages.
+
+Only four things withdraw a Student, and each is a decision somebody made:
+
+| What | Who decides it |
+|---|---|
+| Consent withdrawn | the Student, by unticking and resubmitting |
+| The Final Task is no longer published | an Admin closing or archiving it |
+| The Reel is suppressed | an Admin, and it survives a resubmit |
+| The submission is deleted | the Student |
+
+Saving a profile can only ever **publish**. There is deliberately no path where
+it unpublishes: an earlier version withdrew anybody whose profile was momentarily
+incomplete, which meant clearing one field to retype it took you off the
+internet.
+
+### Pinned Students — an Admin highlight
+
+An Admin can pin a published Reel. Pinned Students come first in both Discovery
+and the Talent Reel, ahead of the Visitor's own newest/oldest choice.
+
+Pinning is **ordering and nothing else**. It publishes nobody, overrides no
+privacy, and adds no field a Visitor can read beyond one boolean that says
+"shown first". A Student who is not currently public **cannot** be pinned — the
+server refuses rather than quietly publishing them — and a pin is cleared
+automatically the moment its publication stops being published, so a highlight
+can never point at somebody the public pages do not return.
+
+The state lives on the publication rather than on the Student's profile, because
+it is a fact about a published piece of work. The controls sit beside Unpublish
+and Publish Again in the existing Admin panel: no new page, no approval step, no
+queue. **A Student is never shown whether they were pinned.**
+
+The Admin workload is unchanged. There is no approval queue, no moderation, and
+no publish button: publication follows from the Student's own submission and
+their own consent. The only Admin levers remain CP7's Unpublish and Publish
+Again, and a suppression still survives a resubmission.
+
+**Only one video plays.** The reel mounts exactly one iframe — the panel on
+screen — so scrolling away removes the player rather than leaving it running out
+of sight. A profile shows a poster image until somebody presses play. Nothing
+autoplays on arrival.
+
+Filters are Target role, City, Education status, Technologies, and Has demo
+video, with a debounced **name search** and a newest/oldest sort. All of it
+lives in the URL, so a filtered view can be copied out of the address bar and
+sent to somebody. The filter options are built from what is actually published,
+so every one returns at least one result.
+
+The demo video accepts four YouTube shapes — `watch`, `youtu.be`, `shorts`, and
+`embed`. Accepting an `embed` link is not the same as trusting one: only the
+eleven-character id survives, and every embed this product renders is rebuilt
+from that id.
+
 ## Tests
 
 | Suite | Command | Count |
 |---|---|---|
-| Backend | `cd backend && pnpm run test` (`node:test`) | 1295 |
-| Frontend | `cd frontend && pnpm run test` (Vitest) | 802 |
+| Backend | `cd backend && pnpm run test` (`node:test`) | 1357 |
+| Frontend | `cd frontend && pnpm run test` (Vitest) | 836 |
 
 No new dependency was added for either suite, and none was added for the feature.
+
+Checkpoint 8 was validated the same way: **89 runtime checks** against a
+running server on an isolated database, driving the public endpoints with no
+session at all — the consented Students appear, the one who withheld consent
+does not, withdrawal removes a profile and its photo, restoring brings them
+back at the same slug, and every rejected video provider is rejected. Then
+**246 browser checks and 42 screenshots** across three public pages ×
+EN/AR × 1440/390/360 × light/dark, as a Visitor with local storage cleared.
+Two real defects came out of that pass and were fixed: an unsized page
+heading and two touch targets under 24px.
 
 Checkpoint 7 was validated against a **running server on an isolated
 database**, in two passes. The first was 27 checks covering the Admin side
@@ -1032,7 +1169,16 @@ token directly and never exchanges an authorization code.
 
 ## Last Updated
 
-Checkpoint 7 — Batch Tasks, Student Submissions, and Talent Reel publication
+Checkpoint 8 — the public talent showcase: a Discover grid, a public student
+profile, and a vertical Talent Reel, all reachable without an account. A
+Student appears when their Final Task is published and they consented, and
+disappears the moment either stops being true. Final Task submissions gained
+an optional demo title and demo video, accepted from three canonical YouTube
+shapes and nothing else; every embed is built server-side from the stored
+eleven-character id, never from anything a person pasted. No new model, no
+new storage, no approval workflow, and no change to what an Admin has to do.
+
+Preceded by Checkpoint 7 — Batch Tasks, Student Submissions, and Talent Reel publication
 records: an Admin sets Assignments and one Final Task per Batch, each choosing
 which of five fields it collects and whether each is required; Students save
 drafts and submit; an eligible Final Task submitted with the Student's consent

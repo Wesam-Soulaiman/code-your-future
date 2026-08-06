@@ -515,6 +515,20 @@ have meant building the submission twice. What is **not** in it is the public
 side: the browsable Talent Reel list and the public student profile page are
 Checkpoint 8, and `publicProfileSlug` is the seam they will attach to.
 
+**Refined by Checkpoint 8B**: profile completeness became a visibility
+condition, two more recompute triggers were added, the video validator widened
+to four YouTube shapes, the endpoints moved to `/talent/*`, and Discovery gained
+a name search and a sort.
+
+**Corrected by Checkpoint 8C**: making completeness a *live* condition was
+wrong, and CP8B's own runtime notes did not catch it because the checker was
+right and the behaviour was not. Clearing one profile field to retype it made
+`isComplete` false and the profile-save sweep then withdrew the Student, so
+editing your About took you off the public pages mid-edit. Publication now reads
+`profileEverComplete`, a latch that flips once and is never cleared, and the
+profile-save sweep can only publish. CP8C also added Pinned Students; see
+Checkpoint 10.
+
 ### Original plan
 
 
@@ -548,7 +562,30 @@ surface anywhere in code, API, or UI.
 
 ---
 
-## Checkpoint 10 — Pinned Students and Talent Reels
+## Checkpoint 10 — Pinned Students and Talent Reels ✅ **both halves delivered — the Talent Reel as Checkpoint 8, Pinned Students as Checkpoint 8C**
+
+Pinned Students **was** built, in Checkpoint 8C, but not as the original plan
+described it. This entry previously said it was not planned; that is corrected
+here rather than deleted, because the difference between the two designs is the
+interesting part.
+
+The plan called for a `PinnedStudent` class scoped to a Batch and an Admin tab
+to manage it. What shipped is a `pinned` Boolean on the existing
+`TalentReelPublication` and two buttons inside the Admin panel that already
+carries Unpublish and Publish Again — no new class, no new page, no new tab.
+
+The reason is the one the old entry half-identified: a pin is only meaningful
+about something already published. Modelled as its own record it can outlive the
+publication it points at, and somebody then has to remember to clean it up on
+every path that unpublishes. Modelled as a column on the publication it cannot:
+the trigger clears it whenever the row stops being published, and a pin on a row
+no public query returns is unreachable by construction.
+
+Pinning changes ordering only. It publishes nobody, and a Student who is not
+already public cannot be pinned.
+
+### Original plan
+
 
 **Prerequisites:** Checkpoint 9; OQ-9 (public field set) and OQ-11 (pin/publication overlap) answered.
 

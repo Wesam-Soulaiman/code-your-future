@@ -206,6 +206,7 @@ describe('model access rules', () => {
       'photoData',
       'photoUpdatedAt',
       'portfolioUrl',
+      'profileEverComplete',
       'publicProfileSlug',
       'targetRole',
       'targetRoleReason',

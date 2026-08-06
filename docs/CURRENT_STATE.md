@@ -1053,6 +1053,234 @@ Regression tests now assert each specific mistake — including a scan that no
 model reads the pre-save state through a method that does not exist, and one
 that no module reads a Student's name off the user object.
 
+## 7p. The public talent showcase ⟨CP8⟩ ⟨implemented⟩
+
+Three unauthenticated pages, four unauthenticated endpoints, one public photo
+route, and three new columns. **No new model** — the showcase is built from the
+CP7 `TalentReelPublication` and `StudentProfile`.
+
+**Publication is still a consequence, not a decision.** CP8 adds one condition
+to `evaluateEligibility`: the Final Task itself must be `PUBLISHED`. That
+implements the product rule literally — *"a Student appears publicly only when
+the Final Task is Published AND Public Consent is true"* — without adding the
+approval workflow the same brief forbids. Nothing new is asked of an Admin;
+publishing the Task is the same action that let Students submit to it.
+
+That condition needed a second half, which runtime validation found. Publication
+is otherwise re-decided only when a Student **submits**, and a Student cannot
+submit to a Task that was just closed — so closing a Final Task left its Reels
+on the internet while the checker said they should be gone. The rule was true in
+the code and false in the database. `reevaluateTaskPublications` now sweeps a
+Final Task's publications when its status changes, refuses to override an Admin
+suppression, and never throws into the caller.
+
+**The privacy boundary is one file.** `TalentReelPublication` and
+`StudentProfile` stay closed to every audience — empty CLP, empty ACL. The
+public endpoints read with the master key and hand rows to builders that copy
+out named fields. Relaxing the permissions instead would have opened both
+classes to authenticated clients too, which is a far larger hole than the one
+being filled.
+
+The publication row is also why a public read never touches `TaskSubmission`.
+Everything a public page needs was snapshotted at publication, so there is no
+`include` that could carry the private Drive link and the note to staff out with
+it. A test asserts the repository never names that class.
+
+**The demo video is validated by construction.** `validateDemoVideoUrl` accepts
+three canonical YouTube shapes and refuses everything else because it is not one
+of those hosts — Drive, Dropbox, OneDrive, Vimeo, Loom, TikTok, Facebook,
+Instagram, and `file:` all fail without being named. A blocklist would need
+extending every time somebody found a fourth video site.
+
+The embed is never derived from user input. The server keeps the eleven
+characters, rebuilds the watch URL from them, and builds
+`https://www.youtube.com/embed/{id}`; both browser components re-check the id
+shape before putting anything in an `iframe src`, so `bypassSecurityTrustResourceUrl`
+is being told something already proven rather than talked out of its job.
+
+**One video plays at a time**, and that shaped the whole reel component. Every
+panel is a poster; exactly one — the one filling the screen — is swapped for an
+iframe. Scrolling away removes it, which is what "pauses the previous video"
+means when the player belongs to YouTube. An `IntersectionObserver` decides
+which panel is current, because computing it from scroll offsets means
+re-deriving something the browser already knows and getting it wrong at every
+viewport height.
+
+**The slug is CP7's, unchanged.** Twelve random URL-safe characters, minted on
+first publication, unique, immutable. Random rather than derived is what makes a
+rename safe and an internal id unguessable, and the immutability trigger is what
+makes a shared link keep working.
+
+## 7q. Public talent discovery ⟨CP8B⟩ ⟨implemented⟩
+
+CP8B refines CP8 rather than replacing it. Five changes:
+
+**Visibility gained a fifth condition and two more triggers.** The profile must
+be `isComplete`. *(CP8C corrected this — see 7r. The condition is right; reading
+it live was not.)* And because publication was only re-decided on submit, two
+inputs had nothing watching them: deleting a submission, and saving a profile.
+A Student who empties their profile never touches a Task, so without
+`reevaluateProfilePublications` they would have stayed on the internet while the
+rule said otherwise — the same shape of gap CP8's runtime pass found for a
+closed Task. Both sweeps respect an Admin suppression and neither throws into
+the operation that triggered it.
+
+**The video validator widened to four shapes** — `watch`, `youtu.be`, `shorts`,
+and `embed`. CP8 rejected the last two deliberately; CP8B names them as
+accepted. Accepting an `embed` link is not the same as trusting one: only the
+id survives validation, and every embed is rebuilt from it. `m.` and `music.`
+hosts stay out, because they are not on the list the public pages were
+specified against.
+
+**The public surface moved to `/talent/*`** with the four names the brief
+specifies, and the photo route to `/talent/photo/:slug`.
+
+**Discovery gained name search and a sort.** The search is debounced at 350ms in
+the browser — an unauthenticated endpoint should not take a query per keystroke
+— bounded at 60 characters server-side, and escaped before it becomes a regular
+expression. Sort accepts exactly `newest` and `oldest`; anything else is newest.
+
+**The public profile gained an education block**, built from the institution and
+major the Student already filled in. This is a deliberate widening of the public
+surface: `institution` and `major` came off the forbidden-key list because CP8B
+publishes them. `customInstitutionName` and `expectedGraduationDate` stayed on
+it — a date somebody expects to finish studying is a fact about their near
+future that a stranger has no reason to hold.
+
+**What CP8B asked for that does not exist.** The spec lists Country, Languages,
+Experience, Certificates, and Resume as public profile fields. None is stored by
+this product — the profile has City, Institution, Major, Education status,
+About, Target role, and three links. Those are rendered; the five missing ones
+are omitted rather than shown as empty sections, and adding them would mean
+extending the CP3A profile form, catalogs, validation, and tests. Confirmed with
+the product owner before building.
+
+## 7r. Stable public visibility, and Pinned Students ⟨CP8C⟩ ⟨implemented⟩
+
+Two corrections on top of CP8B, both small in code and not small in behaviour.
+
+### The profile-completeness condition was reading the wrong thing
+
+CP8B made "the profile is complete" a visibility condition and implemented it as
+`isComplete`, which describes the profile **right now**. That flag goes false the
+moment a Student clears a field — which is exactly what happens when somebody
+starts retyping their About — and CP8B had also just added a sweep that
+recomputed publication on every profile save. Together they meant editing your
+profile took you off the public pages mid-edit and put you back when you
+finished, with nobody having decided anything.
+
+Neither suite caught it, for the same reason the CP7 and CP8 gaps went uncaught:
+every test asserted the checker, and the checker was doing precisely what it was
+told.
+
+The fix is one Boolean. `StudentProfile.profileEverComplete` is a **latch**: set
+in `onBeforeSave` the first time the profile is genuinely complete, and never
+cleared. There is deliberately no branch anywhere that sets it false, and a test
+asserts that — it counts the writes to the field and requires the only value
+written to be `true`. It sits in the trigger rather than in the save operation so
+that a future write path which forgets about it still gets the behaviour.
+
+`reevaluateProfilePublications` lost its unpublish branch entirely. It can now
+only publish. Withdrawing somebody is left to the four paths where a person
+actually decided something: consent, the Final Task status, an Admin
+suppression, and deleting the submission. Tests pin both directions — that the
+profile sweep never writes `UNPUBLISHED`, and that the other sweeps still can.
+
+Editing a profile still updates the public page immediately: name, city, target
+role, About, and the links are read live through `include('studentProfile')`,
+never snapshotted. Only the *project* is snapshotted, and that was CP7's
+deliberate choice so a Student cannot silently change what the public already
+saw.
+
+### Pinned Students
+
+An Admin can pin a published Reel; pinned Students come first in Discovery and
+in the Reel, ahead of the Visitor's own sort.
+
+**It is ordering and nothing else.** Pinning publishes nobody. `pinTalentReel`
+refuses when the publication does not exist or is not currently published — a
+pin on somebody invisible is a control that appears to work and changes nothing
+anybody can see. Unpinning is always allowed, so a stale pin can be cleared.
+
+**The state lives on `TalentReelPublication`, not `StudentProfile`.** A pin is a
+fact about a published piece of work, and putting it on the person would let it
+outlive the publication it points at. As a column on the publication it cannot:
+`onBeforeSave` clears `pinned` and `pinnedAt` whenever the row stops being
+published, so every path that unpublishes takes the pin with it without having
+to remember to.
+
+**The public sort orders on `pinnedAt`, not on `pinned`.** MongoDB ranks a
+missing field below a Boolean, so a descending sort on `pinned` yields three
+groups rather than two — pinned, explicitly-unpinned, and never-pinned — and the
+newest-first order would then only hold within each. Somebody once pinned would
+sit permanently above a newer publication that never was, which is an unpin that
+does not really undo itself. `pinnedAt` is set and unset together with the
+Boolean, and a missing Date is one group. A compound index
+`['status', 'pinnedAt', 'publishedAt']` backs it, because these are the only
+endpoints with no session in front of them.
+
+**What crosses the boundary is one Boolean.** `pinned` appears on the card and
+reel-item DTOs so a client can render a Featured chip. `pinnedAt` is on
+`FORBIDDEN_PUBLIC_KEYS`: when staff highlighted somebody is a record of Admin
+activity, and it is also the sort key. A Student is never told either —
+`talentReelPinned` is on `AdminSubmissionDto` only, not on the `SubmissionDto`
+they read about their own work.
+
+**The UI is two buttons**, beside Unpublish and Publish Again in the panel that
+already exists. No new page, no route, no approval step, no queue. The
+`templatePreservation` guard still forbids a page or route named `pinned`, now
+for the opposite reason: one appearing would mean somebody built the separate
+screen the brief ruled out.
+
+### What runtime validation found — a bug nothing else could see
+
+122 checks against a running server on an isolated database, driving the public
+endpoints with no session at all. One real defect, and it is the sharpest
+example of this repository's recurring lesson.
+
+`setPinned` was a **private method**, and both controls called it as
+`this.setPinned(...)`. That compiles. It passes every source-reading test — the
+authorisation check genuinely is in the body, the refusal genuinely is
+conditional on being published. And it fails on the first real request:
+
+```
+{"code":141,"error":"Cannot read properties of undefined (reading 'setPinned')"}
+```
+
+The kit invokes a registered cloud function **unbound**, so `this` is undefined
+inside one. Both Admin controls were dead on arrival, and 1374 green tests said
+otherwise. `setPinned` is now a module-level function, and a test strips comments
+from the source and asserts no cloud function reaches anything through `this`.
+
+Two harness defects surfaced alongside it and are worth recording, because both
+produced *false green*: a blanket identifier rename had rewritten property
+accesses (`card.pinned` to `card.c8_pinned`), so three checks read fields that do
+not exist and passed on `undefined`; and a liveness check wrote `city` as a raw
+string when it is a catalog pointer. A check that cannot fail is worse than no
+check.
+
+### Browser validation
+
+36 checks and 5 screenshots over `/students` (EN/AR × 1440/390 × light/dark) and
+`/talent-reel`, with a Student genuinely pinned over HTTP first. The pinned card
+is first in every combination, exactly one Featured chip renders, the label is
+translated in both languages, direction is correct, nothing overflows, no session
+appears in storage, and the reel still mounts zero iframes before play.
+
+Two things about this harness are worth writing down because both cost time: the
+application routes on the **hash**, so navigating to `/students` lands on Admin
+sign-in; and the dev CORS allow-list names port **4200** exactly, so a dev server
+anywhere else renders the page's error state and every visual assertion fails for
+a reason that has nothing to do with the page.
+
+### A test defect found on the way
+
+`batchSurface.test.ts` built its "near miss" hash by replacing the first
+character with a fixed `f`, which reproduces the hash itself whenever it already
+starts with that character. That is one run in sixteen, and it had been read as a
+flaky constant-time comparison. The replacement character is now derived from
+what is actually there.
+
 ## 8. Product features not implemented
 
 None of the following exists in any form — no model, no cloud function, no route, no page, no DTO:
@@ -1060,7 +1288,7 @@ None of the following exists in any form — no model, no cloud function, no rou
 Apple OAuth ·
 Live Slides · Tasks ·
 Assignment · Final Task · Submission · one-submission locking · Accept-for-publication ·
-Pinned Students · Talent Reels · sanitised public DTOs for Visitors · Batch capacity · trainers ·
+Batch capacity · trainers ·
 locations · schedules · scores · ratings · feedback · Student export · any Student write an Admin
 could perform · Resource preview, viewer, conversion, folders, tags, comments, ratings, progress
 tracking, download analytics, bulk actions, Student uploads, and file replacement.

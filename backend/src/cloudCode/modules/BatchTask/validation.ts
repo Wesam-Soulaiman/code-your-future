@@ -25,7 +25,7 @@ import {
 } from './constants';
 import {FieldErrors, FieldReason} from './errors';
 import {FieldReasonCode} from '../StudentProfile/errors';
-import {FIELD_URL_KIND, validateUrl} from './urls';
+import {FIELD_URL_KIND, validateDemoVideoUrl, validateUrl, watchUrlFor} from './urls';
 
 /** Collapse internal whitespace and trim, so " A  B " and "A B" are one title. */
 function normaliseText(value: unknown): string {
@@ -205,6 +205,10 @@ export interface SubmissionValues {
   technologies?: string[];
   myContribution?: string;
   publicConsent?: boolean;
+  /** CP8 — the optional public demo. */
+  demoTitle?: string;
+  demoVideoUrl?: string;
+  demoVideoId?: string;
 }
 
 export interface SubmissionValidation {
@@ -281,6 +285,9 @@ export function validateSubmission(
     'technologies',
     'myContribution',
     'publicConsent',
+    // CP8. An Assignment has no public page, so it has no demo either.
+    'demoTitle',
+    'demoVideoUrl',
   ];
 
   if (task.type !== TASK_TYPE.FINAL_TASK) {
@@ -319,6 +326,40 @@ export function validateSubmission(
     const result = validateTechnologies(input['technologies']);
     if (result.reason) errors['technologies'] = result.reason;
     else values.technologies = result.items;
+  }
+
+  /*
+    The public demo ⟨CP8⟩.
+
+    Both fields are optional and independent: a title with no video is a label
+    for nothing, so it is kept but never shown alone; a video with no title
+    falls back to the project title on the public page. Neither is required for
+    publication.
+
+    The URL is validated by the **strict** demo validator, not the one the five
+    configurable fields use. A demo ends up embedded on a page a stranger loads,
+    so only the three canonical YouTube forms are accepted.
+  */
+  const demoTitle = normaliseText(input['demoTitle']);
+  if (demoTitle) {
+    const reason = boundedReason(demoTitle, TASK_LIMITS.demoTitle, false);
+    if (reason) errors['demoTitle'] = reason;
+    else values.demoTitle = demoTitle;
+  }
+
+  const demoVideo = input['demoVideoUrl'];
+  if (demoVideo !== undefined && demoVideo !== null && String(demoVideo).trim() !== '') {
+    const check = validateDemoVideoUrl(demoVideo);
+    if (!check.ok) {
+      errors['demoVideoUrl'] =
+        check.reason === 'NOT_ALLOWED' ? FieldReason.NOT_ALLOWED : FieldReason.INVALID;
+    } else {
+      // The id is what is stored and what every embed is built from. The URL is
+      // rebuilt from that id rather than kept as pasted, so a tracking query
+      // string cannot survive onto a public page.
+      values.demoVideoId = check.value;
+      values.demoVideoUrl = watchUrlFor(check.value);
+    }
   }
 
   // Consent is a boolean the Student sets. Anything else is not consent.

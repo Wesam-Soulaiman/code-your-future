@@ -75,7 +75,7 @@ assignment, and no Student Excel import.
 | Tasks | No | Read + submit, enrolled Batch only | Create / manage |
 | Own submissions | No | Read / create (one only) | Read |
 | Accept a Final Task for publication | No | No | Yes |
-| Pinned Students | No | No | Yes |
+| Pin a published Reel | No | No — and never shown the control or the state | Yes |
 
 ## 4. Authentication
 
@@ -336,6 +336,23 @@ Decided and built. The rules, as shipped:
 - All URL validation on the server, **without ever fetching** (SSRF). Only the
   canonical YouTube video id is stored, never embed HTML.
 
+### Refined by CP8B
+
+- Visibility requires a **complete profile** as well as a published Final Task
+  and consent.
+- Every input recomputes automatically: task status, consent, submission
+  content, submission deletion, and profile save. No Admin action, ever.
+- The demo video accepts `watch`, `youtu.be`, `shorts`, and `embed`. Only the
+  id is stored; every embed is rebuilt from it.
+- Public endpoints are `/talent/listTalentDiscovery`, `/talent/getTalentProfile`,
+  `/talent/listTalentReels`, `/talent/getTalentFilters`, and
+  `/talent/photo/:slug`.
+- Discovery has a **debounced name search** and a newest/oldest sort.
+- The public profile shows an education block (institution, major).
+- **Country, Languages, Experience, Certificates, and Resume are not stored by
+  this product** and are therefore not shown. Adding them is a CP3A profile
+  change, not a public-pages change.
+
 ### Superseded planning notes
 
 
@@ -361,9 +378,60 @@ At least one evidence option is required per task.
 **MUST NOT** add: rubrics, grades, scores, ratings, evaluation, feedback, recommendations,
 *Needs Update*, re-review, AI evaluation.
 
-## 13. Pinned Students and Talent Reels
+## 13. The public talent showcase ⟨CP8 — implemented⟩
+
+Decided and built. The rules, as shipped:
+
+- Three public pages: `/students`, `/students/:slug`, `/talent-reel`. No
+  authentication on any of them.
+- A Student appears **only** when the Final Task is published and
+  `publicConsent` is true. Withdrawing consent removes them and their photo;
+  restoring it returns them at the same slug.
+- Closing or archiving the Final Task withdraws the Reels it produced.
+- Publication stays automatic. **No approval, no moderation, no publish button.**
+  The Admin's only levers remain CP7's Unpublish and Publish Again.
+- Final Task submissions gain exactly two optional fields: `demoTitle` and
+  `demoVideoUrl`.
+- The demo video accepts `youtube.com/watch?v=`, `www.youtube.com/watch?v=`, and
+  `youtu.be/`. Nothing else — every other provider fails by construction.
+- Only the video id is stored; the watch URL is rebuilt from it and the embed is
+  always `https://www.youtube.com/embed/{id}`, constructed server-side.
+- Filters: target role, city, education status, technologies, has demo. **No
+  free-text search.** Options are built from published rows.
+- Server-side pagination everywhere. The reel loads a page at a time and mounts
+  exactly one player.
+- The slug is random, stable, unique, immutable, and never derived from a name
+  or an `objectId`.
+- Nothing public is writable. No likes, comments, views, analytics, bookmarks,
+  reporting, or recommendations.
+
+**Visibility is stable while a profile is edited ⟨CP8C⟩.** A Student becomes
+public once the Final Task is published, the Final Task has been submitted,
+public consent is on, and the profile has been completed **at least once**. That
+fourth condition is a latch and is never re-evaluated against the current state
+of the profile, so editing a profile can never remove somebody from the public
+pages. Only four things withdraw a Student: consent going off, the Final Task no
+longer being published, an Admin suppression, and deleting the submission.
+Edits to About, links, technologies, city, and target role reach the public
+profile immediately.
+
+**Pinned Students ⟨CP8C⟩** — an Admin may pin a **published** Reel. Pinned
+Students appear first in Discovery and in the Reel, ahead of the Visitor's
+newest/oldest choice. Pinning is ordering only: it creates no publication,
+overrides no privacy setting, and exposes no field beyond a single `pinned`
+Boolean that drives a Featured chip. A Student who is not currently public
+cannot be pinned, and a pin is cleared automatically if the publication is
+withdrawn. The Student is never shown the control or the state.
+
+### Superseded planning notes
+
+
 
 **Pinned Students** — Admin only, scoped to a Batch, no score, no rating.
+*(Built in CP8C, but scoped to a **publication** rather than a Batch: a pin is a
+fact about one published project, and scoping it to a Batch would have let it
+outlive the publication it points at. Still Admin-only, still no score and no
+rating — it changes ordering on the public pages and nothing else.)*
 
 **Talent Reels** — public; accepted Final Task videos only; sanitised public DTOs only.
 Excludes Assignments, unaccepted Final Tasks, email, phone, date of birth, OAuth data,
@@ -688,7 +756,12 @@ to a Batch?
 score and no rating; Talent Reels publishes accepted Final Task videos. Nothing in the rules links
 them, so the safe reading is "no overlap" — but this has not been confirmed.
 **Answer required from:** product owner.
-**Classification:** **BLOCKS-CP10**.
+**Classification:** ~~**BLOCKS-CP10**~~ — **answered in CP8C.** They overlap, in
+one direction only: pinning is *ordering* on the public surfaces, so a pin has
+no effect until the Student is already published, and a Student who is not
+public cannot be pinned at all. It is not an internal bookmark — a Visitor sees
+a Featured chip — but it grants no visibility, reveals no field, and is cleared
+automatically when the publication it points at is withdrawn.
 
 ---
 

@@ -55,6 +55,7 @@ import {
   taskHasAnySubmission,
   updateTask,
 } from './repository';
+import {reevaluateTaskPublications} from './publication';
 import {removeBinaryQuietly} from './storage';
 import {findPrivilegedTaskFields, validateTask} from './validation';
 
@@ -412,6 +413,19 @@ class BatchTaskAdminFunctions {
     void batchStatus;
 
     const saved = await updateTask(task, changes);
+
+    /*
+      A Final Task's Reels follow its status ⟨CP8⟩.
+
+      Publication requires the Task to be published, and nothing else would
+      notice it stopping: a Reel is otherwise re-decided only when a Student
+      submits, and a Student cannot submit to a Task that was just closed. This
+      never throws — an Admin closing a Task should not fail because a Reel
+      could not be updated.
+    */
+    if (saved.get('type') === TASK_TYPE.FINAL_TASK) {
+      await reevaluateTaskPublications(saved);
+    }
 
     taskLog.info('Task status changed', {
       op: 'setBatchTaskStatus',

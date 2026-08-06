@@ -66,6 +66,7 @@ import {buildCorsOptions, logCorsPolicy} from './cloudCode/utils/config/cors';
 import {googleAuthStatus} from './cloudCode/modules/StudentAuth/googleConfig';
 import {studentProfilePhotoRouter} from './cloudCode/modules/StudentProfile/photoRoute';
 import {batchResourceRouter} from './cloudCode/modules/BatchResource/resourceRoute';
+import {publicTalentPhotoRouter} from './cloudCode/modules/PublicTalent/photoRoute';
 import {taskAttachmentRouter} from './cloudCode/modules/BatchTask/attachmentRoute';
 import {storageIsUsable, useFilesAdapter} from './cloudCode/modules/BatchResource/storage';
 import {seedInstitutionCatalog} from './cloudCode/modules/ProfileCatalog/seed';
@@ -171,6 +172,13 @@ async function main() {
   // two above: `validateEntityRoutes` maps a path segment to a registered
   // entity and would reject an unknown one.
   app.use(process.env.mountPath as string, taskAttachmentRouter());
+
+  // The public profile photo ⟨CP8⟩. Mounted beside the other binary routes and
+  // ahead of `validateEntityRoutes` for the same reason they are: that
+  // middleware maps registered entity prefixes onto cloud functions, and this
+  // is neither. It requires no session by design — the route re-checks that the
+  // Student is published on every request.
+  app.use(process.env.mountPath as string, publicTalentPhotoRouter());
 
   // Validates entity-based routes: /api/{entity}/{action} → /functions/{name}
   app.use(process.env.mountPath as string, validateEntityRoutes as any);

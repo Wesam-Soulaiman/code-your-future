@@ -125,6 +125,12 @@ const SENSITIVE_KEY_FRAGMENTS: readonly string[] = [
   'attachmentstoragekey',
   'attachmentfilename',
   'publicprofileslug',
+  // CP8. A demo title is the Student's own words and the video id identifies
+  // their work; neither belongs in an operator's log.
+  'demotitle',
+  'demovideourl',
+  'demovideoid',
+  'reelvideoid',
   // `technologies` is specific enough to list: it exists only on a Submission
   // and a Reel, so masking it costs nothing elsewhere.
   'technolog',

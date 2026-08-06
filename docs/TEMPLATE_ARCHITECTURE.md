@@ -2002,6 +2002,155 @@ Two changes came out of that:
   declared index and a built index are different facts, and only one of them
   stops a duplicate row.
 
+## 22. Serving an unauthenticated surface from closed classes ⟨CP8⟩
+
+Every class in this product is closed: empty CLP, empty ACL, `protectedFields`
+on everything. That is the right default, and CP8 needed to publish from two of
+those classes to people with no account at all.
+
+The obvious move is to relax the permissions on `TalentReelPublication` and
+`StudentProfile` so a public query can read them. **Do not.** Those permissions
+are not only about anonymous callers — relaxing them opens the classes to every
+*authenticated* client too, which is a much larger hole than the one being
+filled, and it moves the privacy boundary from one file into a permissions
+matrix nobody reads.
+
+Instead:
+
+1. The endpoint is a cloud function with `validation: {requireUser: false}` and
+   a `rateLimit`. Unauthenticated does not mean unbounded: there is no session
+   to throttle, so the endpoint throttles itself.
+2. It reads with the **master key**, because there is no visitor to read as.
+3. It hands rows to a builder that copies out named fields. The whole privacy
+   boundary is that builder, and a test asserts the built DTOs contain none of a
+   forbidden key list.
+
+Three details make it hold:
+
+- **Filters are named scalars, never a query object.** A public endpoint that
+  accepted a `where` clause is a public endpoint that accepts a query for
+  anything on the class. A test asserts the module never parses one.
+- **Pagination is clamped, silently.** A request for `limit=100000` is answered
+  with one page. Refusing would tell somebody probing that they found an edge.
+- **Everything a public page needs is snapshotted.** The publication row carries
+  its own copy of the project fields, so the public read never touches
+  `TaskSubmission` — where the private Drive link and the note to staff live. An
+  `include` that reached for it would carry both out. A test asserts the public
+  repository never names that class.
+
+## 23. A public identifier that survives a rename ⟨CP8⟩
+
+A public URL needs an identifier, and the three obvious candidates are all
+wrong:
+
+- **The `objectId`** publishes a database identifier and lets a reader walk the
+  collection.
+- **The name**, slugified, collides between two people called the same thing and
+  breaks every shared link the moment somebody corrects their spelling.
+- **The email**, hashed or not, publishes the email or something derived from it.
+
+`StudentProfile.publicProfileSlug` is twelve random characters from a
+thirty-three character alphabet — about 60 bits, minted on first publication,
+unique by index, and frozen by a trigger. It is not derived from anything, so a
+rename cannot break it and it reveals nothing.
+
+Two details are easy to miss:
+
+- The alphabet omits `l`, `1`, `0`, and `i`. A slug gets read aloud and typed
+  from a screenshot, and those four are where that goes wrong.
+- It is minted **on first publication**, not at signup. A column every Student
+  carries from the day they register is a public handle for people who never
+  asked for one.
+
+## 24. Embedding third-party video without handing over an attribute ⟨CP8⟩
+
+An `iframe src` is an attribute a page hands to a provider, and a URL a person
+pasted is the worst possible thing to put in one. The rule that makes it safe is
+short: **the only thing that survives from user input is an eleven-character
+id.**
+
+- Validation accepts three canonical shapes, extracts the id, and discards the
+  rest — including the tracking query string and the playlist parameter.
+- The stored watch URL is **rebuilt** from the id rather than kept as pasted.
+- The embed URL is built from the id, server-side, by a function that returns an
+  empty string for anything that is not `^[A-Za-z0-9_-]{11}$`.
+- Both browser components re-check the id shape before calling
+  `bypassSecurityTrustResourceUrl`, so the sanitiser is being told something
+  that has already been proven rather than being talked out of its job.
+
+A test asserts no module builds an embed by concatenating onto `embed/`, which
+is the one shape this must never take.
+
+## 25. Derived visibility needs a trigger per input ⟨CP8B⟩
+
+"A Student is public only while every condition holds" is a rule about state
+that nothing stores. Five inputs decide it: the Task status, consent, the
+submission's content, whether the submission exists, and whether the profile is
+complete.
+
+The trap is that a condition can be **true in the checker and false in the
+database**. The eligibility function reads all five, so the code looks correct —
+but eligibility only runs when something calls it, and the obvious caller is
+"the Student submitted". That covers three inputs. The other two happen
+somewhere else entirely:
+
+| Input | What notices |
+|---|---|
+| Task status | `reevaluateTaskPublications`, on `setBatchTaskStatus` |
+| Consent, content | `reevaluatePublication`, on submit |
+| Submission deleted | `withdrawPublicationForSubmission`, on delete |
+| First profile completion | `reevaluateProfilePublications`, on profile save |
+
+Two of those four were added only after a runtime pass caught the gap — closing
+a Final Task left its Reels public, and a Student emptying their profile would
+have too. Neither had a failing unit test, because both suites were asserting
+the checker, and the checker was right.
+
+### The profile sweep publishes but never withdraws ⟨CP8C⟩
+
+That last row read "profile completeness" and the sweep went both ways, which
+was a mistake worth naming. `isComplete` is a description of the profile *right
+now*, and it goes false the moment somebody clears a field — an ordinary thing
+to do halfway through an edit. Publication depending on it meant a Student
+disappeared from the public pages between two keystrokes and came back when they
+finished, with nobody having decided anything.
+
+Publication now depends on `profileEverComplete`: a latch set in
+`StudentProfile.onBeforeSave` the first time the profile is genuinely complete,
+and never cleared. It lives in the trigger rather than in the save operation so
+that no write path — including one added later that forgets — can skip it.
+
+The sweep itself lost its unpublish branch entirely. Saving a profile is not a
+decision to stop being public; the four things that are (consent, the Final Task
+status, an Admin suppression, deleting the submission) each have their own
+path.
+
+Three properties every sweep needs:
+
+1. **It must not override an Admin suppression.** Re-publishing a Task is not a
+   reason to undo something an Admin took down.
+2. **It must not throw into its caller.** Closing a Task, saving a profile, and
+   deleting a draft are all reasonable things to do; none should fail because a
+   Reel could not be updated.
+3. **It must be bounded.** Each is scoped to one Task or one profile, so the
+   cost is proportional to what changed.
+
+## 26. Accepting an embed URL without trusting one ⟨CP8B⟩
+
+CP8B widened the video validator to accept `youtube.com/embed/ID`, which sounds
+like handing an attacker the attribute directly. It is not, because of a rule
+that was already in place: **the only thing that survives validation is the
+eleven-character id.**
+
+An `embed` URL is accepted as a *source of an id*, exactly like a `watch` URL or
+a `youtu.be` link. What the Student pasted is discarded — query string,
+parameters, and all — and every embed the product renders is rebuilt by
+`embedUrlFor`, which returns an empty string for anything that is not
+`^[A-Za-z0-9_-]{11}$`.
+
+So widening the accepted *input* shapes did not widen the *output* surface at
+all. That is the property worth preserving if anybody adds a fifth shape.
+
 ## 18. Known limitations of the template
 
 1. No environment validation; missing `.env` keys fail at runtime.

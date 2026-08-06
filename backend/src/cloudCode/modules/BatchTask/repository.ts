@@ -423,6 +423,30 @@ export async function findPublicationsForSubmissions(
   return out;
 }
 
+/** Every publication produced by one Task. Bounded by the Batch roster. */
+export async function findPublicationsForTask(taskId: string): Promise<Parse.Object[]> {
+  const query = new Parse.Query(PUBLICATION_CLASS);
+  query.equalTo('task', pointerTo(TASK_CLASS, taskId));
+  query.include('submission');
+  query.limit(SUBMISSION_PAGE.maxLimit * 10);
+
+  const [error, rows] = await catchError(query.find({useMasterKey: true}));
+  if (error) return [];
+  return (rows as Parse.Object[]) ?? [];
+}
+
+/** Every publication belonging to one Student profile. */
+export async function findPublicationsForProfile(profileId: string): Promise<Parse.Object[]> {
+  const query = new Parse.Query(PUBLICATION_CLASS);
+  query.equalTo('studentProfile', pointerTo(PROFILE_CLASS, profileId));
+  query.include('submission');
+  query.limit(SUBMISSION_PAGE.maxLimit);
+
+  const [error, rows] = await catchError(query.find({useMasterKey: true}));
+  if (error) return [];
+  return (rows as Parse.Object[]) ?? [];
+}
+
 /** Create or update a publication record. */
 export async function savePublication(
   existing: Parse.Object | undefined,

@@ -314,7 +314,9 @@ describe('no future product feature leaked into the frontend', () => {
     // Batches, the Student directory, and the join page shipped in Checkpoint 4
     // and are no longer future. What is still listed here belongs to a
     // checkpoint that has not happened, and a route for one would be a stub
-    // pointing at a page that cannot exist.
+    // pointing at a page that cannot exist. `pinned` is here for the opposite
+    // reason ⟨CP8C⟩: pinning was built, and deliberately without a route — a
+    // route for it would mean the separate page the brief ruled out.
     const routes = read('app/app.routes.ts');
     for (const future of [
       "path: 'reels'",
@@ -400,7 +402,9 @@ describe('no future product feature leaked into the frontend', () => {
     // a checkpoint that has not happened.
     const pages = join(FRONTEND_SRC, 'app', 'pages');
     const present = readdirSync(pages).sort();
-    assert.deepEqual(present, ['admin', 'auth', 'dashboard', 'join', 'student']);
+    // `public` arrived with Checkpoint 8: the talent showcase, which is the
+    // first part of this product a Visitor sees without signing in.
+    assert.deepEqual(present, ['admin', 'auth', 'dashboard', 'join', 'public', 'student']);
 
     const allowedAdmin = [
       'profile-catalogs',
@@ -448,24 +452,43 @@ describe('no future product feature leaked into the frontend', () => {
         `unexpected Student page: ${name}`
       );
     }
+
+    // The public showcase ⟨CP8⟩. Three pages, all unauthenticated: the
+    // directory, one profile, and the reel.
+    const allowedPublic = [
+      'public-students',
+      'public-student-profile',
+      'talent-reel',
+    ];
+    for (const name of readdirSync(join(pages, 'public'))) {
+      assert.ok(
+        allowedPublic.some(prefix => name.startsWith(`${prefix}.`)),
+        `unexpected public page: ${name}`
+      );
+    }
   });
 
   test('no page exists for a feature that does not ⟨CP7⟩', () => {
     /*
       The inverse check, by name.
 
-      Tasks, Submissions, and the Talent Reel *records* shipped in Checkpoint 7,
-      so those words are no longer forbidden. What has still not been built is
-      the **public** side of a Reel — the browsable talent list and the public
-      student profile — and Pinned Students, which was never in scope. A page
-      named for any of those would be a page with nothing behind it.
+      Tasks and Submissions shipped in Checkpoint 7 and the public showcase in
+      Checkpoint 8, so those words are no longer forbidden.
+
+      `pinned` stays forbidden for a different reason than the rest ⟨CP8C⟩.
+      Pinned Students now exists — but as two buttons inside the Admin
+      publication panel, which is what the checkpoint asked for and all it asked
+      for. A *page* named for it would mean somebody had built the separate
+      screen the brief ruled out. The others — bookmarks, favourites, and a
+      moderation queue — remain features the product decided against, so a page
+      named for any of them would be a page with nothing behind it.
     */
     const pages = join(FRONTEND_SRC, 'app', 'pages');
     const everyFile: string[] = [];
     for (const dir of readdirSync(pages)) {
       for (const name of readdirSync(join(pages, dir))) everyFile.push(name.toLowerCase());
     }
-    for (const forbidden of ['pinned', 'public-profile', 'talent-reels', 'showcase']) {
+    for (const forbidden of ['pinned', 'bookmark', 'favourite', 'moderation']) {
       assert.ok(
         !everyFile.some(name => name.includes(forbidden)),
         `a ${forbidden} page belongs to a later checkpoint`

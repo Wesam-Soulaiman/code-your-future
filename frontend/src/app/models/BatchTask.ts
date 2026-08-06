@@ -114,6 +114,9 @@ export interface TaskSubmission {
   publicProjectDescription?: string;
   technologies?: string[];
   myContribution?: string;
+  /** CP8 — echoed back so the form can show what was stored. */
+  demoTitle?: string;
+  demoVideoUrl?: string;
   publicConsent: boolean;
   submittedAt?: string;
   updatedAt?: string;
@@ -125,6 +128,14 @@ export interface TaskSubmission {
 export interface AdminTaskSubmission extends TaskSubmission {
   studentId: string;
   studentName: string;
+  /**
+   * Whether an Admin highlighted this Reel ⟨CP8C⟩.
+   *
+   * Admin-only, and only on this interface — `TaskSubmission` is what a Student
+   * reads about their own work, and the server does not send them this. Absent
+   * when nothing is published.
+   */
+  talentReelPinned?: boolean;
 }
 
 /** One row of the Admin's per-Task status table. */
@@ -156,6 +167,8 @@ export interface TalentReelPublication {
   status: PublicationStatus;
   /** Sticky. Survives a Student resubmitting; only Publish Again clears it. */
   adminSuppressed: boolean;
+  /** CP8C. An Admin highlight. Ordering on the public pages, nothing more. */
+  pinned: boolean;
   projectTitle: string;
   projectDescription: string;
   technologies: string[];
@@ -279,4 +292,7 @@ export interface SubmissionInput {
   technologies?: string[];
   myContribution?: string;
   publicConsent?: boolean;
+  /** CP8 — the optional public demo. Both may be left blank. */
+  demoTitle?: string;
+  demoVideoUrl?: string;
 }

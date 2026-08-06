@@ -62,6 +62,7 @@ import {ParseClass, ParseField, BaseModel, BeforeSave} from '@90soft/parse-serve
         'photoData',
         'photoUpdatedAt',
         'isComplete',
+        'profileEverComplete',
         'publicProfileSlug',
       ],
       authenticated: [
@@ -85,6 +86,7 @@ import {ParseClass, ParseField, BaseModel, BeforeSave} from '@90soft/parse-serve
         'photoData',
         'photoUpdatedAt',
         'isComplete',
+        'profileEverComplete',
         'publicProfileSlug',
       ],
     },
@@ -276,6 +278,27 @@ export default class StudentProfile extends BaseModel {
   })
   isComplete!: boolean;
 
+  /*
+    Whether this profile has **ever** been complete ⟨CP8C⟩.
+
+    A latch, not a state. `isComplete` describes the profile right now, and it
+    goes false the moment a Student clears a field — which is a perfectly normal
+    thing to do halfway through an edit. Publication cannot depend on it: a
+    Student rewording their About should not vanish from the public pages
+    between two keystrokes and reappear when they finish.
+
+    So publication depends on this instead. It goes false → true the first time
+    the profile is genuinely complete, and never goes back. Withdrawing somebody
+    from the public pages is then something only a real decision does — losing
+    consent, or the Final Task being taken down — rather than something an
+    unsaved form can do by accident.
+  */
+  @ParseField({
+    type: 'Boolean',
+    description: 'CP8C. True once the profile has been complete at least once. Never cleared',
+  })
+  profileEverComplete!: boolean;
+
   /**
    * The Student's stable public identifier ⟨CP7⟩.
    *
@@ -325,6 +348,18 @@ export default class StudentProfile extends BaseModel {
           'A profile cannot be made public'
         );
       }
+    }
+
+    /*
+      Latch the "has ever been complete" marker ⟨CP8C⟩.
+
+      Set here rather than in the save operation so it holds for **every** write
+      path, including a future one that forgets. It only ever goes true: there
+      is deliberately no branch that clears it, because the whole point is that
+      a later incomplete save cannot undo it.
+    */
+    if (object.get('isComplete') === true && object.get('profileEverComplete') !== true) {
+      object.set('profileEverComplete', true);
     }
 
     if (object.isNew()) return;

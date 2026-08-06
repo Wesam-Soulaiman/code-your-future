@@ -1,0 +1,148 @@
+<!--
+  The Talent Reel ⟨CP8⟩.
+
+  One project per screen, scrolled vertically. Exactly one iframe exists at a
+  time — the panel that is on screen — so scrolling away removes the player
+  rather than leaving it paused in the background.
+
+  No comments, no likes, no share. Each panel shows the video, who made it, what
+  they are aiming for, the demo title, the technologies, and a way to see more.
+-->
+<div class="cyf-reel">
+  <header class="cyf-reel-header">
+    <a routerLink="/students" class="cyf-reel-back">
+      {{ 'public.reel.backToDirectory' | translate }}
+    </a>
+
+    <h1 class="cyf-reel-title">{{ 'public.reel.title' | translate }}</h1>
+
+    @if (items().length > 0) {
+      <span class="cyf-reel-position" aria-live="polite">
+        {{
+          'public.reel.position'
+            | translate: { current: positionLabel().current, total: positionLabel().total }
+        }}
+      </span>
+    }
+  </header>
+
+  @if (failed()) {
+    <div class="cyf-reel-message">
+      <p>{{ 'public.errors.unavailable' | translate }}</p>
+    </div>
+  } @else if (loading() && items().length === 0) {
+    <div class="cyf-reel-message">
+      <p>{{ 'common.loading' | translate }}</p>
+    </div>
+  } @else if (isEmpty()) {
+    <div class="cyf-reel-message">
+      <p>{{ 'public.reel.empty' | translate }}</p>
+      <a routerLink="/students" class="cyf-public-view">
+        {{ 'public.reel.backToDirectory' | translate }}
+      </a>
+    </div>
+  } @else {
+    <!--
+      The scroll container. `scroll-snap-type` on this and `scroll-snap-align`
+      on each panel is what makes one item fill the screen at a time — done in
+      CSS rather than by intercepting wheel events, so a trackpad, a keyboard,
+      and a screen reader all still behave normally.
+    -->
+    <div #scroller class="cyf-reel-scroller" tabindex="-1">
+      @for (item of items(); track item.slug + item.video.videoId; let index = $index) {
+        <section class="cyf-reel-panel" [attr.data-index]="index">
+          <div class="cyf-reel-stage">
+            @if (started() && isCurrent(index) && embedUrl(item); as src) {
+              <!--
+                The only iframe on the page. It exists for the current panel and
+                nothing else, so there is never a second player running out of
+                sight.
+              -->
+              <iframe
+                [src]="src"
+                [title]="item.title"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allow="accelerometer; encrypted-media; picture-in-picture"
+                allowfullscreen
+              ></iframe>
+            } @else {
+              <button
+                type="button"
+                class="cyf-reel-poster"
+                (click)="start()"
+                [attr.aria-label]="'public.reel.play' | translate: { title: item.title }"
+              >
+                <img
+                  [src]="posterFor(item)"
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <span class="cyf-reel-play" aria-hidden="true">▶</span>
+              </button>
+            }
+          </div>
+
+          <div class="cyf-reel-meta">
+            <div class="cyf-reel-identity">
+              <span class="cyf-public-avatar cyf-reel-avatar">
+                @if (item.photoUrl) {
+                  <img
+                    [src]="photoSrc(item)"
+                    [alt]="item.name"
+                    loading="lazy"
+                    decoding="async"
+                    width="48"
+                    height="48"
+                  />
+                } @else {
+                  <span class="cyf-public-avatar-initial" aria-hidden="true">
+                    {{ initial(item) }}
+                  </span>
+                }
+              </span>
+
+              <div>
+                <h2 class="cyf-reel-name">
+                  {{ item.name }}
+                  @if (item.pinned) {
+                    <span class="cyf-status-chip cyf-status-info cyf-reel-pinned">
+                      {{ 'public.students.pinned' | translate }}
+                    </span>
+                  }
+                </h2>
+                <p class="cyf-reel-role">
+                  @if (item.targetRole) {
+                    <span>{{ item.targetRole }}</span>
+                  }
+                  @if (item.city) {
+                    <span>{{ item.city }}</span>
+                  }
+                </p>
+              </div>
+            </div>
+
+            <p class="cyf-reel-demo-title">{{ item.title }}</p>
+
+            @if (item.technologies.length > 0) {
+              <ul class="cyf-public-tech-list">
+                @for (tech of item.technologies; track tech) {
+                  <li class="cyf-public-tech">{{ tech }}</li>
+                }
+              </ul>
+            }
+
+            <a class="cyf-reel-view" [routerLink]="['/students', item.slug]">
+              {{ 'public.reel.viewProfile' | translate }}
+            </a>
+          </div>
+        </section>
+      }
+
+      @if (loading()) {
+        <p class="cyf-reel-loading-more">{{ 'common.loading' | translate }}</p>
+      }
+    </div>
+  }
+</div>

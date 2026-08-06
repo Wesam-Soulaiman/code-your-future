@@ -243,6 +243,22 @@ export class TaskApiService {
     return this.post<TalentReelPublication>('talent-reels/republishTalentReel', { submissionId });
   }
 
+  /**
+   * Highlight a published Reel so it appears first ⟨CP8C⟩.
+   *
+   * Ordering only. This publishes nobody and reveals nothing new — a Student who
+   * is not already public cannot be pinned, and the server refuses rather than
+   * quietly publishing them as a side effect of being highlighted.
+   */
+  pinTalentReel(submissionId: string): Observable<TalentReelPublication> {
+    return this.post<TalentReelPublication>('talent-reels/pinTalentReel', { submissionId });
+  }
+
+  /** Remove the highlight. Restores the default position and nothing else. */
+  unpinTalentReel(submissionId: string): Observable<TalentReelPublication> {
+    return this.post<TalentReelPublication>('talent-reels/unpinTalentReel', { submissionId });
+  }
+
   /** One Student's Task history across every Batch, for Admin Student Detail. */
   studentTaskHistory(
     studentId: string,

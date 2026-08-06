@@ -55,6 +55,9 @@ import {
         'publicProjectDescription',
         'technologies',
         'myContribution',
+        'demoTitle',
+        'demoVideoUrl',
+        'demoVideoId',
         'publicConsent',
         'publicConsentAt',
         'submittedAt',
@@ -75,6 +78,9 @@ import {
         'publicProjectDescription',
         'technologies',
         'myContribution',
+        'demoTitle',
+        'demoVideoUrl',
+        'demoVideoId',
         'publicConsent',
         'publicConsentAt',
         'submittedAt',
@@ -192,6 +198,37 @@ export default class TaskSubmission extends BaseModel {
 
   @ParseField({type: 'String', description: 'Final Task only. Public once consented'})
   myContribution!: string;
+
+  /*
+    The public demo ⟨CP8⟩.
+
+    Two optional fields the Student may add to a Final Task, and the pair the
+    public Talent Reel is built from. Both are optional: a Student who fills in
+    neither is still published if the rest of their Final Task qualifies — they
+    simply appear without a titled demo, and the "Has demo" filter passes them
+    over.
+
+    Three columns for two fields, deliberately. The Student supplies a URL; the
+    server keeps the eleven-character id **and** the canonical watch URL it
+    rebuilt from that id. Keeping only the id would mean reconstructing a link
+    every time one is needed; keeping only the URL would mean parsing it again
+    every time an embed is built, which is exactly the place a provider URL
+    turns into an injection point.
+  */
+  @ParseField({type: 'String', description: 'CP8. Optional title for the public demo video'})
+  demoTitle!: string;
+
+  @ParseField({
+    type: 'String',
+    description: 'CP8. Canonical YouTube watch URL, rebuilt from the id. Never as pasted',
+  })
+  demoVideoUrl!: string;
+
+  @ParseField({
+    type: 'String',
+    description: 'CP8. The eleven-character YouTube id. Embeds are built from this alone',
+  })
+  demoVideoId!: string;
 
   @ParseField({
     type: 'Boolean',

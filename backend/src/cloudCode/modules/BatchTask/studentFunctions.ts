@@ -37,7 +37,7 @@ import {
 import {StudentTaskDto, toStudentTaskDto, toSubmissionDto} from './dto';
 import {TaskError, taskError} from './errors';
 import {taskLog} from './logging';
-import {reevaluatePublication} from './publication';
+import {reevaluatePublication, withdrawPublicationForSubmission} from './publication';
 import {
   createSubmission,
   deleteSubmissionRow,
@@ -386,6 +386,11 @@ class StudentTaskFunctions {
 
     const submissionId = submission.id;
     await deleteSubmissionRow(submission);
+
+    // No Submission, no public page ⟨CP8B⟩. Only a never-submitted Draft can
+    // be deleted, so this is normally a no-op — but the rule should not depend
+    // on that staying true.
+    await withdrawPublicationForSubmission(submissionId);
 
     taskLog.info('Draft Submission deleted', {
       op: 'deleteMyTaskDraft',

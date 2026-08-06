@@ -199,7 +199,26 @@ export class TaskSubmissionsComponent {
     this.actOnReel(submission, 'republish');
   }
 
-  private actOnReel(submission: AdminTaskSubmission, action: 'unpublish' | 'republish'): void {
+  /**
+   * Highlight this Reel, or stop highlighting it ⟨CP8C⟩.
+   *
+   * Ordering on the public pages, and nothing else. It is deliberately the same
+   * code path as the two publication controls: the server is the one that
+   * decides whether a pin is allowed, and the page renders whatever comes back
+   * rather than predicting it.
+   */
+  protected pin(submission: AdminTaskSubmission): void {
+    this.actOnReel(submission, 'pin');
+  }
+
+  protected unpin(submission: AdminTaskSubmission): void {
+    this.actOnReel(submission, 'unpin');
+  }
+
+  private actOnReel(
+    submission: AdminTaskSubmission,
+    action: 'unpublish' | 'republish' | 'pin' | 'unpin',
+  ): void {
     if (this.busy()) return;
     this.busy.set(true);
     this.clearMessages();
@@ -207,18 +226,34 @@ export class TaskSubmissionsComponent {
     const request =
       action === 'unpublish'
         ? this.api.unpublishTalentReel(submission.id)
-        : this.api.republishTalentReel(submission.id);
+        : action === 'republish'
+          ? this.api.republishTalentReel(submission.id)
+          : action === 'pin'
+            ? this.api.pinTalentReel(submission.id)
+            : this.api.unpinTalentReel(submission.id);
 
     request.pipe(finalize(() => this.busy.set(false))).subscribe({
       next: (publication) => {
-        this.open.set({ ...submission, talentReelStatus: publication.status });
+        this.open.set({
+          ...submission,
+          talentReelStatus: publication.status,
+          talentReelPinned: publication.pinned,
+        });
         // Publish Again can legitimately leave a Reel unpublished — the Student
         // may have withdrawn consent since. Saying so is more useful than a
         // success message that does not match what the page now shows.
+        // Named rather than derived from the action: appending "ed" worked for
+        // the first two verbs and produced "pined" for the third.
+        const NOTICES: Record<typeof action, string> = {
+          unpublish: 'unpublished',
+          republish: 'republished',
+          pin: 'pinned',
+          unpin: 'unpinned',
+        };
         this.noticeKey.set(
           action === 'republish' && publication.status !== PUBLICATION_STATUS.PUBLISHED
             ? 'admin.tasks.reel.notices.stillUnpublished'
-            : `admin.tasks.reel.notices.${action}ed`,
+            : `admin.tasks.reel.notices.${NOTICES[action]}`,
         );
         this.reload();
       },

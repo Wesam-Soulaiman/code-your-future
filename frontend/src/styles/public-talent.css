@@ -1,0 +1,653 @@
+/*
+  The public talent pages ⟨CP8⟩.
+
+  Layout only. Colour, spacing, radius, and typography come from the same tokens
+  every other page uses, so these render correctly in dark mode and in Arabic
+  without a second set of decisions made here.
+
+  Nothing in this file uses a physical direction — `margin-inline`,
+  `padding-inline`, `inset-inline`, and `border-inline` flip with the document.
+  That is what keeps the Arabic layout a mirror rather than a rebuild.
+*/
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Shared page frame
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/*
+  These pages have no workspace shell, so they own their own page width. The
+  inline padding is what stops a card touching the edge of a phone.
+*/
+.cyf-public-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-5, 1.25rem);
+  inline-size: 100%;
+  max-inline-size: 72rem;
+  margin-inline: auto;
+  padding-inline: var(--cyf-space-4, 1rem);
+  padding-block: var(--cyf-space-5, 1.25rem);
+}
+
+.cyf-public-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cyf-space-3, 0.75rem);
+}
+
+.cyf-public-switch,
+.cyf-public-view,
+.cyf-reel-back,
+.cyf-reel-view {
+  display: inline-flex;
+  align-items: center;
+  /* 44px tall: these are the primary way to move between public pages, and on a
+     phone they are the whole navigation. */
+  min-block-size: 44px;
+  padding-inline: var(--cyf-space-3, 0.75rem);
+  border-radius: var(--cyf-radius-md, 0.5rem);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.cyf-public-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-3, 0.75rem);
+}
+
+.cyf-public-breadcrumb {
+  font-size: 0.875rem;
+}
+
+/*
+  The way back is the only navigation a public page has, so it gets a real
+  target rather than the 19px a bare inline link came out at on a phone.
+*/
+.cyf-public-breadcrumb a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+}
+
+.cyf-public-count {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--cyf-text-muted, rgb(0 0 0 / 60%));
+}
+
+.cyf-public-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cyf-space-3, 0.75rem);
+  padding-block: var(--cyf-space-6, 1.5rem);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Filters
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cyf-public-filters {
+  display: grid;
+  /* `auto-fit` with a floor rather than fixed columns: the filter row becomes
+     one column on a phone and four on a laptop with no breakpoint to maintain. */
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--cyf-space-3, 0.75rem);
+  padding: var(--cyf-space-4, 1rem);
+  border: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+  border-radius: var(--cyf-radius-md, 0.5rem);
+}
+
+.cyf-public-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-2, 0.5rem);
+  min-inline-size: 0;
+}
+
+.cyf-public-filter-wide {
+  grid-column: 1 / -1;
+}
+
+.cyf-public-tech-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-2, 0.5rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cyf-public-tech-toggle {
+  min-block-size: 32px;
+  padding-inline: var(--cyf-space-3, 0.75rem);
+  border: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+  border-radius: var(--cyf-radius-pill, 999px);
+  background: transparent;
+  color: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+/* Selection is shown by more than colour — a border weight change as well — so
+   it reads without relying on hue. */
+.cyf-public-tech-toggle.cyf-is-selected {
+  border-width: 2px;
+  font-weight: 600;
+}
+
+.cyf-public-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cyf-space-2, 0.5rem);
+  min-block-size: 44px;
+  cursor: pointer;
+}
+
+/*
+  24px, in pixels rather than rem.
+
+  The label around it is already a 44px target, so this is belt and braces —
+  but the box itself is what a finger aims at, and measured at 390px a 20px
+  box is 20px. A fingertip is a physical thing and does not scale with the
+  type ramp, which at this application's 14px root would have made `1.5rem`
+  come out at 21.
+*/
+.cyf-public-check input {
+  flex: none;
+  inline-size: 24px;
+  block-size: 24px;
+  min-inline-size: 24px;
+  min-block-size: 24px;
+}
+
+.cyf-public-clear {
+  align-self: flex-start;
+  min-block-size: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The directory grid
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cyf-public-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--cyf-space-4, 1rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cyf-public-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-3, 0.75rem);
+  padding: var(--cyf-space-4, 1rem);
+  border: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+  border-radius: var(--cyf-radius-md, 0.5rem);
+}
+
+.cyf-public-card-link {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-3, 0.75rem);
+  min-inline-size: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.cyf-public-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-inline-size: 0;
+}
+
+.cyf-public-card-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.cyf-public-card-role,
+.cyf-public-card-city {
+  font-size: 0.875rem;
+  color: var(--cyf-text-muted, rgb(0 0 0 / 60%));
+  overflow-wrap: anywhere;
+}
+
+.cyf-public-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cyf-space-2, 0.5rem);
+  margin-block-start: auto;
+}
+
+.cyf-public-more {
+  display: flex;
+  justify-content: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Avatars
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cyf-public-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  inline-size: 72px;
+  block-size: 72px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--cyf-surface-muted, rgb(0 0 0 / 6%));
+}
+
+.cyf-public-avatar img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.cyf-public-avatar-lg {
+  inline-size: 120px;
+  block-size: 120px;
+}
+
+/* A letter rather than a silhouette: a generic person icon on somebody's
+   profile reads as a missing image, and a letter reads as a choice. */
+.cyf-public-avatar-initial {
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Technologies
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cyf-public-tech-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-2, 0.5rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cyf-public-tech {
+  padding-inline: var(--cyf-space-2, 0.5rem);
+  padding-block: 0.125rem;
+  border: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+  border-radius: var(--cyf-radius-pill, 999px);
+  font-size: 0.8125rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The profile
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cyf-public-profile-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cyf-space-4, 1rem);
+}
+
+.cyf-public-profile-identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-2, 0.5rem);
+  min-inline-size: 0;
+}
+
+.cyf-public-profile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-3, 0.75rem);
+  margin: 0;
+  color: var(--cyf-text-muted, rgb(0 0 0 / 60%));
+}
+
+.cyf-public-profile-role {
+  font-weight: 600;
+  color: inherit;
+}
+
+.cyf-public-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-3, 0.75rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cyf-public-links a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+}
+
+/* A Student's own words, shown as written — newlines and all. */
+.cyf-public-about,
+.cyf-public-project-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cyf-public-project {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-3, 0.75rem);
+  padding: var(--cyf-space-4, 1rem);
+  border: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+  border-radius: var(--cyf-radius-md, 0.5rem);
+}
+
+.cyf-public-project-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cyf-space-2, 0.5rem);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cyf-public-project-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-1, 0.25rem);
+}
+
+.cyf-public-project-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-3, 0.75rem);
+  margin: 0;
+}
+
+.cyf-public-project-links a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Video
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/*
+  `aspect-ratio` rather than the old padding-top trick: the box is the right
+  shape before anything loads, so the page does not jump when a poster or an
+  iframe arrives.
+*/
+.cyf-public-video {
+  position: relative;
+  inline-size: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--cyf-radius-md, 0.5rem);
+  overflow: hidden;
+  background: #000;
+}
+
+.cyf-public-video iframe,
+.cyf-public-video-poster {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 0;
+}
+
+.cyf-public-video-poster {
+  padding: 0;
+  background: #000;
+  cursor: pointer;
+}
+
+.cyf-public-video-poster img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.cyf-public-video-play,
+.cyf-reel-play {
+  position: absolute;
+  /* `inset-inline-start: 50%` plus a translate keeps the play badge centred in
+     both directions without a physical `left`. */
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 64px;
+  block-size: 64px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 55%);
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+/* The reel mirrors, so its play triangle would point the wrong way in Arabic
+   if it were not put back. */
+[dir='rtl'] .cyf-public-video-play,
+[dir='rtl'] .cyf-reel-play {
+  transform: translate(50%, -50%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The Talent Reel
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cyf-reel {
+  display: flex;
+  flex-direction: column;
+  /* `100dvh` rather than `100vh`: on a phone the browser chrome collapses as
+     you scroll, and `vh` leaves a strip of the next panel showing until it
+     does. */
+  block-size: 100dvh;
+  overflow: hidden;
+}
+
+.cyf-reel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cyf-space-3, 0.75rem);
+  padding-inline: var(--cyf-space-4, 1rem);
+  padding-block: var(--cyf-space-2, 0.5rem);
+  border-block-end: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+}
+
+.cyf-reel-title {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.cyf-reel-position {
+  font-size: 0.875rem;
+  color: var(--cyf-text-muted, rgb(0 0 0 / 60%));
+}
+
+/*
+  The scroller.
+
+  Snapping is CSS, not intercepted wheel events, so a trackpad, a keyboard, and
+  a screen reader all keep working. `overscroll-behavior: contain` stops a
+  flick at the end of the reel scrolling the page behind it.
+*/
+.cyf-reel-scroller {
+  flex: 1;
+  min-block-size: 0;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  overscroll-behavior: contain;
+}
+
+.cyf-reel-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-3, 0.75rem);
+  block-size: 100%;
+  padding: var(--cyf-space-4, 1rem);
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.cyf-reel-stage {
+  position: relative;
+  flex: 1;
+  min-block-size: 0;
+  border-radius: var(--cyf-radius-md, 0.5rem);
+  overflow: hidden;
+  background: #000;
+}
+
+.cyf-reel-stage iframe,
+.cyf-reel-poster {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  border: 0;
+  padding: 0;
+}
+
+.cyf-reel-poster {
+  background: #000;
+  cursor: pointer;
+}
+
+.cyf-reel-poster img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+/* The identity strip on a reel panel: a small face, a name, and where they are. */
+.cyf-reel-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--cyf-space-2, 0.5rem);
+}
+
+.cyf-reel-avatar {
+  inline-size: 48px;
+  block-size: 48px;
+}
+
+.cyf-public-education {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-2, 0.5rem);
+  margin: 0;
+}
+
+.cyf-public-education-place {
+  font-weight: 600;
+}
+
+.cyf-reel-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cyf-space-1, 0.25rem);
+  flex: none;
+}
+
+.cyf-reel-name {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+/* The featured chip sits beside the name, so it must not inherit its size. */
+.cyf-reel-pinned {
+  margin-inline-start: 0.5rem;
+  font-size: 0.75rem;
+  vertical-align: middle;
+}
+
+.cyf-reel-role,
+.cyf-reel-demo-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cyf-space-2, 0.5rem);
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--cyf-text-muted, rgb(0 0 0 / 60%));
+  overflow-wrap: anywhere;
+}
+
+.cyf-reel-view {
+  align-self: flex-start;
+  margin-block-start: var(--cyf-space-2, 0.5rem);
+  border: 1px solid var(--cyf-border, rgb(0 0 0 / 12%));
+}
+
+.cyf-reel-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cyf-space-3, 0.75rem);
+  flex: 1;
+  padding: var(--cyf-space-5, 1.25rem);
+  text-align: center;
+}
+
+.cyf-reel-loading-more {
+  margin: 0;
+  padding: var(--cyf-space-4, 1rem);
+  text-align: center;
+  color: var(--cyf-text-muted, rgb(0 0 0 / 60%));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Narrow screens
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 40rem) {
+  .cyf-public-grid {
+    /* One column below 40rem. Two 16rem cards do not fit on a 360px screen, and
+       `auto-fill` would otherwise squeeze them. */
+    grid-template-columns: 1fr;
+  }
+
+  .cyf-public-profile-header {
+    align-items: flex-start;
+  }
+
+  .cyf-public-avatar-lg {
+    inline-size: 88px;
+    block-size: 88px;
+  }
+
+  .cyf-reel-header {
+    /* The position counter drops below the title rather than squeezing it. */
+    row-gap: var(--cyf-space-1, 0.25rem);
+  }
+}
+
+/* Somebody who asked for less motion should not get a snapping scroll. */
+@media (prefers-reduced-motion: reduce) {
+  .cyf-reel-scroller {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+  }
+}

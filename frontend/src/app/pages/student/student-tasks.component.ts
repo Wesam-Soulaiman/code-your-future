@@ -290,6 +290,8 @@ export class StudentTasksComponent {
       values['publicProjectTitle'] = submission.publicProjectTitle ?? '';
       values['publicProjectDescription'] = submission.publicProjectDescription ?? '';
       values['myContribution'] = submission.myContribution ?? '';
+      values['demoTitle'] = submission.demoTitle ?? '';
+      values['demoVideoUrl'] = submission.demoVideoUrl ?? '';
     }
     this.values.set(values);
     this.technologies.set(submission?.technologies ? [...submission.technologies] : []);
@@ -358,6 +360,14 @@ export class StudentTasksComponent {
       if (description) input.publicProjectDescription = description;
       if (contribution) input.myContribution = contribution;
       if (this.technologies().length > 0) input.technologies = [...this.technologies()];
+
+      // CP8. Both optional, and sent only when filled — an empty string would
+      // be a value the server has to decide what to do with.
+      const demoTitle = (values['demoTitle'] ?? '').trim();
+      const demoVideo = (values['demoVideoUrl'] ?? '').trim();
+      if (demoTitle) input.demoTitle = demoTitle;
+      if (demoVideo) input.demoVideoUrl = demoVideo;
+
       input.publicConsent = this.publicConsent();
     }
 

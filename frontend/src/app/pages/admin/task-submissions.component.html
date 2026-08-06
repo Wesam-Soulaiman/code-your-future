@@ -284,7 +284,40 @@
                 <span>{{ 'admin.tasks.reel.republish' | translate }}</span>
               </p-button>
             }
+
+            <!--
+              Pin ⟨CP8C⟩ — offered only while the Reel is actually published,
+              because pinning somebody the public pages do not return would be a
+              control that appears to work and does nothing.
+            -->
+            @if (submission.talentReelStatus === publicationStatus.PUBLISHED) {
+              @if (submission.talentReelPinned) {
+                <p-button
+                  type="button"
+                  [outlined]="true"
+                  [disabled]="busy()"
+                  (onClick)="unpin(submission)"
+                  styleClass="cyf-btn"
+                >
+                  <span>{{ 'admin.tasks.reel.unpin' | translate }}</span>
+                </p-button>
+              } @else {
+                <p-button
+                  type="button"
+                  [outlined]="true"
+                  [disabled]="busy()"
+                  (onClick)="pin(submission)"
+                  styleClass="cyf-btn"
+                >
+                  <span>{{ 'admin.tasks.reel.pin' | translate }}</span>
+                </p-button>
+              }
+            }
           </div>
+
+          @if (submission.talentReelPinned) {
+            <p class="cyf-helper">{{ 'admin.tasks.reel.pinnedNow' | translate }}</p>
+          }
 
           <!-- Both facts, said before either button is pressed. -->
           <p class="cyf-helper">{{ 'admin.tasks.reel.unpublishNote' | translate }}</p>

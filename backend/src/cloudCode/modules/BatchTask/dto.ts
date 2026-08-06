@@ -109,6 +109,9 @@ export interface SubmissionDto {
   publicProjectDescription?: string;
   technologies?: string[];
   myContribution?: string;
+  /** CP8 — the optional public demo, as the owning Student and an Admin see it. */
+  demoTitle?: string;
+  demoVideoUrl?: string;
   publicConsent: boolean;
   submittedAt?: string;
   updatedAt?: string;
@@ -120,6 +123,16 @@ export interface SubmissionDto {
 export interface AdminSubmissionDto extends SubmissionDto {
   studentId: string;
   studentName: string;
+  /*
+    An Admin highlight ⟨CP8C⟩.
+
+    Here rather than on `SubmissionDto` on purpose. That DTO is what a Student
+    reads about their own work, and whether staff singled them out is not part
+    of it: a Student who could see the flag would reasonably start asking to be
+    pinned, and one who saw it disappear would read a decision into what may
+    have been a page being reordered. Undefined when nothing is published.
+  */
+  talentReelPinned?: boolean;
 }
 
 /** One row of the Admin's per-Task status table. */
@@ -150,6 +163,8 @@ export interface PublicationDto {
   studentName?: string;
   status: PublicationStatus;
   adminSuppressed: boolean;
+  /** CP8C. An Admin highlight. Ordering only — never a publication decision. */
+  pinned: boolean;
   projectTitle: string;
   projectDescription: string;
   technologies: string[];
@@ -362,6 +377,8 @@ export function toSubmissionDto(
     'publicProjectTitle',
     'publicProjectDescription',
     'myContribution',
+    'demoTitle',
+    'demoVideoUrl',
   ] as const) {
     const value = optionalString(submission.get(field));
     if (value) writable[field] = value;
@@ -388,11 +405,13 @@ export function toAdminSubmissionDto(
   studentName: string,
   publication?: Parse.Object
 ): AdminSubmissionDto {
-  return {
+  const dto: AdminSubmissionDto = {
     ...toSubmissionDto(submission, publication),
     studentId: String((submission.get('student') as Parse.User | undefined)?.id ?? ''),
     studentName,
   };
+  if (publication) dto.talentReelPinned = publication.get('pinned') === true;
+  return dto;
 }
 
 export function toPublicationDto(
@@ -407,6 +426,7 @@ export function toPublicationDto(
     studentId: String((publication.get('student') as Parse.User | undefined)?.id ?? ''),
     status: publication.get('status') as PublicationStatus,
     adminSuppressed: publication.get('adminSuppressed') === true,
+    pinned: publication.get('pinned') === true,
     projectTitle: String(publication.get('projectTitle') ?? ''),
     projectDescription: String(publication.get('projectDescription') ?? ''),
     technologies: Array.isArray(publication.get('technologies'))

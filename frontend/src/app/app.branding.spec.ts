@@ -105,12 +105,39 @@ describe('approved Student copy', () => {
 describe('route surface', () => {
   const paths = routes.map((route) => route.path);
 
-  it('exposes only auth, join, standalone profile onboarding, the workspaces, and a wildcard', () => {
+  it('exposes only auth, join, the public showcase, onboarding, the workspaces, and a wildcard', () => {
     // `join/:token` joined the top level in Checkpoint 4. It is deliberately
     // outside every guarded branch: it has to open for a Visitor.
+    //
+    // The three public talent routes joined in Checkpoint 8 and are outside
+    // every guard for the same reason — they are what a recruiter or a family
+    // member opens from a link, having never signed in. They also sit *before*
+    // the `student` branch: `students` and `student` are different paths, and
+    // ordering them explicitly here makes that impossible to get wrong later.
+    //
     // `student/profile` is deliberately before and outside the Student shell,
     // so an unfinished Student never activates workspace chrome.
-    expect(paths).toEqual(['auth', 'join/:token', 'student/profile', 'student', '', '**']);
+    expect(paths).toEqual([
+      'auth',
+      'join/:token',
+      'students',
+      'students/:slug',
+      'talent-reel',
+      'student/profile',
+      'student',
+      '',
+      '**',
+    ]);
+  });
+
+  it('every public route is reachable without a guard', () => {
+    // A guard on any of these would make the public pages unreachable to the
+    // people they exist for, which is the whole point of the checkpoint.
+    for (const path of ['students', 'students/:slug', 'talent-reel']) {
+      const route = routes.find((entry) => entry.path === path);
+      expect(route, path).toBeDefined();
+      expect(route?.canActivate, `${path} must have no guard`).toBeUndefined();
+    }
   });
 
   it('no longer registers the /users management route', () => {

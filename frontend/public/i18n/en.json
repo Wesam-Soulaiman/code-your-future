@@ -386,7 +386,11 @@
           "PUBLISHED": "Published",
           "UNPUBLISHED": "Not published"
         },
-        "currently": "Your talent reel is currently:"
+        "currently": "Your talent reel is currently:",
+        "demoTitle": "Demo title",
+        "demoTitleHint": "A short name for your demo video, shown on your public page.",
+        "demoVideo": "Demo video link",
+        "demoVideoHint": "YouTube only. Paste a youtube.com/watch or youtu.be link — Drive, Dropbox, Vimeo, Loom, and TikTok links are not accepted."
       },
       "discard": {
         "title": "Discard this draft?",
@@ -774,12 +778,18 @@
         "contribution": "Their contribution",
         "unpublish": "Unpublish",
         "republish": "Publish again",
+        "pin": "Pin to top",
+        "unpin": "Remove from top",
         "unpublishNote": "Unpublishing stays in effect even if the student submits again.",
         "republishNote": "Publishing again only works if the work still meets every condition, including the student's consent.",
+        "pinNote": "Pinning only changes the order of the public pages. It does not publish anyone, and it does not change what visitors can see.",
+        "pinnedNow": "Pinned. This student appears first on the public pages.",
         "notices": {
           "unpublished": "The talent reel is no longer published.",
           "republished": "The talent reel is published again.",
-          "stillUnpublished": "The talent reel stays unpublished — the work no longer meets every condition."
+          "stillUnpublished": "The talent reel stays unpublished — the work no longer meets every condition.",
+          "pinned": "This talent reel is pinned to the top.",
+          "unpinned": "This talent reel is no longer pinned."
         }
       },
       "notices": {
@@ -1179,6 +1189,65 @@
       "accessDenied": "You do not have access to this.",
       "unavailable": "The server could not be reached. Check your connection and try again.",
       "unexpected": "Something went wrong. Please try again."
+    }
+  },
+  "public": {
+    "students": {
+      "title": "Discover talent",
+      "subtitle": "Graduates who finished their final project and chose to share it.",
+      "watchReel": "Watch the talent reel",
+      "empty": "Nobody has published a final project yet.",
+      "emptyFiltered": "No one matches these filters. Try removing one.",
+      "count": "Showing {{shown}} of {{total}}",
+      "loadMore": "Show more",
+      "hasDemo": "Has demo",
+      "pinned": "Featured",
+      "viewProfile": "View profile",
+      "filters": {
+        "label": "Filter students",
+        "any": "Any",
+        "targetRole": "Target role",
+        "city": "City",
+        "educationStatus": "Education status",
+        "technologies": "Technologies",
+        "noTechnologies": "No technologies to filter by yet.",
+        "hasDemo": "Only students with a demo video",
+        "clear": "Clear {{count}} filters",
+        "search": "Search by name",
+        "searchPlaceholder": "Type a name",
+        "sort": "Sort by",
+        "newest": "Newest first",
+        "oldest": "Oldest first"
+      }
+    },
+    "profile": {
+      "notFoundTitle": "This profile is not available",
+      "notFoundBody": "The link may be wrong, or this student may have chosen to stop sharing their work.",
+      "backToDirectory": "Browse all students",
+      "about": "About",
+      "technologies": "Technologies",
+      "projects": "Projects",
+      "contribution": "What they built",
+      "demo": "Demo",
+      "github": "GitHub",
+      "linkedin": "LinkedIn",
+      "portfolio": "Portfolio",
+      "viewCode": "View code",
+      "viewDemo": "Open live demo",
+      "watchOnYoutube": "Watch on YouTube",
+      "playVideo": "Play {{title}}",
+      "education": "Education"
+    },
+    "reel": {
+      "title": "Talent reel",
+      "backToDirectory": "All students",
+      "position": "{{current}} of {{total}}",
+      "empty": "There is nothing to show yet.",
+      "play": "Play {{title}}",
+      "viewProfile": "View profile"
+    },
+    "errors": {
+      "unavailable": "This could not be loaded. Please try again in a moment."
     }
   }
 }

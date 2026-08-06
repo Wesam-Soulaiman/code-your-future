@@ -287,7 +287,19 @@ describe('the invitation token', () => {
   test('comparison is constant-time and rejects a near miss', () => {
     const {tokenHash: hash} = tokens.generateInvitationToken();
     assert.equal(tokens.hashesMatch(hash, hash), true);
-    assert.equal(tokens.hashesMatch(hash, 'f' + hash.slice(1)), false);
+
+    /*
+      Flip the first character to something it is not.
+
+      Hardcoding 'f' here made this test fail roughly one run in sixteen: a hex
+      hash starts with 'f' that often, and the "near miss" was then the hash
+      itself, so `hashesMatch` correctly returned true and the assertion read it
+      as a broken comparison. Deriving the replacement from what is actually
+      there makes the near miss a near miss every time.
+    */
+    const nearMiss = (hash[0] === 'f' ? '0' : 'f') + hash.slice(1);
+    assert.notEqual(nearMiss, hash);
+    assert.equal(tokens.hashesMatch(hash, nearMiss), false);
     assert.equal(tokens.hashesMatch(hash, hash.slice(0, 60)), false, 'a length mismatch is false');
     assert.equal(tokens.hashesMatch(hash, ''), false);
   });

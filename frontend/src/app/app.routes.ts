@@ -101,6 +101,39 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/join/join.component').then((m) => m.JoinComponent),
   },
 
+  // ── Public talent showcase ⟨CP8⟩ ─────────────────────────────────────────
+  //
+  // No guard, and no shell. These are the pages a recruiter or a family member
+  // opens from a link, having never signed in — putting them behind the
+  // workspace shell would surround somebody's work with navigation they have no
+  // account for.
+  //
+  // Declared before the `student` branch because `students` and `student` are
+  // different paths and the router matches in order; keeping them apart here
+  // makes that impossible to get wrong later.
+  {
+    path: 'students',
+    title: 'Code Your Future — Discover talent',
+    loadComponent: () =>
+      import('./pages/public/public-students.component').then(
+        (m) => m.PublicStudentsComponent,
+      ),
+  },
+  {
+    path: 'students/:slug',
+    title: 'Code Your Future — Student profile',
+    loadComponent: () =>
+      import('./pages/public/public-student-profile.component').then(
+        (m) => m.PublicStudentProfileComponent,
+      ),
+  },
+  {
+    path: 'talent-reel',
+    title: 'Code Your Future — Talent reel',
+    loadComponent: () =>
+      import('./pages/public/talent-reel.component').then((m) => m.TalentReelComponent),
+  },
+
   // ── Student area ─────────────────────────────────────────────────────────
   //
   // Profile onboarding is a protected, standalone page. Declaring the more

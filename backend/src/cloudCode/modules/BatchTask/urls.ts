@@ -276,3 +276,87 @@ export const FIELD_URL_KIND: Readonly<Record<string, UrlKind>> = {
   googleDriveUrl: 'drive',
   youtubeVideoId: 'youtube',
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// The public demo video ⟨CP8⟩
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * The demo video that appears on a public page.
+ *
+ * **YouTube, and only YouTube.** Four shapes are accepted, which are the four
+ * a person actually has to hand when they copy a link:
+ *
+ *   https://youtube.com/watch?v=ID
+ *   https://www.youtube.com/watch?v=ID
+ *   https://youtu.be/ID
+ *   https://www.youtube.com/shorts/ID
+ *   https://www.youtube.com/embed/ID
+ *
+ * Everything else is refused by construction rather than by a blocklist: Drive,
+ * Dropbox, OneDrive, Vimeo, Loom, TikTok, Facebook, Instagram, a `javascript:`
+ * URL, a `data:` URL, and raw iframe HTML all fail because they are not one of
+ * those hosts, or not a URL at all. A blocklist would need extending every time
+ * somebody found a fourth video site; this needs extending only when the
+ * product decides to accept one.
+ *
+ * ── Accepting an `embed` URL does not mean trusting one ─────────────────────
+ * Only the eleven-character id survives. What a Student pasted is discarded,
+ * including any query string that came with it, and every embed this product
+ * renders is rebuilt from the id by `embedUrlFor`. So an `embed` link is
+ * accepted as a *source of an id*, never as an embed.
+ *
+ * Kept separate from CP7's `validateYoutubeUrl` rather than merged: that one
+ * also accepts `m.` and `music.` hosts, and this list is the one the public
+ * pages were specified against.
+ */
+export function validateDemoVideoUrl(raw: unknown): UrlCheck {
+  const url = parseCommon(raw);
+  if (!url) return fail('INVALID');
+
+  const host = url.hostname.toLowerCase();
+  let id = '';
+
+  if (host === 'youtube.com' || host === 'www.youtube.com') {
+    if (url.pathname === '/watch') {
+      id = url.searchParams.get('v') ?? '';
+    } else {
+      // `/shorts/ID` and `/embed/ID`. A `/playlist`, a `/channel`, or an `/@handle`
+      // is not a video, so it falls through to the id check and is refused.
+      const path = /^\/(?:shorts|embed)\/([^/?#]+)/.exec(url.pathname);
+      id = path ? path[1] : '';
+    }
+  } else if (host === 'youtu.be') {
+    id = url.pathname.replace(/^\//, '').split('/')[0];
+  } else {
+    return fail('NOT_ALLOWED');
+  }
+
+  if (!/^[A-Za-z0-9_-]{11}$/.test(id)) return fail('INVALID');
+  return {ok: true, value: id};
+}
+
+/**
+ * The canonical watch URL for a stored id.
+ *
+ * Rebuilt from the eleven characters rather than kept from what somebody
+ * pasted, so a tracking query string or a playlist parameter cannot survive
+ * into a public page.
+ */
+export function watchUrlFor(videoId: string): string {
+  return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+}
+
+/**
+ * The embed URL for a stored id.
+ *
+ * **Never derived from user input.** The only thing that reaches this function
+ * is an id that already matched `^[A-Za-z0-9_-]{11}$`, so there is nothing in
+ * it that could close the `src` attribute and open something else. Building the
+ * embed anywhere near the raw submission is how a provider URL becomes an
+ * injection point.
+ */
+export function embedUrlFor(videoId: string): string {
+  if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) return '';
+  return `https://www.youtube.com/embed/${videoId}`;
+}

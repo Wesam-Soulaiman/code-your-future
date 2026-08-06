@@ -196,6 +196,53 @@
             }
           </div>
 
+          <!-- ── The public demo ⟨CP8⟩ ──────────────────────────────────── -->
+          <div class="cyf-field">
+            <label class="cyf-label" for="demo-title">
+              {{ 'student.tasks.reel.demoTitle' | translate }}
+              <span class="cyf-muted">{{ 'student.tasks.optional' | translate }}</span>
+            </label>
+            <input
+              id="demo-title"
+              name="demoTitle"
+              type="text"
+              class="cyf-input"
+              [maxlength]="limits.demoTitle.max"
+              [disabled]="!isOpen() || busy()"
+              [ngModel]="valueOf('demoTitle')"
+              (ngModelChange)="setValue('demoTitle', $event)"
+            />
+            <p class="cyf-helper">{{ 'student.tasks.reel.demoTitleHint' | translate }}</p>
+            @if (fieldErrors()['demoTitle']; as reason) {
+              <p class="cyf-field-error">{{ reason | translate }}</p>
+            }
+          </div>
+
+          <div class="cyf-field">
+            <label class="cyf-label" for="demo-video">
+              {{ 'student.tasks.reel.demoVideo' | translate }}
+              <span class="cyf-muted">{{ 'student.tasks.optional' | translate }}</span>
+            </label>
+            <input
+              id="demo-video"
+              name="demoVideoUrl"
+              type="url"
+              class="cyf-input"
+              inputmode="url"
+              [maxlength]="limits.url.max"
+              [disabled]="!isOpen() || busy()"
+              [ngModel]="valueOf('demoVideoUrl')"
+              (ngModelChange)="setValue('demoVideoUrl', $event)"
+            />
+            <!-- Said plainly: only these three shapes, and only YouTube. A
+                 Student who pastes a Drive link should learn that here rather
+                 than from a rejected submit. -->
+            <p class="cyf-helper">{{ 'student.tasks.reel.demoVideoHint' | translate }}</p>
+            @if (fieldErrors()['demoVideoUrl']; as reason) {
+              <p class="cyf-field-error">{{ reason | translate }}</p>
+            }
+          </div>
+
           <!-- ── Technologies ─────────────────────────────────────────── -->
           <div class="cyf-field">
             <label class="cyf-label" for="technology-draft">

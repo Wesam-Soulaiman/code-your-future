@@ -167,6 +167,8 @@ export const TASK_LIMITS = {
   publicProjectTitle: { min: 1, max: 100 },
   publicProjectDescription: { min: 1, max: 500 },
   myContribution: { min: 1, max: 500 },
+  /** CP8 — the optional demo title shown on a public Reel. */
+  demoTitle: { min: 1, max: 120 },
   technologyItem: { min: 1, max: 50 },
   url: { max: 500 },
 } as const;

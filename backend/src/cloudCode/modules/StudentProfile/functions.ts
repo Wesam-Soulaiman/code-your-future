@@ -41,6 +41,7 @@ import {
 import {resolveCatalogSelections} from './catalogRefs';
 import {importGoogleAvatar, suggestedFullName} from './googleImport';
 import {toEmptyProfileDto, toStudentProfileDto} from './dto';
+import {reevaluateProfilePublications} from '../BatchTask/publication';
 import {profileLog} from './logging';
 import {findProfileForUser, saveProfileForUser, setProfilePhoto} from './repository';
 import {findPrivilegedFields, validateProfileInput} from './validation';
@@ -237,6 +238,17 @@ class StudentProfileFunctions {
         if (!attachError && updated) profile = updated as Parse.Object;
       }
     }
+
+    /*
+      A profile change can change what is public ⟨CP8B⟩.
+
+      Publication depends on the profile being complete and on the name it
+      carries, and a Student editing their profile never touches a Task — so
+      without this, emptying a profile would leave the public pages showing
+      somebody who no longer qualifies. Never throws: saving a profile must not
+      fail because a Reel could not be updated.
+    */
+    await reevaluateProfilePublications(profile);
 
     profileLog.info('Profile saved', {
       op: 'saveMyStudentProfile',

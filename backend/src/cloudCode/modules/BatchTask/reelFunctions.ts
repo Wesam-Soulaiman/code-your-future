@@ -186,6 +186,96 @@ class TalentReelAdminFunctions {
 
     return toPublicationDto(saved);
   }
+
+  /**
+   * Pin a published Reel so it appears first.
+   *
+   * Ordering, and nothing else. This does not publish anybody, does not change
+   * what a Visitor can read, and does not survive the publication being
+   * withdrawn — a pin on a hidden row simply never reaches a public query.
+   *
+   * Refused unless the publication exists **and is currently published**: a pin
+   * on somebody invisible would be a decision with no effect that an Admin
+   * would reasonably expect to have one.
+   */
+  @CloudFunction({
+    methods: ['POST'],
+    validation: {requireUser: true, fields: {submissionId: {required: true, type: String}}},
+    swagger: {
+      summary: 'Pin a Talent Reel',
+      description:
+        'Ordering only. Pinned Reels appear first in Discovery and the Reel. ' +
+        'Refused for a Student who is not currently public. Admins only.',
+      tags: ['Talent Reels'],
+      responses: {
+        '200': {description: 'The pinned publication'},
+        '400': {description: 'Not currently published'},
+        '404': {description: 'No publication for that Submission'},
+      },
+    },
+  })
+  async pinTalentReel(req: Parse.Cloud.FunctionRequest) {
+    return setPinned(req, true, 'pinTalentReel');
+  }
+
+  /** Remove the highlight. Changes ordering and nothing else. */
+  @CloudFunction({
+    methods: ['POST'],
+    validation: {requireUser: true, fields: {submissionId: {required: true, type: String}}},
+    swagger: {
+      summary: 'Unpin a Talent Reel',
+      description: 'Ordering only. Restores the default newest-first position. Admins only.',
+      tags: ['Talent Reels'],
+      responses: {'200': {description: 'The publication'}},
+    },
+  })
+  async unpinTalentReel(req: Parse.Cloud.FunctionRequest) {
+    return setPinned(req, false, 'unpinTalentReel');
+  }
+
+}
+
+/**
+ * Both pin controls, which differ only in the Boolean they write.
+ *
+ * A module-level function rather than a method on the class, and not by
+ * preference: the kit invokes a registered cloud function unbound, so `this` is
+ * undefined inside one. A `this.setPinned(...)` call compiled cleanly, passed
+ * every source-reading test — the authorisation check really was in the body —
+ * and threw `Cannot read properties of undefined` on the first real request.
+ * Runtime validation caught it; nothing else could have.
+ */
+async function setPinned(req: Parse.Cloud.FunctionRequest, pinned: boolean, op: string) {
+  const admin = await requireAdmin(req, op);
+  const params = (req.params ?? {}) as Record<string, unknown>;
+
+  const submission = await findSubmissionById(params['submissionId']);
+  if (!submission) throw taskError(TaskError.SUBMISSION_NOT_FOUND);
+
+  const publication = await findPublicationForSubmission(submission.id);
+  if (!publication) throw taskError(TaskError.TALENT_REEL_NOT_FOUND);
+
+  // Pinning somebody invisible is a decision with no effect. Unpinning is
+  // always allowed, so a stale pin can be cleared from a withdrawn row.
+  if (pinned && publication.get('status') !== PUBLICATION_STATUS.PUBLISHED) {
+    throw taskError(TaskError.TALENT_REEL_NOT_ELIGIBLE);
+  }
+
+  const saved = await savePublication(publication, {
+    pinned,
+    pinnedAt: pinned ? new Date() : undefined,
+  });
+
+  taskLog.info(pinned ? 'Talent Reel pinned' : 'Talent Reel unpinned', {
+    op,
+    stage: 'reel',
+    ok: true,
+    userId: admin.id,
+    submissionId: submission.id,
+    publicationId: saved.id,
+  });
+
+  return toPublicationDto(saved);
 }
 
 @Route('task-history')

@@ -1,0 +1,213 @@
+<!--
+  A public student profile ⟨CP8⟩.
+
+  Read-only throughout. Every field on this page is one the Student chose to
+  publish; nothing private reaches the browser at all, so there is nothing here
+  to hide conditionally.
+-->
+<div class="cyf-public-page">
+  @if (loading()) {
+    <p class="cyf-muted">{{ 'common.loading' | translate }}</p>
+  } @else if (notFound() || !profile()) {
+    <!-- An unknown slug and a withdrawn one render identically, on purpose. -->
+    <section class="cyf-public-empty">
+      <h1 class="cyf-page-title">{{ 'public.profile.notFoundTitle' | translate }}</h1>
+      <p class="cyf-muted">{{ 'public.profile.notFoundBody' | translate }}</p>
+      <a routerLink="/students" class="cyf-public-view">
+        {{ 'public.profile.backToDirectory' | translate }}
+      </a>
+    </section>
+  } @else if (profile(); as student) {
+    <nav class="cyf-public-breadcrumb">
+      <a routerLink="/students">{{ 'public.students.title' | translate }}</a>
+    </nav>
+
+    <!-- ── Identity ──────────────────────────────────────────────────────── -->
+    <header class="cyf-public-profile-header">
+      <span class="cyf-public-avatar cyf-public-avatar-lg">
+        @if (student.photoUrl) {
+          <img
+            [src]="photoSrc()"
+            [alt]="student.name"
+            decoding="async"
+            width="120"
+            height="120"
+          />
+        } @else {
+          <span class="cyf-public-avatar-initial" aria-hidden="true">{{ initial() }}</span>
+        }
+      </span>
+
+      <div class="cyf-public-profile-identity">
+        <h1 class="cyf-page-title">{{ student.name }}</h1>
+
+        <p class="cyf-public-profile-meta">
+          @if (student.targetRole) {
+            <span class="cyf-public-profile-role">{{ student.targetRole }}</span>
+          }
+          @if (student.city) {
+            <span>{{ student.city }}</span>
+          }
+          @if (student.educationStatus) {
+            <span>
+              {{
+                educationLabel() ? (educationLabel() | translate) : student.educationStatus
+              }}
+            </span>
+          }
+        </p>
+
+        @if (hasLinks()) {
+          <ul class="cyf-public-links">
+            @if (student.githubUrl) {
+              <li>
+                <!-- `noopener noreferrer` on every outbound link: these point at
+                     addresses a Student supplied, and an opened page must not be
+                     able to reach back into this one. -->
+                <a [href]="student.githubUrl" target="_blank" rel="noopener noreferrer">
+                  {{ 'public.profile.github' | translate }}
+                </a>
+              </li>
+            }
+            @if (student.linkedinUrl) {
+              <li>
+                <a [href]="student.linkedinUrl" target="_blank" rel="noopener noreferrer">
+                  {{ 'public.profile.linkedin' | translate }}
+                </a>
+              </li>
+            }
+            @if (student.portfolioUrl) {
+              <li>
+                <a [href]="student.portfolioUrl" target="_blank" rel="noopener noreferrer">
+                  {{ 'public.profile.portfolio' | translate }}
+                </a>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </header>
+
+    <!-- ── About ─────────────────────────────────────────────────────────── -->
+    @if (student.about) {
+      <section class="cyf-public-section">
+        <h2 class="cyf-heading-sm">{{ 'public.profile.about' | translate }}</h2>
+        <p class="cyf-public-about">{{ student.about }}</p>
+      </section>
+    }
+
+    <!-- ── Education ─────────────────────────────────────────────────────── -->
+    @if (student.education; as education) {
+      <section class="cyf-public-section">
+        <h2 class="cyf-heading-sm">{{ 'public.profile.education' | translate }}</h2>
+        <p class="cyf-public-education">
+          @if (education.institution) {
+            <span class="cyf-public-education-place">{{ education.institution }}</span>
+          }
+          @if (education.major) {
+            <span>{{ education.major }}</span>
+          }
+        </p>
+      </section>
+    }
+
+    <!-- ── Technologies ──────────────────────────────────────────────────── -->
+    @if (student.technologies.length > 0) {
+      <section class="cyf-public-section">
+        <h2 class="cyf-heading-sm">{{ 'public.profile.technologies' | translate }}</h2>
+        <ul class="cyf-public-tech-list">
+          @for (tech of student.technologies; track tech) {
+            <li class="cyf-public-tech">{{ tech }}</li>
+          }
+        </ul>
+      </section>
+    }
+
+    <!-- ── Projects ──────────────────────────────────────────────────────── -->
+    <section class="cyf-public-section">
+      <h2 class="cyf-heading-sm">{{ 'public.profile.projects' | translate }}</h2>
+
+      @for (project of student.projects; track project.video.videoId) {
+        <article class="cyf-public-project">
+          <h3 class="cyf-public-project-title">
+            {{ project.title }}
+            @if (project.isDemo) {
+              <span class="cyf-status-chip cyf-status-success">
+                {{ 'public.profile.demo' | translate }}
+              </span>
+            }
+          </h3>
+
+          <!-- The video. A poster image until somebody asks to watch, so a
+               profile with three projects does not mount three players before
+               anybody has pressed anything. -->
+          <div class="cyf-public-video">
+            @if (isPlaying(project) && embedUrl(project); as src) {
+              <iframe
+                [src]="src"
+                [title]="project.title"
+                loading="lazy"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allow="accelerometer; encrypted-media; picture-in-picture"
+                allowfullscreen
+              ></iframe>
+            } @else {
+              <button
+                type="button"
+                class="cyf-public-video-poster"
+                (click)="play(project)"
+                [attr.aria-label]="'public.profile.playVideo' | translate: { title: project.title }"
+              >
+                <img
+                  [src]="posterFor(project)"
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <span class="cyf-public-video-play" aria-hidden="true">▶</span>
+              </button>
+            }
+          </div>
+
+          @if (project.description) {
+            <p class="cyf-public-project-text">{{ project.description }}</p>
+          }
+
+          @if (project.contribution) {
+            <div class="cyf-public-project-block">
+              <h4 class="cyf-heading-xs">{{ 'public.profile.contribution' | translate }}</h4>
+              <p class="cyf-public-project-text">{{ project.contribution }}</p>
+            </div>
+          }
+
+          @if (project.technologies.length > 0) {
+            <ul class="cyf-public-tech-list">
+              @for (tech of project.technologies; track tech) {
+                <li class="cyf-public-tech">{{ tech }}</li>
+              }
+            </ul>
+          }
+
+          @if (project.githubUrl || project.liveDemoUrl) {
+            <p class="cyf-public-project-links">
+              @if (project.githubUrl) {
+                <a [href]="project.githubUrl" target="_blank" rel="noopener noreferrer">
+                  {{ 'public.profile.viewCode' | translate }}
+                </a>
+              }
+              @if (project.liveDemoUrl) {
+                <a [href]="project.liveDemoUrl" target="_blank" rel="noopener noreferrer">
+                  {{ 'public.profile.viewDemo' | translate }}
+                </a>
+              }
+              <a [href]="project.video.watchUrl" target="_blank" rel="noopener noreferrer">
+                {{ 'public.profile.watchOnYoutube' | translate }}
+              </a>
+            </p>
+          }
+        </article>
+      }
+    </section>
+  }
+</div>

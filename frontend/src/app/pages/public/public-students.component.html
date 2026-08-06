@@ -1,0 +1,261 @@
+<!--
+  Discover Talent ⟨CP8⟩.
+
+  A public grid of Students whose Final Task is published and who consented.
+  Nothing here is editable, nothing here is an admin control, and there is no
+  free-text search — the filters come from the server and are built from what is
+  actually published.
+-->
+<div class="cyf-public-page">
+  <header class="cyf-public-header">
+    <div>
+      <h1 class="cyf-page-title">{{ 'public.students.title' | translate }}</h1>
+      <p class="cyf-muted">{{ 'public.students.subtitle' | translate }}</p>
+    </div>
+
+    <a routerLink="/talent-reel" class="cyf-public-switch">
+      {{ 'public.students.watchReel' | translate }}
+    </a>
+  </header>
+
+  <!-- ── Filters ─────────────────────────────────────────────────────────── -->
+  <section
+    class="cyf-public-filters"
+    [attr.aria-label]="'public.students.filters.label' | translate"
+  >
+    <!-- The one free-text input on the public surface. Debounced, so typing
+         does not become a query per keystroke on an endpoint with no session
+         behind it. -->
+    <div class="cyf-public-filter">
+      <label class="cyf-label" for="filter-search">
+        {{ 'public.students.filters.search' | translate }}
+      </label>
+      <input
+        id="filter-search"
+        type="search"
+        class="cyf-input"
+        autocomplete="off"
+        [attr.placeholder]="'public.students.filters.searchPlaceholder' | translate"
+        [value]="searchDraft()"
+        (input)="setSearch($any($event.target).value)"
+      />
+    </div>
+
+    <div class="cyf-public-filter">
+      <label class="cyf-label" for="filter-sort">
+        {{ 'public.students.filters.sort' | translate }}
+      </label>
+      <select
+        id="filter-sort"
+        class="cyf-input"
+        [value]="sort()"
+        (change)="setSort($any($event.target).value)"
+      >
+        <option value="newest">{{ 'public.students.filters.newest' | translate }}</option>
+        <option value="oldest">{{ 'public.students.filters.oldest' | translate }}</option>
+      </select>
+    </div>
+
+    <div class="cyf-public-filter">
+      <label class="cyf-label" for="filter-role">
+        {{ 'public.students.filters.targetRole' | translate }}
+      </label>
+      <select
+        id="filter-role"
+        class="cyf-input"
+        [value]="filters().targetRole ?? ''"
+        (change)="setTargetRole($any($event.target).value)"
+      >
+        <option value="">{{ 'public.students.filters.any' | translate }}</option>
+        @for (role of options().targetRoles; track role) {
+          <option [value]="role">{{ role }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="cyf-public-filter">
+      <label class="cyf-label" for="filter-city">
+        {{ 'public.students.filters.city' | translate }}
+      </label>
+      <select
+        id="filter-city"
+        class="cyf-input"
+        [value]="filters().city ?? ''"
+        (change)="setCity($any($event.target).value)"
+      >
+        <option value="">{{ 'public.students.filters.any' | translate }}</option>
+        @for (city of options().cities; track city) {
+          <option [value]="city">{{ city }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="cyf-public-filter">
+      <label class="cyf-label" for="filter-education">
+        {{ 'public.students.filters.educationStatus' | translate }}
+      </label>
+      <select
+        id="filter-education"
+        class="cyf-input"
+        [value]="filters().educationStatus ?? ''"
+        (change)="setEducationStatus($any($event.target).value)"
+      >
+        <option value="">{{ 'public.students.filters.any' | translate }}</option>
+        @for (status of options().educationStatuses; track status) {
+          <!-- The stored value is a phrase, not a code, so it cannot be
+               pasted into a key path. An unrecognised one renders as itself. -->
+          <option [value]="status">
+            {{ educationLabel(status) ? (educationLabel(status) | translate) : status }}
+          </option>
+        }
+      </select>
+    </div>
+
+    <div class="cyf-public-filter cyf-public-filter-wide">
+      <span class="cyf-label">{{ 'public.students.filters.technologies' | translate }}</span>
+      @if (options().technologies.length === 0) {
+        <p class="cyf-helper">{{ 'public.students.filters.noTechnologies' | translate }}</p>
+      } @else {
+        <ul class="cyf-public-tech-filters">
+          @for (tech of options().technologies; track tech) {
+            <li>
+              <button
+                type="button"
+                class="cyf-public-tech-toggle"
+                [class.cyf-is-selected]="isTechnologySelected(tech)"
+                [attr.aria-pressed]="isTechnologySelected(tech)"
+                (click)="toggleTechnology(tech)"
+              >
+                {{ tech }}
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <div class="cyf-public-filter">
+      <label class="cyf-public-check">
+        <input
+          id="filter-demo"
+          type="checkbox"
+          [checked]="filters().hasDemo === true"
+          (change)="toggleHasDemo()"
+        />
+        <span>{{ 'public.students.filters.hasDemo' | translate }}</span>
+      </label>
+
+      @if (activeCount() > 0) {
+        <button type="button" class="cyf-public-clear" (click)="clearFilters()">
+          {{ 'public.students.filters.clear' | translate: { count: activeCount() } }}
+        </button>
+      }
+    </div>
+  </section>
+
+  <!-- ── Results ─────────────────────────────────────────────────────────── -->
+  @if (failed()) {
+    <cyf-alert variant="error" [prefix]="'a11y.errorPrefix' | translate">
+      {{ 'public.errors.unavailable' | translate }}
+    </cyf-alert>
+  } @else if (loading() && cards().length === 0) {
+    <p class="cyf-muted">{{ 'common.loading' | translate }}</p>
+  } @else if (isEmpty()) {
+    <!-- Two different empty states: nothing published at all, versus nothing
+         matching. They call for different next actions. -->
+    <p class="cyf-muted">
+      {{
+        (activeCount() > 0 ? 'public.students.emptyFiltered' : 'public.students.empty') | translate
+      }}
+    </p>
+  } @else {
+    <p class="cyf-public-count">
+      {{ 'public.students.count' | translate: { shown: cards().length, total: total() } }}
+    </p>
+
+    <ul class="cyf-public-grid">
+      <!-- Tracked by index, not by slug: a Student with two published projects
+           appears twice, and duplicate keys would make Angular reuse the wrong
+           node. The list only ever grows, so the index is stable. -->
+      @for (card of cards(); track $index) {
+        <li class="cyf-public-card">
+          <a class="cyf-public-card-link" [routerLink]="['/students', card.slug]">
+            <span class="cyf-public-avatar">
+              @if (card.photoUrl) {
+                <!-- `loading="lazy"` matters here: a filtered grid can be
+                     twenty-four faces, and none below the fold is worth a
+                     request until somebody scrolls to it. -->
+                <img
+                  [src]="photoSrc(card)"
+                  [alt]="card.name"
+                  loading="lazy"
+                  decoding="async"
+                  width="72"
+                  height="72"
+                />
+              } @else {
+                <span class="cyf-public-avatar-initial" aria-hidden="true">
+                  {{ initial(card) }}
+                </span>
+              }
+            </span>
+
+            <span class="cyf-public-card-body">
+              <span class="cyf-public-card-name">{{ card.name }}</span>
+              @if (card.targetRole) {
+                <span class="cyf-public-card-role">{{ card.targetRole }}</span>
+              }
+              @if (card.city) {
+                <span class="cyf-public-card-city">{{ card.city }}</span>
+              }
+            </span>
+          </a>
+
+          @if (card.technologies.length > 0) {
+            <ul class="cyf-public-tech-list">
+              @for (tech of card.technologies; track tech) {
+                <li class="cyf-public-tech">{{ tech }}</li>
+              }
+            </ul>
+          }
+
+          <div class="cyf-public-card-footer">
+            <!--
+              Featured ⟨CP8C⟩ — the whole of what a pin shows a Visitor. The
+              server already returned these first; this only says why.
+            -->
+            @if (card.pinned) {
+              <span class="cyf-status-chip cyf-status-info">
+                {{ 'public.students.pinned' | translate }}
+              </span>
+            }
+            @if (card.hasDemo) {
+              <span class="cyf-status-chip cyf-status-success">
+                {{ 'public.students.hasDemo' | translate }}
+              </span>
+            }
+            <a class="cyf-public-view" [routerLink]="['/students', card.slug]">
+              {{ 'public.students.viewProfile' | translate }}
+            </a>
+          </div>
+        </li>
+      }
+    </ul>
+
+    @if (hasMore()) {
+      <div class="cyf-public-more">
+        <p-button
+          type="button"
+          severity="secondary"
+          [outlined]="true"
+          [disabled]="loading()"
+          [loading]="loading()"
+          (onClick)="loadMore()"
+          styleClass="cyf-btn"
+        >
+          <span>{{ 'public.students.loadMore' | translate }}</span>
+        </p-button>
+      </div>
+    }
+  }
+</div>
